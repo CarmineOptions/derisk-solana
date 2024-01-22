@@ -1,6 +1,7 @@
 import base64
+import json
 from hashlib import sha256
-from typing import Any, Dict, Union, Callable
+from typing import Any, Dict, Union, Callable, List, Tuple
 from dataclasses import dataclass
 import struct
 
@@ -26,7 +27,10 @@ bytes_map = {
     'enum': 1
 }
 
-def convert_bytes_to_type(data_type):
+
+def convert_bytes_to_type(data_type, **kwargs):
+    if data_type == 'enum':
+        variants = kwargs.get("variants")
     conversion_functions = {
         'bool': lambda b: bool(int.from_bytes(b, 'little')),
         'u8': lambda b: b[0],
@@ -45,8 +49,8 @@ def convert_bytes_to_type(data_type):
         'i256': lambda b: int.from_bytes(b, 'little', signed=True),
         'bytes': lambda b: b,
         'string': lambda b: b.decode('utf-8'),
-        'publicKey': lambda b: b,
-        'enum': lambda b: int.from_bytes(b, 'little')  # TODO get variants as input
+        'publicKey': lambda b: base64.b64encode(b),
+        'enum': lambda b: variants[int.from_bytes(b, 'little')]  # TODO get variants as input
     }
     return conversion_functions[data_type]
 
@@ -61,7 +65,7 @@ def camelcase(s):
 
 
 @dataclass
-class Layout:
+class FieldLayout:
     name: str
     conversion_function: Callable
     length: int
@@ -69,13 +73,31 @@ class Layout:
     def __str__(self):
         return f"Layout: {self.name} \n   Conversion function: {self.conversion_function} \n   Bytes: {self.length}"
 
-    def decode(self):
-        raise NotImplementedError
+    def decode(self, msg: bytes) -> Tuple[Dict[str, Union[int, str]], bytes]:
+        """ Decode message based on field layout. """
+        sequence = msg[: self.length]
+        decoded_msg = self.conversion_function(sequence)
+
+        return {self.name: decoded_msg}, msg[self.length:]
+
+
+@dataclass
+class EventLayout:
+    name: str
+    fields: List[FieldLayout]
+
+    def decode(self, msg: bytes) -> Tuple[Dict[str, Union[int, str]], bytes]:
+        """ Decode message based on event layout. """
+        decoded_message = dict()
+        for field in self.fields:
+            decoded_field, msg = field.decode(msg)
+            decoded_message.update(decoded_field)
+        return decoded_message, msg
 
 
 class EventDecoder:
     def __init__(self, idl: Dict):
-        self.layouts: Dict[str, Layout] = dict()
+        self.layouts: Dict[str, EventLayout] = dict()
         self.discriminators = dict()
 
         if 'events' in idl:
@@ -86,9 +108,26 @@ class EventDecoder:
                 discriminator = base64.b64encode(self.event_discriminator(event['name']))
                 self.discriminators[discriminator] = event['name']
 
-    def decode(self, log: str) -> Union[Dict[str, Any], None]:
+    def decode(self, message: str) -> Union[Dict[str, Any], None]:
+        """
+        Decodes a Solana transaction log into a dictionary containing the decoded data and the event name.
+
+        The method attempts to decode a base64 encoded string. It first extracts a discriminator from the
+        initial part of the message, uses it to identify the event name, and then decodes the rest of the message
+        according to a specific layout associated with that event.
+
+        Parameters:
+        - message (str): A base64 encoded string representing the message to be decoded.
+
+        Returns:
+        - dict: A dictionary with two keys: 'data' containing the decoded data, and 'name' containing the event name.
+
+        Raises:
+        - Exception: If the event name extracted from the message is unknown.
+        - AssertionError: If the message is not fully consumed during decoding.
+        """
         try:
-            log_arr = base64.b64decode(log)
+            log_arr = base64.b64decode(message)
         except Exception as e:
             return None
 
@@ -103,7 +142,8 @@ class EventDecoder:
 
         layout = self.layouts[event_name]
         # Assuming layout.decode decodes the event data
-        data = layout.decode(log_arr[8:])
+        data, msg = layout.decode(log_arr[8:])
+        assert len(msg) == 0, f'Message was not fully consumed. Residual message: {msg}'
         return {"data": data, "name": event_name}
 
     @staticmethod
@@ -113,7 +153,7 @@ class EventDecoder:
 
 class IdlCoder:
     @staticmethod
-    def field_layout(field, types=None):
+    def field_layout(field, types=None) -> FieldLayout:
         field_name = camelcase(field.get('name')) if field.get('name') else None
         field_type = field.get('type')
 
@@ -122,8 +162,7 @@ class IdlCoder:
             if field_type in bytes_map:
                 conversion_func = convert_bytes_to_type(field_type)
                 bytes_size = bytes_map.get(field_type)
-                return Layout(name=field_name, conversion_function=conversion_func, length=bytes_size)
-
+                return FieldLayout(name=field_name, conversion_function=conversion_func, length=bytes_size)
 
         # Handling complex types
         elif isinstance(field_type, dict):
@@ -158,33 +197,19 @@ class IdlCoder:
             raise NotImplementedError(f"Not yet implemented: {field_type}")
 
     @staticmethod
-    def type_def_layout(type_def, types=None, name=None):
+    def type_def_layout(type_def, types=None, name=None) -> FieldLayout | EventLayout:
         kind = type_def['type']['kind']
 
         if kind == "struct":
             # Handling a struct type
             field_layouts = [IdlCoder.field_layout(f, types) for f in type_def['type']['fields']]
-            return field_layouts
+            return EventLayout(name=name, fields=field_layouts)
 
         elif kind == "enum":
             # Handling an enum type
-            variants = []
-            for variant in type_def['type']['variants']:
-                variant_name = camelcase(variant['name'])
-                if not variant.get('fields'):
-                    variants.append(([], variant_name))
-                else:
-                    field_layouts = []
-                    for f in variant['fields']:
-                        if isinstance(f, dict) and 'name' in f:
-                            field_layouts.append(IdlCoder.field_layout(f, types))
-                        else:
-                            # Handling unnamed fields in enum variants
-                            field_layouts.append(IdlCoder.field_layout({'type': f, 'name': str(i)}, types))
-                    variants.append((field_layouts, variant_name))
-            conversion_func = convert_bytes_to_type('enum')
+            conversion_func = convert_bytes_to_type('enum', variants = [v.get('name') for v in type_def['type']['variants']])
             bytes_size = bytes_map.get('enum')
-            return Layout(name=name, conversion_function=conversion_func, length=bytes_size)
+            return FieldLayout(name=name, conversion_function=conversion_func, length=bytes_size)
 
         elif kind == "alias":
             # Handling an alias type
@@ -194,12 +219,21 @@ class IdlCoder:
             raise NotImplementedError(f"Not yet implemented for kind: {kind}")
 
     @staticmethod
-    def get_event_layout(type_def, types=None):
-        kind = type_def.get('kind', 'struct')
+    def get_event_layout(type_def, types=None) -> EventLayout:
+        """ Creates event layout from event Idl. """
+        event_layout = EventLayout(
+            name=type_def.get('name'),
+            fields=[IdlCoder.field_layout(f, types) for f in type_def['fields']]
+        )
+        return event_layout
 
-        if kind == "struct":
-            # Handling a struct type
-            field_layouts = [IdlCoder.field_layout(f, types) for f in type_def['fields']]
-            return field_layouts
-        else:
-            raise NotImplementedError(f"Not yet implemented for kind: {kind}")
+
+if __name__ == '__main__':
+    program_data = 'dZKDSrOa27JbF8fIam5zn68XUYGDY+lPkIvzcATObT+88Ze90vUfHAMAciRhcXkQURwAAAAAAAAAAHIkYXF5EFEcAAAAAAAAAADE4tumMfvqCQAAAAAAAAAAZz5zDgAAAAC84t9SD3gBAAAAAAAAAAAAAABnb4YDieoJAAAAAAAAAAC4YN6RBROBUwdaAAAAAAAASPdg8Okq6H/PggAAAAAAAORtEAAAAAAAq7UNyTEAAAAAAAAAAAAAAA=='
+
+    with open('./mango_v4.json') as fp:
+        event_decoder = EventDecoder(json.load(fp))
+
+    result = event_decoder.decode(program_data)
+
+    print(result)
