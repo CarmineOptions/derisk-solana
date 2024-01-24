@@ -1,0 +1,2 @@
+solana==0.31.0
+sqlalchemy==2.0.25
