@@ -1,0 +1,16 @@
+[tool.poetry]
+name = "derisk-solana"
+version = "0.1.0"
+description = "DeRisk - Risk monitoring and insurance against bad debt."
+authors = ["Lukas Petrasek <lukas@carmine.finance>"]
+license = "MIT"
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+jupyter = "^1.0.0"
+solana = "^0.31.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
