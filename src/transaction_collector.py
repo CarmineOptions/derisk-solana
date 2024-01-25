@@ -56,7 +56,7 @@ class TransactionCollector:
             latest_transaction = session.query(TransactionStatusWithSignature.signature) \
                 .filter(TransactionStatusWithSignature.source == self.protocol_public_key) \
                 .order_by(TransactionStatusWithSignature.id.desc()) \
-                .first()
+                .first()[0]
             LOGGER.info(f"Latest stored signature obtained: {latest_transaction}")
             self._last_tx_signature = Signature.from_string(latest_transaction)
 
@@ -115,7 +115,7 @@ class TransactionCollector:
 if __name__ == '__main__':
     print('Start collecting tx from mango protocol: ...')
     tx_collector = TransactionCollector(protocol_public_key=PPK)
-    tx_collector.fetch_last_transaction_recorded()
+    tx_collector.set_last_transaction_recorded()
 
     last_tx_sign = tx_collector.collect_transactions()
 
