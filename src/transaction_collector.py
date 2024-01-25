@@ -21,12 +21,38 @@ TX_BATCH_SIZE = 1000
 
 
 class TransactionCollector:
-    def __init__(self, protocol_public_key: str):
+    def __init__(self, protocol_public_key: str, rate_limit: int = 5):
         self.protocol_public_key = protocol_public_key
         self.solana_client = solana.rpc.api.Client(os.getenv("QUICKNODE_TOKEN"))
 
         self._last_tx_signature: Signature | None = None
         self._last_tx_hit: bool = False
+
+        self.max_calls_per_second = rate_limit
+        self._call_timestamps = []
+
+    def _rate_limit_calls(self):
+        """
+        Enforces rate limiting for API calls.
+
+        This method implements a rate-limiting mechanism to control the frequency of API calls.
+        It ensures that the number of API calls does not exceed a predefined limit per second.
+        If the limit is reached, it will pause the execution momentarily before allowing further API calls.
+        """
+        # Check if the number of calls made in the last second exceeds the maximum limit
+        while len(self._call_timestamps) >= self.max_calls_per_second:
+            # Calculate the time passed since the first call in the timestamp list
+            time_passed = time.time() - self._call_timestamps[0]
+
+            if time_passed > 1:
+                # More than a second has passed since the first call, remove it from the list
+                self._call_timestamps.pop(0)
+            else:
+                # Wait for the remainder of the second before allowing more calls
+                time.sleep(1 - time_passed)
+
+        # Record the timestamp of the current call
+        self._call_timestamps.append(time.time())
 
     def _fetch_transactions(self) -> List[RpcConfirmedTransactionStatusWithSignature]:
         """
@@ -34,6 +60,8 @@ class TransactionCollector:
         Fetch only transactions appeared before self._last_tx_signature. If None - fetch starting from the latest.
         :return: list of transactions.
         """
+        self._rate_limit_calls()
+
         try:
             response = self.solana_client.get_signatures_for_address(
                 solana.rpc.api.Pubkey.from_string(self.protocol_public_key),
@@ -43,7 +71,7 @@ class TransactionCollector:
             transactions = response.value
         except SolanaRpcException as e:  # Most likely to catch 503 here. If something else - we stuck in loop TODO fix
             LOGGER.error(f"SolanaRpcException: {e}")
-            time.sleep(3)
+            time.sleep(2)
             return self._fetch_transactions()
 
         if len(transactions) < TX_BATCH_SIZE:
