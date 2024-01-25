@@ -1,14 +1,17 @@
 import os
 import logging
+import time
 from typing import List
 
 import solana.rpc.api
+from solana.exceptions import SolanaRpcException
 from solders.rpc.responses import RpcConfirmedTransactionStatusWithSignature
 from solders.signature import Signature
 
 from db_model import get_db_session, TransactionStatusWithSignature, TransactionStatusError, TransactionStatusMemo
 
 LOGGER = logging.getLogger(__name__)
+LOGGER.setLevel(logging.INFO)
 
 
 # pk = '6LtLpnUFNByNXLyCoK9wA2MykKAmQNZKBdY8s47dehDc'
@@ -31,17 +34,31 @@ class TransactionCollector:
         Fetch only transactions appeared before self._last_tx_signature. If None - fetch starting from the latest.
         :return: list of transactions.
         """
-        response = self.solana_client.get_signatures_for_address(
-            solana.rpc.api.Pubkey.from_string(self.protocol_public_key),
-            limit=TX_BATCH_SIZE,
-            before=self._last_tx_signature.signature if self._last_tx_signature else None
-        )
-        transactions = response.value
+        try:
+            response = self.solana_client.get_signatures_for_address(
+                solana.rpc.api.Pubkey.from_string(self.protocol_public_key),
+                limit=TX_BATCH_SIZE,
+                before=self._last_tx_signature
+            )
+            transactions = response.value
+        except SolanaRpcException as e:  # Most likely to catch 503 here. If something else - we stuck in loop TODO fix
+            LOGGER.error(f"SolanaRpcException: {e}")
+            time.sleep(3)
+            return self._fetch_transactions()
 
         if len(transactions) < TX_BATCH_SIZE:
             self._last_tx_hit = True
 
         return transactions
+
+    def set_last_transaction_recorded(self):
+        with get_db_session() as session:
+            latest_transaction = session.query(TransactionStatusWithSignature.signature) \
+                .filter(TransactionStatusWithSignature.source == self.protocol_public_key) \
+                .order_by(TransactionStatusWithSignature.id.desc()) \
+                .first()
+            LOGGER.info(f"Latest stored signature obtained: {latest_transaction}")
+            self._last_tx_signature = Signature.from_string(latest_transaction)
 
     def _add_transactions_to_db(self, transactions: List[RpcConfirmedTransactionStatusWithSignature]) -> None:
         """
@@ -73,7 +90,7 @@ class TransactionCollector:
                     session.add(tx_memo_record)
 
             session.commit()
-        self._last_tx_signature = transactions[-1]
+        self._last_tx_signature = transactions[-1].signature
 
     def collect_transactions(self, last_tx_signature: Signature | None = None) -> Signature:
         """
@@ -98,6 +115,7 @@ class TransactionCollector:
 if __name__ == '__main__':
     print('Start collecting tx from mango protocol: ...')
     tx_collector = TransactionCollector(protocol_public_key=PPK)
+    tx_collector.fetch_last_transaction_recorded()
 
     last_tx_sign = tx_collector.collect_transactions()
 
