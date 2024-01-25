@@ -11,7 +11,7 @@ Base = declarative_base()
 DB_CONNECTION_STRING = os.getenv("PG_CONNECTION_STRING")
 
 DRIVERS = "postgresql+psycopg2://"
-CONN_STRING = DRIVERS + f"{DB_CONNECTION_STRING}"
+CONN_STRING = DRIVERS + f"{DB_CONNECTION_STRING.replace('postgres://', '')}"
 
 
 def get_db_session() -> Session:
@@ -30,9 +30,9 @@ class TransactionStatusWithSignature(Base):
 
     id = Column(Integer, primary_key=True)
     source = Column(String, nullable=False)
-    signature = Column(String, unique=True, nullable=False)
+    signature = Column(String, nullable=False)
     slot = Column(BigInteger, nullable=False)
-    block_time = Column(DateTime, nullable=False)
+    block_time = Column(BigInteger, nullable=False)
 
     __table_args__ = (
         Index('ix_transactions_slot', 'slot'),
@@ -63,5 +63,5 @@ class TransactionStatusMemo(Base):
 if __name__ == "__main__":
     # create the database engine
     ENGINE = create_engine(CONN_STRING)
-
+    
     Base.metadata.create_all(ENGINE)
