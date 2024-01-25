@@ -34,7 +34,7 @@ class TransactionCollector:
         response = self.solana_client.get_signatures_for_address(
             solana.rpc.api.Pubkey.from_string(self.protocol_public_key),
             limit=TX_BATCH_SIZE,
-            before=self._last_tx_signature
+            before=self._last_tx_signature.signature if self._last_tx_signature else None
         )
         transactions = response.value
 
@@ -57,13 +57,14 @@ class TransactionCollector:
                     block_time=transaction.block_time
                 )
                 session.add(tx_status_record)
+                session.flush()  # Flush here to get the ID
                 # store errors and/or memos to db if any
                 if transaction.err:
                     tx_error_record = TransactionStatusError(
                         error_body=transaction.err.to_json(),
                         tx_signatures_id=tx_status_record.id,
                     )
-                    session.add(tx_memo_record)
+                    session.add(tx_error_record)
                 if transaction.memo:
                     tx_memo_record = TransactionStatusMemo(
                         memo_body=transaction.memo,
@@ -95,6 +96,7 @@ class TransactionCollector:
 
 
 if __name__ == '__main__':
+    print('Start collecting tx from mango protocol: ...')
     tx_collector = TransactionCollector(protocol_public_key=PPK)
 
     last_tx_sign = tx_collector.collect_transactions()
