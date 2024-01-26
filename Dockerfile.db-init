@@ -1,0 +1,10 @@
+FROM python:3.10
+
+WORKDIR /app
+
+COPY ./db_model.py .
+
+RUN pip install sqlalchemy
+RUN pip install psycopg2
+
+CMD ["python3", "./db_model.py"]
