@@ -1,6 +1,9 @@
+# docker compose is ment for local development, do not use docker compose in production!
+
 version: '3.9'
 
 services:
+  # Postgres database
   db:
     image: postgres:15
     environment:
@@ -14,6 +17,7 @@ services:
     ports:
       - 5432:5432
 
+  # if the database is empty, running this python script will setup the tables
   db-init:
     build:
       dockerfile: ./Dockerfile.db-init
@@ -23,6 +27,8 @@ services:
       db:
         condition: service_healthy
 
+  # check locally that the database was initiated correctly
+  # this component should not be in production
   adminer:
     image: adminer
     restart: always
