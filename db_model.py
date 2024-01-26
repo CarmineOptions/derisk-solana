@@ -1,6 +1,7 @@
 import os
 
-from sqlalchemy import create_engine, Column, Integer, String, BigInteger, DateTime, ForeignKey
+from sqlalchemy import create_engine, Column, Integer, String, BigInteger, ForeignKey, Text
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy import Index
@@ -33,6 +34,7 @@ class TransactionStatusWithSignature(Base):
     signature = Column(String, nullable=False)
     slot = Column(BigInteger, nullable=False)
     block_time = Column(BigInteger, nullable=False)
+    tx_raw = Column(String, nullable=True)  # column to store json with transaction's data
 
     __table_args__ = (
         Index('ix_transactions_slot', 'slot'),
@@ -58,6 +60,32 @@ class TransactionStatusMemo(Base):
     id = Column(Integer, primary_key=True)
     memo_body = Column(String, nullable=False)
     tx_signatures_id = Column(Integer, ForeignKey('tx_signatures.id'), nullable=False)
+
+
+class TransactionsProcessed(Base):
+    __tablename__ = 'tx_processed'
+
+    id = Column(Integer, primary_key=True)
+    slot = Column(BigInteger, nullable=False)
+    block_time = Column(BigInteger, nullable=False)
+    program_id = Column(String, nullable=False)
+    event_name = Column(Text, nullable=False)
+    event_data = Column(JSONB, nullable=False)
+    tx_signatures_id = Column(Integer, ForeignKey('tx_signatures.id'), nullable=False)
+
+    __table_args__ = (
+        Index('ix_processed_slot', 'slot'),
+        Index('ix_processed_block_time', 'block_time'),
+        Index('ix_processed_event_name', 'event_name'),
+        Index('ix_processed_program_id', 'program_id')
+    )
+
+
+# # TODO add columns
+# class ProcessedData(Base):
+#     __tablename__ = 'processed_data'
+#     id = Column(Integer, primary_key=True)
+
 
 
 if __name__ == "__main__":
