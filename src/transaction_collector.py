@@ -142,6 +142,7 @@ class TransactionCollector:
         """
         Fill transaction data to `tx_signatures.tx_raw` column if missing.
         """
+        LOGGER.info(f"Start collecting transaction raw data for `{self.protocol_public_key}`.")
         transaction_counter = 0
         start_time = time.time()
 
@@ -157,7 +158,7 @@ class TransactionCollector:
                 ).limit(50).all()
 
                 if not signatures:
-                    time.sleep(5)
+                    time.sleep(3)
                     continue
 
                 for tx_id, signature_str in signatures:

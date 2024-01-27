@@ -12,8 +12,9 @@ if __name__ == '__main__':
     PPK = '4MangoMjqJ2firMokCjjGgoK8d4MXcrgL7XJaL3w6fVg'
 
     print('Start collecting tx from mango protocol: ...')
-    tx_collector = TransactionCollector(protocol_public_key=PPK)
+    tx_collector = TransactionCollector(protocol_public_key=PPK, rate_limit = 1)
 
     tx_collector.fetch_raw_transactions_data()
 
     print('Done')
+
