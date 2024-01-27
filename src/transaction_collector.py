@@ -7,12 +7,11 @@ import solana.rpc.api
 from solana.exceptions import SolanaRpcException
 from solders.rpc.responses import RpcConfirmedTransactionStatusWithSignature
 from solders.signature import Signature
+from solders.transaction_status import EncodedConfirmedTransactionWithStatusMeta
 
 from db_model import get_db_session, TransactionStatusWithSignature, TransactionStatusError, TransactionStatusMemo
 
 LOGGER = logging.getLogger(__name__)
-LOGGER.setLevel(logging.INFO)
-
 
 # pk = '6LtLpnUFNByNXLyCoK9wA2MykKAmQNZKBdY8s47dehDc'
 PPK = '4MangoMjqJ2firMokCjjGgoK8d4MXcrgL7XJaL3w6fVg'
@@ -139,8 +138,89 @@ class TransactionCollector:
         LOGGER.info(f'All available transactions are collected. The last signature: `{str(self._last_tx_signature)}`.')
         return last_tx_signature
 
+    def fetch_raw_transactions_data(self) -> None:
+        """
+        Fill transaction data to `tx_signatures.tx_raw` column if missing.
+        """
+        transaction_counter = 0
+        start_time = time.time()
+
+        with get_db_session() as session:
+            while True:
+                # Retrieve 50 transactions where tx_raw is NULL and source matches protocol_public_key
+                signatures = session.query(
+                    TransactionStatusWithSignature.id,
+                    TransactionStatusWithSignature.signature
+                ).filter(
+                    TransactionStatusWithSignature.tx_raw.is_(None),
+                    TransactionStatusWithSignature.source == self.protocol_public_key
+                ).limit(50).all()
+
+                if not signatures:
+                    time.sleep(5)
+                    continue
+
+                for tx_id, signature_str in signatures:
+                    signature = Signature.from_string(signature_str)
+
+                    transaction = self._fetch_tx_data(signature)
+
+                    self._write_raw_tx(tx_id, transaction)
+                    transaction_counter += 1
+
+                    # Log every 10,000 transactions
+                    if transaction_counter % 10000 == 0:
+                        elapsed_time = time.time() - start_time
+                        LOGGER.info(f"Processed {transaction_counter} transactions in {elapsed_time:.2f} seconds")
+
+    @staticmethod
+    def _write_raw_tx(transaction_id: int, transaction: EncodedConfirmedTransactionWithStatusMeta) -> None:
+        """
+        Write transaction data to`tx_signatute.tx_raw` for provided id
+        :param transaction_id: `id` column
+        :param transaction: EncodedConfirmedTransactionWithStatusMeta instance
+        """
+        try:
+            # Serialize the transaction object to a JSON string
+            tx_raw_data = transaction.to_json()
+            with get_db_session() as session:
+                # Find the transaction by ID and update its tx_raw field
+                session.query(TransactionStatusWithSignature).filter(
+                    TransactionStatusWithSignature.id == transaction_id
+                ).update({"tx_raw": tx_raw_data})
+
+                # Commit the changes to the database
+                session.commit()
+
+        except Exception as e:
+            # Handle any exceptions (like serialization errors, database issues)  # TODO can be done better
+            print(f"Error while writing raw transaction data for transaction ID {transaction_id}: {e}")
+
+    def _fetch_tx_data(self, signature: Signature) -> EncodedConfirmedTransactionWithStatusMeta:
+        """
+        Use solana_client to get transaction data based on provided signature.
+        :param signature: Signature
+        :return: transaction data
+        """
+        self._rate_limit_calls()
+
+        try:
+            transaction = self.solana_client.get_transaction(
+                signature,
+                'jsonParsed',
+                max_supported_transaction_version=0
+            )
+        except SolanaRpcException as e:
+            LOGGER.error(f"SolanaRpcException: {e}")
+            time.sleep(1)
+            return self._fetch_tx_data(signature)
+
+        return transaction.value
+
 
 if __name__ == '__main__':
+    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+
     print('Start collecting tx from mango protocol: ...')
     tx_collector = TransactionCollector(protocol_public_key=PPK)
     tx_collector.set_last_transaction_recorded()
