@@ -26,6 +26,15 @@ if __name__ == '__main__':
     )
     tx_collector.set_last_transaction_recorded()
 
-    last_tx_sign = tx_collector.collect_transactions()
+    last_tx_sign = tx_collector.collect_historic_transactions()
 
-    print(last_tx_sign)
+    print(f"Oldest transaction found: `{last_tx_sign}`")
+
+    # create new instance to reset internal counters
+    tx_collector = TransactionCollector(
+        protocol_public_key=PPK,
+        rate_limit=args.rate if args.rate else 5,
+        source_token=args.rpctoken
+    )
+    # collect fresh transactions
+    tx_collector.collect_fresh_transactions()

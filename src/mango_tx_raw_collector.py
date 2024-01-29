@@ -25,7 +25,7 @@ if __name__ == '__main__':
         rate_limit=args.rate if args.rate else 5,
         source_token=args.rpctoken
     )
-    tx_collector.fetch_raw_transactions_data()
+    tx_collector.fetch_raw_transactions_by_block()
 
     print('Done')
 
