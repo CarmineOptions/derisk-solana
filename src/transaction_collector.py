@@ -24,7 +24,7 @@ class TransactionCollector:
         else:
             self.solana_client = solana.rpc.api.Client(source_token)
 
-        self._last_completed_slot: int | None = None
+        self._last_completed_slot: int = 0
         self._last_tx_signature: Signature | None = None
         self._last_tx_hit: bool = False
 
@@ -140,7 +140,7 @@ class TransactionCollector:
             self._last_tx_signature = transaction.signature
             session.commit()
 
-    def collect_transactions(self, last_tx_signature: Signature | None = None) -> Signature:
+    def collect_historic_transactions(self, last_tx_signature: Signature | None = None) -> Signature:
         """
         Fetch all transaction finilized before last_tx_signature.
         :param last_tx_signature:
@@ -156,8 +156,65 @@ class TransactionCollector:
                 break
             self._add_transactions_to_db(transactions)
 
-        LOGGER.info(f'All available transactions are collected. The last signature: `{str(self._last_tx_signature)}`.')
+        LOGGER.info(f"All available transactions are collected. The last signature: `{str(self._last_tx_signature)}`.")
         return last_tx_signature
+
+    def collect_fresh_transactions(self):
+        """
+        Collection of fresh transactions, i.e. from the last on chain until the oldest (by block time) in database.
+        """
+        LOGGER.info("Start collecting fresh transactions.")
+        while True:
+            # get the freshest signature in database:
+            with get_db_session() as session:
+                try:
+                    freshest_signature = session.query(TransactionStatusWithSignature.signature) \
+                        .filter(TransactionStatusWithSignature.source == self.protocol_public_key) \
+                        .order_by(TransactionStatusWithSignature.block_time.desc()) \
+                        .first()[0]
+                except TypeError:
+                    LOGGER.error(f"No historical data in database for `{self.protocol_public_key}`.")
+
+            # collect transactions until hit the freshest signature
+            while True:
+                transactions = self._fetch_fresh_transaction_signatures(freshest_signature)
+                if not transactions:
+                    break
+                self._add_transactions_to_db(transactions)
+
+    def _fetch_fresh_transaction_signatures(
+            self, freshest_signature: Signature
+    ) -> List[RpcConfirmedTransactionStatusWithSignature]:
+        """
+        Fetch transaction signatures.
+        Fetch only transactions appeared before self._last_tx_signature. If None - fetch starting from the latest.
+        :return: list of transactions.
+        """
+        self._rate_limit_calls()
+
+        try:
+            response = self.solana_client.get_signatures_for_address(
+                solana.rpc.api.Pubkey.from_string(self.protocol_public_key),
+                limit=TX_BATCH_SIZE,
+                before=self._last_tx_signature,
+                until=freshest_signature
+            )
+            transactions = response.value
+        except SolanaRpcException as e:  # Most likely to catch 503 here. If something else - we stuck in loop TODO fix
+            LOGGER.error(f"SolanaRpcException: {e}")
+            time.sleep(2)
+            return self._fetch_fresh_transaction_signatures(freshest_signature=freshest_signature)
+            # get last slot for which we fetched all transactions
+
+        unique_slots = sorted(set([i.slot for i in transactions]))
+        if len(unique_slots) < 2:
+            LOGGER.warning(f"Last batch of size {TX_BATCH_SIZE} contains only transactions"
+                           f" from single slot: {unique_slots[0]}")
+            self._last_completed_slot = unique_slots[0]
+        else:
+            second_last_slot = unique_slots[1]
+            self._last_completed_slot = second_last_slot
+        return transactions
 
     def _fetch_transactions_from_block(self, slot: int) -> List[EncodedConfirmedTransactionWithStatusMeta]:
         self._rate_limit_calls()
