@@ -7,23 +7,24 @@ import solana.rpc.api
 from solana.exceptions import SolanaRpcException
 from solders.rpc.responses import RpcConfirmedTransactionStatusWithSignature
 from solders.signature import Signature
-from solders.transaction_status import EncodedConfirmedTransactionWithStatusMeta
+from solders.transaction_status import EncodedConfirmedTransactionWithStatusMeta, EncodedTransactionWithStatusMeta
 
 from db_model import get_db_session, TransactionStatusWithSignature, TransactionStatusError, TransactionStatusMemo
 
 LOGGER = logging.getLogger(__name__)
 
-# pk = '6LtLpnUFNByNXLyCoK9wA2MykKAmQNZKBdY8s47dehDc'
-PPK = '4MangoMjqJ2firMokCjjGgoK8d4MXcrgL7XJaL3w6fVg'
-
 TX_BATCH_SIZE = 1000
 
 
 class TransactionCollector:
-    def __init__(self, protocol_public_key: str, rate_limit: int = 5):
+    def __init__(self, protocol_public_key: str, rate_limit: int = 5, source_token: str | None = None):
         self.protocol_public_key = protocol_public_key
-        self.solana_client = solana.rpc.api.Client(os.getenv("QUICKNODE_TOKEN"))
+        if not source_token:
+            self.solana_client = solana.rpc.api.Client(os.getenv("QUICKNODE_TOKEN"))
+        else:
+            self.solana_client = solana.rpc.api.Client(source_token)
 
+        self._last_completed_slot: int | None = None
         self._last_tx_signature: Signature | None = None
         self._last_tx_hit: bool = False
 
@@ -53,7 +54,7 @@ class TransactionCollector:
         # Record the timestamp of the current call
         self._call_timestamps.append(time.time())
 
-    def _fetch_transactions(self) -> List[RpcConfirmedTransactionStatusWithSignature]:
+    def _fetch_transaction_signatures(self) -> List[RpcConfirmedTransactionStatusWithSignature]:
         """
         Fetch transaction signatures.
         Fetch only transactions appeared before self._last_tx_signature. If None - fetch starting from the latest.
@@ -71,21 +72,37 @@ class TransactionCollector:
         except SolanaRpcException as e:  # Most likely to catch 503 here. If something else - we stuck in loop TODO fix
             LOGGER.error(f"SolanaRpcException: {e}")
             time.sleep(2)
-            return self._fetch_transactions()
+            return self._fetch_transaction_signatures()
 
         if len(transactions) < TX_BATCH_SIZE:
             self._last_tx_hit = True
 
+        # get last slot for which we fetched all transactions
+        unique_slots = sorted(set([i.slot for i in transactions]))
+        if len(unique_slots) < 2:
+            LOGGER.warning(f"Last batch of size {TX_BATCH_SIZE} contains only transactions"
+                           f" from single slot: {unique_slots[0]}")
+            self._last_completed_slot = unique_slots[0]
+        else:
+            second_last_slot = unique_slots[1]
+            self._last_completed_slot = second_last_slot
+
         return transactions
 
     def set_last_transaction_recorded(self):
+        """ Obtain the last signature recorded for current protocol. """
         with get_db_session() as session:
             latest_transaction = session.query(TransactionStatusWithSignature.signature) \
                 .filter(TransactionStatusWithSignature.source == self.protocol_public_key) \
                 .order_by(TransactionStatusWithSignature.id.desc()) \
-                .first()[0]
-            LOGGER.info(f"Latest stored signature obtained: {latest_transaction}")
-            self._last_tx_signature = Signature.from_string(latest_transaction)
+                .first()
+            if not latest_transaction:
+                LOGGER.warning(f"No signatures found for `{self.protocol_public_key}`."
+                               f" Signatures will be collected from the latest at the moment.")
+                return
+            latest_signature = latest_transaction[0]
+            LOGGER.info(f"The latest stored signature obtained: {latest_signature}")
+            self._last_tx_signature = Signature.from_string(latest_signature)
 
     def _add_transactions_to_db(self, transactions: List[RpcConfirmedTransactionStatusWithSignature]) -> None:
         """
@@ -94,6 +111,10 @@ class TransactionCollector:
         """
         with get_db_session() as session:
             for transaction in transactions:
+                # store only transactions from slot with complete transaction history fetched.
+                if transaction.slot < self._last_completed_slot:
+                    break
+
                 tx_status_record = TransactionStatusWithSignature(
                     signature=str(transaction.signature),
                     source=self.protocol_public_key,
@@ -116,8 +137,8 @@ class TransactionCollector:
                     )
                     session.add(tx_memo_record)
 
+            self._last_tx_signature = transaction.signature
             session.commit()
-        self._last_tx_signature = transactions[-1].signature
 
     def collect_transactions(self, last_tx_signature: Signature | None = None) -> Signature:
         """
@@ -130,13 +151,88 @@ class TransactionCollector:
             self._last_tx_signature = last_tx_signature
 
         while not self._last_tx_hit:
-            transactions = self._fetch_transactions()
+            transactions = self._fetch_transaction_signatures()
             if not transactions:
                 break
             self._add_transactions_to_db(transactions)
 
         LOGGER.info(f'All available transactions are collected. The last signature: `{str(self._last_tx_signature)}`.')
         return last_tx_signature
+
+    def _fetch_transactions_from_block(self, slot: int) -> List[EncodedConfirmedTransactionWithStatusMeta]:
+        self._rate_limit_calls()
+
+        # fetch block data
+        try:
+            block = self.solana_client.get_block(
+                slot=slot,
+                encoding='jsonParsed',
+                max_supported_transaction_version=0
+            )
+        except SolanaRpcException as e:
+            LOGGER.error(f"SolanaRpcException: {e}")
+            time.sleep(1)
+            return self._fetch_transactions_from_block(slot)
+
+        # keep only transactions with protocol (program) public key involved.
+        transactions = [tx for tx in block.value.transactions if self._is_transaction_relevant(tx)]
+        return transactions
+
+    def fetch_raw_transactions_by_block(self) -> None:
+        """
+        Fill transaction data to `tx_signatures.tx_raw` column if missing.
+        """
+        block_counter = 0
+        start_time = time.time()
+
+        with get_db_session() as session:
+            while True:
+                # Retrieve 200 transactions where tx_raw is NULL and source matches protocol_public_key
+                slots = session.query(
+                    TransactionStatusWithSignature.id,
+                    TransactionStatusWithSignature.slot,
+                ).filter(
+                    TransactionStatusWithSignature.tx_raw.is_(None),
+                    TransactionStatusWithSignature.source == self.protocol_public_key
+                ).limit(200).all()
+
+                if not slots:
+                    time.sleep(5)
+                    continue
+
+                # fetch each slot one by one
+                for slot in {slot for _, slot in slots}:
+                    transactions = self._fetch_transactions_from_block(slot)
+
+                    for transaction in transactions:
+                        # update tx_raw for each transaction
+                        signature = transaction.transaction.signatures[0]
+                        self._update_tx_raw(signature, transaction.to_json())
+
+                # Log every 10,000 slots
+                if block_counter % 10000 == 0:
+                    elapsed_time = time.time() - start_time
+                    LOGGER.info(f"Processed {block_counter} slots in {elapsed_time:.2f} seconds")
+
+    def _update_tx_raw(self, signature: Signature, new_tx_raw: str) -> None:
+        """
+        Update tx_signature (tx_raw) for given signature, if tx_raw is null, otherwise does nothing.
+        :param signature: Signature
+        :param new_tx_raw: jsonfyed transaction data
+        """
+        with get_db_session() as session:
+            # Query for the record with the given signature and source
+            record = session.query(TransactionStatusWithSignature).filter(
+                TransactionStatusWithSignature.tx_raw.is_(None)
+            ).filter_by(signature=str(signature), source=self.protocol_public_key).first()
+
+            # Check if the record exists
+            if record:
+                # Update the tx_raw field
+                record.tx_raw = new_tx_raw
+
+                # Commit the changes
+                session.commit()
 
     def fetch_raw_transactions_data(self) -> None:
         """
@@ -169,7 +265,7 @@ class TransactionCollector:
                     transaction_counter += 1
 
                     # Log every 10,000 transactions
-                    if transaction_counter % 10000 == 0:
+                    if transaction_counter % 100000 == 0:
                         elapsed_time = time.time() - start_time
                         LOGGER.info(f"Processed {transaction_counter} transactions in {elapsed_time:.2f} seconds")
 
@@ -217,15 +313,16 @@ class TransactionCollector:
 
         return transaction.value
 
+    def _is_transaction_relevant(
+            self,
+            transaction: EncodedTransactionWithStatusMeta | EncodedConfirmedTransactionWithStatusMeta
+    ) -> bool:
+        """
+        Identify if transaction is relevant based on presence of program address between transactions account keys
+        """
 
-if __name__ == '__main__':
-    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        relevant_pubkeys = [
+            i for i in transaction.transaction.message.account_keys if str(i.pubkey) == self.protocol_public_key
+        ]
 
-    print('Start collecting tx from mango protocol: ...')
-    tx_collector = TransactionCollector(protocol_public_key=PPK)
-    tx_collector.set_last_transaction_recorded()
-
-    last_tx_sign = tx_collector.collect_transactions()
-
-    print(last_tx_sign)
-
+        return bool(relevant_pubkeys)
