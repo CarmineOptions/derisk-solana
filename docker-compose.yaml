@@ -27,6 +27,19 @@ services:
       db:
         condition: service_healthy
 
+  # api - reads from db, serves over https
+  api:
+    build:
+      dockerfile: ./Dockerfile.api
+    environment:
+      PORT: 3000
+      PG_CONNECTION_STRING: postgres://myuser:mypassword@db/postgres
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - 3000:3000
+
   # check locally that the database was initiated correctly
   # this component should not be in production
   adminer:
