@@ -11,6 +11,7 @@ python = "^3.10"
 jupyter = "^1.0.0"
 solana = "^0.31.0"
 sqlalchemy = "^2.0.25"
+pandas = "^2.2.0"
 
 [build-system]
 requires = ["poetry-core"]
