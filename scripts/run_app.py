@@ -2,8 +2,11 @@ import datetime
 import logging
 import multiprocessing
 import os
+import sys
 
 import streamlit
+
+sys.path.append(".")
 
 import src.persistent_state
 import src.process_data
