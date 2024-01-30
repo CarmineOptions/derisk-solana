@@ -101,7 +101,6 @@ if __name__ == "__main__":
     connection = ENGINE.raw_connection()
     cursor = connection.cursor()
     cursor.execute(f"CREATE SCHEMA IF NOT EXISTS {SCHEMA};")
-    cursor.close()
     connection.commit()
     cursor.close()
     connection.close()
