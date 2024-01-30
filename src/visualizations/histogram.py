@@ -1,5 +1,6 @@
 import decimal
 
+import pandas
 import plotly.express
 import plotly.graph_objs
 

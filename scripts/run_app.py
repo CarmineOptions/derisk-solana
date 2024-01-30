@@ -31,7 +31,7 @@ def main():
 		)
 		token_pair = streamlit.selectbox(
 			label="Select collateral-loan token pair:",
-			options=src.settings.TOKEN_PAIRS,
+			options=src.visualizations.settings.TOKEN_PAIRS,
 			index=0,
 		)
 
