@@ -4,3 +4,4 @@
 # Python compiled bytecode.
 *__pycache__
 
+.env

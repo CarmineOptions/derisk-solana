@@ -1,0 +1,15 @@
+FROM python:3.10
+
+WORKDIR /usr/src/app
+
+ENV FLASK_ENV=production
+
+RUN pip install poetry
+COPY pyproject.toml poetry.lock* ./
+RUN poetry config virtualenvs.create false \
+  && poetry install --no-interaction --no-ansi
+
+COPY ./api ./api
+COPY ./db ./db
+
+CMD ["gunicorn", "-w 4", "-b :3000", "api"]

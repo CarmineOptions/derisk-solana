@@ -12,6 +12,9 @@ jupyter = "^1.0.0"
 solana = "^0.31.0"
 sqlalchemy = "^2.0.25"
 pandas = "^2.2.0"
+flask = "^3.0.1"
+psycopg2-binary = "^2.9.9"
+gunicorn = "^21.2.0"
 
 [build-system]
 requires = ["poetry-core"]

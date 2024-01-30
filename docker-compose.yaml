@@ -1,0 +1,54 @@
+# docker compose is ment for local development, do not use docker compose in production!
+version: '3.9'
+
+services:
+  # Postgres database
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: myuser
+      POSTGRES_PASSWORD: mypassword
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    ports:
+      - 5432:5432
+
+  # if the database is empty, running this python script will setup the tables
+  db-init:
+    build:
+      dockerfile: ./Dockerfile.db-init
+    environment:
+      POSTGRES_USER: myuser
+      POSTGRES_PASSWORD: mypassword
+      POSTGRES_HOST: db
+      POSTGRES_DB: postgres
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # api - reads from db, serves over http
+  api:
+    build:
+      dockerfile: ./Dockerfile.api
+    environment:
+      PORT: 3000
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: mypassword
+      POSTGRES_HOST: db
+      POSTGRES_DB: postgres
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - 3000:3000
+
+  # check locally that the database was initiated correctly
+  # this component should not be in production
+  adminer:
+    image: adminer
+    restart: always
+    ports:
+      - 8080:8080
