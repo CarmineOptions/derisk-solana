@@ -21,7 +21,7 @@ import src.visualizations.settings
 
 
 def process_data(states: dict[str, src.protocols.state.State]) -> dict[str, src.protocols.state.State]:
-    logging.info("Started data processing.")
+    logging.info("Starting data processing.")
     # Process lending protocol events.
     max_block_number = 0
     max_timestamp = 0
@@ -42,9 +42,9 @@ def process_data(states: dict[str, src.protocols.state.State]) -> dict[str, src.
 
 	# Aggregate data for the main chart plotting liquidable debt against available liquidity.
     prices = src.prices.get_prices()
-    for pair, state in itertools.product(src.visualizations.settings.PAIRS, states.values()):
-        collateral_token, debt_token = pair.split("-")
-        _ = src.visualizations.main_chart.get_main_chart_data(
+    for token_pair, state in itertools.product(src.visualizations.settings.TOKEN_PAIRS, states.values()):
+        collateral_token, debt_token = token_pair.split("-")
+        _ = src.visualizations.main_chart.prepare_data(
             state=state,
             prices=prices,
             amms=amms,
@@ -56,13 +56,13 @@ def process_data(states: dict[str, src.protocols.state.State]) -> dict[str, src.
 
 	# Compute and save histogram data.
     for state in states.values():
-        _ = src.visualizations.histogram.get_histogram_data(state=state, prices=prices, save_data=True)
+        _ = src.visualizations.histogram.prepare_data(state=state, prices=prices, save_data=True)
     logging.info("Computed histogram data.")
 
 	# Prepara data for the table of individual loans. 
     individual_loan_stats = {}
     for protocol, state in states.items():
-        individual_loan_stats[protocol] = src.visualizations.loans_table.get_loans_table_data(
+        individual_loan_stats[protocol] = src.visualizations.loans_table.prepare_data(
 			state=state,
 			prices=prices,
 			save_data=True,
@@ -92,6 +92,17 @@ def process_data(states: dict[str, src.protocols.state.State]) -> dict[str, src.
 
     logging.info("Ended data processing.")
     return states
+
+
+def process_data_continuously():
+    states = src.persistent_state.load_states()
+    while True:
+        states = process_data(states)
+        for protocol, state in states.items():
+            path = os.path.join(src.persistent_state.PERSISTENT_STATE_DIRECTORY, protocol, 'state.pkl')
+            src.persistent_state.upload_object_as_pickle(object = state, path=path)
+        logging.info("Uploaded states.")
+        time.sleep(120)
 
 
 if __name__ == "__main__":
