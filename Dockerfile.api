@@ -1,11 +1,16 @@
 FROM python:3.10
 
-WORKDIR /app
+WORKDIR /usr/src/app
+
+ENV FLASK_ENV=production
 
 RUN pip install poetry
 COPY pyproject.toml poetry.lock* ./
 RUN poetry config virtualenvs.create false \
   && poetry install --no-interaction --no-ansi
-COPY ./api ./api
 
-CMD ["poetry", "run", "python3", "./api/main.py"]
+COPY ./api ./api
+COPY ./db ./db
+
+# Run app.py when the container launches
+CMD ["flask", "--app=api", "run", "--port=3000", "--host=0.0.0.0"]
