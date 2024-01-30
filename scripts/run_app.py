@@ -8,8 +8,8 @@ import streamlit
 
 sys.path.append(".")
 
+import src.data_processing
 import src.persistent_state
-import src.process_data
 import src.visualizations.histogram
 import src.visualizations.loans_table
 import src.visualizations.main_chart
@@ -132,7 +132,7 @@ if __name__ == "__main__":
 		os.environ["CONTINUOUS_DATA_PROCESSING_PROCESS_RUNNING"] = "True"
 		logging.info("Spawning data processing process.")
 		data_processing_process = multiprocessing.Process(
-			target=src.process_data.process_data_continuously,
+			target=src.data_processing.process_data_continuously,
 			daemon=True,
 		)
 		data_processing_process.start()
