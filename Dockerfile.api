@@ -12,5 +12,4 @@ RUN poetry config virtualenvs.create false \
 COPY ./api ./api
 COPY ./db ./db
 
-# Run app.py when the container launches
-CMD ["flask", "--app=api", "run", "--port=3000", "--host=0.0.0.0"]
+CMD ["gunicorn", "-w 4", "-b :3000", "api"]

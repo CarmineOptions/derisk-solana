@@ -1,4 +1,4 @@
-import os
+from os import environ
 
 from sqlalchemy import (
     create_engine,
@@ -12,13 +12,22 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy import Index
 
+POSTGRES_USER = environ.get("POSTGRES_USER")
+if POSTGRES_USER is None:
+    raise ValueError("no POSTGRES_USER env var")
+POSTGRES_PASSWORD = environ.get("POSTGRES_PASSWORD")
+if POSTGRES_PASSWORD is None:
+    raise ValueError("no POSTGRES_PASSWORD env var")
+POSTGRES_HOST = environ.get("POSTGRES_HOST")
+if POSTGRES_HOST is None:
+    raise ValueError("no POSTGRES_HOST env var")
+POSTGRES_DB = environ.get("POSTGRES_DB")
+if POSTGRES_DB is None:
+    raise ValueError("no POSTGRES_DB env var")
+
+CONN_STRING = f"postgresql+psycopg2://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_HOST}/{POSTGRES_DB}"
 
 Base = declarative_base()
-
-DB_CONNECTION_STRING = os.getenv("PG_CONNECTION_STRING")
-
-DRIVERS = "postgresql+psycopg2://"
-CONN_STRING = DRIVERS + f"{DB_CONNECTION_STRING.replace('postgres://', '')}"
 
 
 def get_db_session() -> Session:

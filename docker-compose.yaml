@@ -21,22 +21,27 @@ services:
     build:
       dockerfile: ./Dockerfile.db-init
     environment:
-      PG_CONNECTION_STRING: postgres://myuser:mypassword@db/postgres
+      POSTGRES_USER: myuser
+      POSTGRES_PASSWORD: mypassword
+      POSTGRES_HOST: db
+      POSTGRES_DB: postgres
     depends_on:
       db:
         condition: service_healthy
 
-  # api - reads from db, serves over https
+  # api - reads from db, serves over http
   api:
     build:
       dockerfile: ./Dockerfile.api
     environment:
       PORT: 3000
-      # PG_CONNECTION_STRING: postgres://myuser:mypassword@db/postgres
-      PG_CONNECTION_STRING: postgres://postgres:butter-chicken@35.205.33.98/postgres
-    # depends_on:
-    #   db:
-    #     condition: service_healthy
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: mypassword
+      POSTGRES_HOST: db
+      POSTGRES_DB: postgres
+    depends_on:
+      db:
+        condition: service_healthy
     ports:
       - 3000:3000
 
