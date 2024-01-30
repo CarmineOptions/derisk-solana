@@ -2,5 +2,5 @@
 */.ipynb_checkpoints
 
 # Python compiled bytecode.
-*/__pycache__
+*__pycache__
 
