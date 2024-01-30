@@ -56,7 +56,7 @@ class TransactionStatusError(Base):
 
     id = Column(Integer, primary_key=True)
     error_body = Column(String, nullable=False)
-    tx_signatures_id = Column(Integer, ForeignKey('tx_signatures.id'), nullable=False)
+    tx_signatures_id = Column(Integer, ForeignKey(f'{SCHEMA}.tx_signatures.id'), nullable=False)
 
 
 class TransactionStatusMemo(Base):
@@ -65,7 +65,7 @@ class TransactionStatusMemo(Base):
 
     id = Column(Integer, primary_key=True)
     memo_body = Column(String, nullable=False)
-    tx_signatures_id = Column(Integer, ForeignKey('tx_signatures.id'), nullable=False)
+    tx_signatures_id = Column(Integer, ForeignKey(f'{SCHEMA}.tx_signatures.id'), nullable=False)
 
 
 class TransactionsProcessed(Base):
@@ -77,7 +77,7 @@ class TransactionsProcessed(Base):
     program_id = Column(String, nullable=False)
     event_name = Column(Text, nullable=False)
     event_data = Column(JSONB, nullable=False)
-    tx_signatures_id = Column(Integer, ForeignKey('tx_signatures.id'), nullable=False)
+    tx_signatures_id = Column(Integer, ForeignKey(f'{SCHEMA}.tx_signatures.id'), nullable=False)
 
     __table_args__ = (
         Index('ix_processed_slot', 'slot'),
@@ -100,6 +100,10 @@ if __name__ == "__main__":
     # create schema
     connection = ENGINE.raw_connection()
     cursor = connection.cursor()
-    cursor.exicute(f"CREATE SCHEMA IF NOT EXISTS {SCHEMA};")
+    cursor.execute(f"CREATE SCHEMA IF NOT EXISTS {SCHEMA};")
+    cursor.close()
+    connection.commit()
+    cursor.close()
+    connection.close()
 
     Base.metadata.create_all(ENGINE)

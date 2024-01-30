@@ -266,6 +266,8 @@ class TransactionCollector:
                         signature = transaction.transaction.signatures[0]
                         self._update_tx_raw(signature, transaction.to_json())
 
+                    block_counter += 1
+
                 # Log every 10,000 slots
                 if block_counter % 10000 == 0:
                     elapsed_time = time.time() - start_time
