@@ -50,7 +50,7 @@ The pipeline has the following steps:
 8) Save the processed data and the information about the last update, so that next time, we do not need to start the computations from origin.
 
 For running the data processing pipeline, run the following commands:
-```
+```sh
 docker build -t data-processing -f Dockerfile.data-processing .
 docker run data-processing
 ```
