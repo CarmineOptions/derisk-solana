@@ -1,2 +1,5 @@
 # TODO: To be defined.
-PAIRS: list[str] = []
+TOKEN_PAIRS: list[str] = []
+
+# TODO: To be defined.
+TOKENS: list[str] = []
