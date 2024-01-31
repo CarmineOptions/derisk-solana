@@ -1,6 +1,8 @@
 import decimal
 
 import pandas
+import plotly.express
+import plotly.graph_objs
 
 import src.amms
 import src.protocols.state
@@ -8,7 +10,7 @@ import src.protocols.state
 
 
 # TODO: To be implemented.
-def get_main_chart_data(
+def prepare_data(
 	state: src.protocols.state.State,
 	prices: dict[str, decimal.Decimal],
 	amms: src.amms.Amms,
@@ -17,3 +19,30 @@ def get_main_chart_data(
 	save_data: bool,
 ) -> pandas.DataFrame:
 	return pandas.DataFrame()
+
+
+# TODO: To be implemented.
+def load_data(protocols: list[str], token_pair: str) -> pandas.DataFrame:
+	return pandas.DataFrame()
+
+
+# TODO: To be implemented.
+def get_figure(data: pandas.DataFrame, token_pair: str) -> plotly.graph_objs.Figure:
+	return plotly.express.bar()
+
+
+# TODO: To be implemented.
+def get_dangerous_price_level_data(data: pandas.DataFrame) -> pandas.Series:
+	return pandas.Series(
+		index=[
+			"collateral_token_price",
+			"liquidable_debt_at_interval",
+			"debt_token_supply",
+			"debt_to_supply_ratio",
+		],
+	)
+
+
+# TODO: To be implemented.
+def get_risk(data: pandas.Series) -> str:
+	return ''
