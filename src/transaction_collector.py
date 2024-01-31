@@ -8,7 +8,7 @@ from solders.rpc.responses import RpcConfirmedTransactionStatusWithSignature
 from solders.signature import Signature
 from solders.transaction_status import EncodedConfirmedTransactionWithStatusMeta, EncodedTransactionWithStatusMeta
 
-import db_model as db
+import db
 import src.protocols.addresses
 
 
