@@ -10,4 +10,4 @@ RUN poetry config virtualenvs.create false \
 COPY ./scripts ./scripts
 COPY ./src ./src
 
-CMD ["python3", "scripts/run_app.py"]
+CMD ["streamlit", "run", "scripts/run_app.py"]

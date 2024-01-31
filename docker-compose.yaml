@@ -45,6 +45,12 @@ services:
     ports:
       - 3000:3000
 
+  fe:
+    build:
+      dockerfile: ./Dockerfile.frontend
+    ports:
+      - 8501:8501
+
   # check locally that the database was initiated correctly
   # this component should not be in production
   adminer:
