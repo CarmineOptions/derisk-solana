@@ -16,7 +16,15 @@ Each step is described in detail below.
 
 ### Database
 
-TODO
+The project uses _Postgres 15_ as database. The schema can be found in `db/schema.sql`. To start the database run:
+
+```sh
+docker build -t db -f Dockerfile.db .
+export POSTGRES_USER=<username>
+export POSTGRES_PASSWORD=<password>
+# default port for Postgres is 5432
+docker run -p 5432:5432 db
+```
 
 ### Raw Data Fetching
 
@@ -24,7 +32,31 @@ TODO
 
 ### API
 
-TODO
+The API exposes an endpoint that allows access to data in the database.
+
+##### Endpoints
+
+Currently, there is only one endpoint:
+
+- `/v1/get-transactions?start_block_number=<start>&end_block_number=<end>` returns transactions within the block range
+
+##### Deployment
+
+To run the API, build and run the Docker image with relevant ENV variables.
+
+- `POSTGRES_USER` name of the database user
+- `POSTGRES_PASSWORD` database user's password
+- `POSTGRES_HOST` host address, IP address or DNS of the database
+- `POSTGRES_DB` database name
+
+```sh
+docker build -t api -f Dockerfile.api .
+export POSTGRES_USER=<username>
+export POSTGRES_PASSWORD=<password>
+export POSTGRES_HOST=<host>
+export POSTGRES_DB=<db_name>
+docker run -p 3000:3000 api
+```
 
 ### Raw Data Processing
 
@@ -59,12 +91,13 @@ The frontend is a `streamlit` app which spawns a data updating process in the ba
 5. Tables depicting various statistics based in which we can compare the lending protocols, e.g., the number of users or utilization rates.
 6. Pie charts showing each protocol's collateral, debt and supply for various tokens.
 7. Histograms visualizing the distribution of debt sizes across all lending protocols.
-9. Timestamp and block number corresponding to when the data was last updated.
+8. Timestamp and block number corresponding to when the data was last updated.
 
 For running the frontend, run the following commands:
 
 ```sh
 docker build -t frontend -f Dockerfile.frontend .
+# default port for Streamlit is 8501
 docker run -p 8501:8501 frontend
 ```
 
