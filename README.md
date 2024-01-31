@@ -1,18 +1,6 @@
 # DeRisk Solana
 
-Monorepo with components required for DeRisk to function on Solana.
-
-### Event Aggregator
-
-Aggregates Solana events into the database.
-
-### Research
-
-Calculates the state of the lending protocols and the risk of underwater loans from events.
-
-### Frontend
-
-Visualisation of the Research data.
+Monorepo with components required for the implementation of DeRisk on Solana.
 
 ## Project Setup
 
@@ -62,4 +50,22 @@ Currently, the script outlines all of the above-mentioned steps, but their imple
 
 ### Frontend
 
-TODO
+The frontend is a `streamlit` app which spawns a data updating process in the background. The process repeatedly loads new raw data, processes it and saves the outputs. The app then loads the latest outputs to visualize the following:
+
+1. Select boxes for the user the choose protocols and tokens of interest.
+2. Chart of the liquidable debt against the available supply, based on the parameters chosen above.
+3. Warning message informing the user about the risk of under-the-water loans.
+4. Statistics on individual loans with the lowest health factor. The loans fall within the range of debt in USD chosen by the user.
+5. Tables depicting various statistics based in which we can compare the lending protocols, e.g., the number of users or utilization rates.
+6. Pie charts showing each protocol's collateral, debt and supply for various tokens.
+7. Histograms visualizing the distribution of debt sizes across all lending protocols.
+9. Timestamp and block number corresponding to when the data was last updated.
+
+For running the frontend, run the following commands:
+
+```sh
+docker build -t frontend -f Dockerfile.frontend .
+docker run frontend
+```
+
+Currently, the app visualizes all of the above-mentioned items, but the data is empty and relies on completing future milestones.
