@@ -1,7 +1,7 @@
 FROM postgres:15
 
 # use default database named "postgres"
-ENV POSTGRES_DB=postgres
+ENV POSTGRES_DB="postgres"
 
 # schema will be setup on startup
 COPY ./db/schema.sql /docker-entrypoint-initdb.d/

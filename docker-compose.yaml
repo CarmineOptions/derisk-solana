@@ -7,8 +7,8 @@ services:
     build:
       dockerfile: ./Dockerfile.db
     environment:
-      POSTGRES_USER: myuser
-      POSTGRES_PASSWORD: mypassword
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
     healthcheck:
       test: [ "CMD-SHELL", "pg_isready" ]
       interval: 5s
@@ -23,14 +23,29 @@ services:
       dockerfile: ./Dockerfile.api
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: mypassword
+      POSTGRES_PASSWORD: postgres
       POSTGRES_HOST: db
       POSTGRES_DB: postgres
     depends_on:
       db:
         condition: service_healthy
     ports:
-      - 3000:3000
+      - 3001:3000
+
+  # data-fetcher - fetches data and stores them in the database
+  data-fetcher:
+    build:
+      dockerfile: ./Dockerfile.raw-data-fetching
+    environment:
+      AUTHENTICATED_RPC_URL: https://<rpc_provider>/<api_token>
+      RATE_LIMIT: 5
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_HOST: db
+      POSTGRES_DB: postgres
+    depends_on:
+      db:
+        condition: service_healthy
 
   fe:
     build:

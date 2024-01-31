@@ -5,3 +5,9 @@ SOLEND_ADDRESS: str = 'So1endDq2YkqhipRh3WViPa8hdiSpxWy6z3Z6tMCpAo'
 MANGO_ADDRESS: str = '4MangoMjqJ2firMokCjjGgoK8d4MXcrgL7XJaL3w6fVg'
 # Source: https://docs.kamino.finance/build-on-kamino/sdk-and-smart-contracts.
 KAMINO_ADDRESS: str = '6LtLpnUFNByNXLyCoK9wA2MykKAmQNZKBdY8s47dehDc'
+
+ALL_ADDRESSES: dict[str, str] = {
+	'Kamino': KAMINO_ADDRESS,
+	'Mango': MANGO_ADDRESS,
+	'Solend': SOLEND_ADDRESS,
+}
