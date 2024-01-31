@@ -28,7 +28,25 @@ docker run -p 5432:5432 db
 
 ### Raw Data Fetching
 
-TODO
+For fetching raw data, the following ENV variables are needed:
+
+- `POSTGRES_USER` name of the database user
+- `POSTGRES_PASSWORD` database user's password
+- `POSTGRES_HOST` host address, IP address or DNS of the database
+- `POSTGRES_DB` database name
+- `RPC_TOKEN` RPC token used to initialize Solana client
+- `RATE_LIMIT` maximum number of RPC calls allowed per second
+
+Then, run the following commands:
+
+```sh
+docker build -t raw-data-fetching -f Dockerfile.raw-data-fetching .
+docker run -e POSTGRES_USER=<username> -e POSTGRES_PASSWORD=<password> -e POSTGRES_HOST=<host> -e POSTGRES_DB=<db_name> -e RPC_TOKEN=<rpc_token> -e RATE_LIMIT=<rate_limit> raw-data-fetching
+```
+
+The data collection works as follows. First, signatures of transactions are fetched in batches and stored in the database. Second, for each slot containing at least 1 signature, all transactions are fetched, but only those which match the previously saved signatures are kept and save in the database.
+
+The data is being fetched from the newest transactions at the time when the script is run (`T0`). When the available history preceding `T0` is stored in the database, the process starts again at time `T1`, fetching all data between `T0` and `T1`. With the rate limit set high enough, the process approaches a state when the script feeds the database with nearly real-time data. If restarted, the fetching of the data continues from the last transaction stored in the database. 
 
 ### API
 
@@ -51,11 +69,7 @@ To run the API, build and run the Docker image with relevant ENV variables.
 
 ```sh
 docker build -t api -f Dockerfile.api .
-export POSTGRES_USER=<username>
-export POSTGRES_PASSWORD=<password>
-export POSTGRES_HOST=<host>
-export POSTGRES_DB=<db_name>
-docker run -p 3000:3000 api
+docker run -e POSTGRES_USER=<username> -e POSTGRES_PASSWORD=<password> -e POSTGRES_HOST=<host> -e POSTGRES_DB=<db_name> -p 3000:3000 api
 ```
 
 ### Raw Data Processing
