@@ -24,4 +24,4 @@ def load_data(protocols: list[str], token_pair: str) -> pandas.DataFrame:
 
 # TODO: To be implemented.
 def get_figure(data: pandas.DataFrame) -> plotly.graph_objs.Figure:
-	return plotly.express.histogram()
+	return plotly.express.bar()
