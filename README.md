@@ -65,7 +65,7 @@ For running the frontend, run the following commands:
 
 ```sh
 docker build -t frontend -f Dockerfile.frontend .
-docker run frontend
+docker run -p 8501:8501 frontend
 ```
 
 Currently, the app visualizes all of the above-mentioned items, but the data is empty and relies on completing future milestones.
