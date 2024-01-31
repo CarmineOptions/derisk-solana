@@ -4,7 +4,8 @@ version: '3.9'
 services:
   # Postgres database
   db:
-    image: postgres:15
+    build:
+      dockerfile: ./Dockerfile.db
     environment:
       POSTGRES_USER: myuser
       POSTGRES_PASSWORD: mypassword
@@ -16,25 +17,11 @@ services:
     ports:
       - 5432:5432
 
-  # if the database is empty, running this python script will setup the tables
-  db-init:
-    build:
-      dockerfile: ./Dockerfile.db-init
-    environment:
-      POSTGRES_USER: myuser
-      POSTGRES_PASSWORD: mypassword
-      POSTGRES_HOST: db
-      POSTGRES_DB: postgres
-    depends_on:
-      db:
-        condition: service_healthy
-
   # api - reads from db, serves over http
   api:
     build:
       dockerfile: ./Dockerfile.api
     environment:
-      PORT: 3000
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: mypassword
       POSTGRES_HOST: db

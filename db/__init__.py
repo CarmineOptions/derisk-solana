@@ -76,10 +76,3 @@ class TransactionStatusMemo(Base):
     id = Column(Integer, primary_key=True)
     memo_body = Column(String, nullable=False)
     tx_signatures_id = Column(Integer, ForeignKey("tx_signatures.id"), nullable=False)
-
-
-def initialize_database():
-    # create the database engine
-    ENGINE = create_engine(CONN_STRING)
-
-    Base.metadata.create_all(ENGINE)
