@@ -21,14 +21,14 @@ if __name__ == '__main__':
 
     # parse arguments if any
     parser = argparse.ArgumentParser()
-    parser.add_argument('-t', '--rpc_token', type=str, required=False, help='RPC access token')
+    parser.add_argument('-t', '--authenticated_rpc_url', type=str, required=False, help='RPC access token')
     parser.add_argument('-r', '--rate', type=int, required=False, help='Rate limit')
     args = parser.parse_args()
 
     print('Start collecting signatures from mango protocol: ...')
     tx_collector = TransactionCollector(
         addresses={'Mango': PPK},
-        rpc_token=args.rpc_token,
+        authenticated_rpc_url=args.authenticated_rpc_url,
         rate_limit=args.rate if args.rate else 5,
     )
     tx_collector.set_last_transaction_recorded()
@@ -40,7 +40,7 @@ if __name__ == '__main__':
     # create new instance to reset internal counters
     tx_collector = TransactionCollector(
         addresses={'Mango': PPK},
-        rpc_token=args.rpc_token,
+        authenticated_rpc_url=args.authenticated_rpc_url,
         rate_limit=args.rate if args.rate else 5,
     )
     # collect fresh transactions

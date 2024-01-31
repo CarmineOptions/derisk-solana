@@ -12,9 +12,9 @@ import src.transaction_collector
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
-    RPC_TOKEN = os.environ.get("RPC_TOKEN")
-    if RPC_TOKEN is None:
-        raise ValueError("no RPC_TOKEN env var")
+    AUTHENTICATED_RPC_URL = os.environ.get("AUTHENTICATED_RPC_URL")
+    if AUTHENTICATED_RPC_URL is None:
+        raise ValueError("no AUTHENTICATED_RPC_URL env var")
     RATE_LIMIT = os.environ.get("RATE_LIMIT")
     if RATE_LIMIT is None:
         raise ValueError("no RATE_LIMIT env var")
@@ -23,6 +23,6 @@ if __name__ == "__main__":
     # Collect signatures and transactions for each lending protocol since origin.
     src.transaction_collector.collect_signatures_and_transactions(
         start_signatures={address: None for address in src.protocols.addresses.ALL_ADDRESSES.values()},
-        rpc_token=RPC_TOKEN,
+        authenticated_rpc_url=AUTHENTICATED_RPC_URL,
         rate=RATE_LIMIT,
     )

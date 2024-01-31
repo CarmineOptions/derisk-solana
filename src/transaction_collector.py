@@ -25,17 +25,17 @@ class TransactionCollector:
         self, 
         addresses: dict[str, str], 
         start_signatures: dict[str, Signature | None],
-        rpc_token: str | None = None,
+        authenticated_rpc_url: str | None = None,
         rate_limit: int = 5, 
     ):
         self.addresses = addresses
         # Signature older then `start_signatures` will not be stored.
         self.start_signatures = start_signatures
-        self.rpc_token = rpc_token if rpc_token else os.getenv("QUICKNODE_TOKEN")
+        self.authenticated_rpc_url = authenticated_rpc_url if authenticated_rpc_url else os.getenv("QUICKNODE_TOKEN")
         # Rate limit set in terms of maximum number of calls per second.
         self.rate_limit = rate_limit
 
-        self.solana_client: solana.rpc.api.Client = solana.rpc.api.Client(self.rpc_token)
+        self.solana_client: solana.rpc.api.Client = solana.rpc.api.Client(self.authenticated_rpc_url)
         self._call_timestamps: list[int] = []
         self._oldest_signatures: dict[str, Signature | None] = {address: None for address in self.addresses.values()}
         self._signatures_completed: dict[str, bool] = {address: False for address in self.addresses.values()}
@@ -289,7 +289,7 @@ class TransactionCollector:
 
 def collect_signatures_and_transactions(
     start_signatures: dict[str, Signature | None],
-    rpc_token: str, 
+    authenticated_rpc_url: str, 
     rate: int, 
 ) -> None:
     # Collect signatures for each lending protocol.
@@ -297,7 +297,7 @@ def collect_signatures_and_transactions(
     signatures_collector = TransactionCollector(
         addresses=src.protocols.addresses.ALL_ADDRESSES,
         start_signatures=start_signatures,
-        rpc_token=rpc_token,
+        authenticated_rpc_url=authenticated_rpc_url,
         rate_limit=rate if rate else 5,
     )
     signatures_collector.set_oldest_signatures_recorded()
@@ -309,14 +309,14 @@ def collect_signatures_and_transactions(
     transactions_collector = TransactionCollector(
         addresses=src.protocols.addresses.ALL_ADDRESSES,
         start_signatures=start_signatures,
-        rpc_token=rpc_token,
+        authenticated_rpc_url=authenticated_rpc_url,
         rate_limit=rate if rate else 5,
     )
     transactions_collector.collect_transactions()
 
     # Repeat the process to collect newly produced signatures and transactions.
     collect_signatures_and_transactions(
-        rpc_token=rpc_token, 
+        authenticated_rpc_url=authenticated_rpc_url, 
         rate=rate, 
         start_signatures=signatures_collector.newest_signatures,
     )

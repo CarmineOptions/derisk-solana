@@ -34,7 +34,7 @@ For fetching raw data, the following ENV variables are needed:
 - `POSTGRES_PASSWORD` database user's password
 - `POSTGRES_HOST` host address, IP address or DNS of the database
 - `POSTGRES_DB` database name
-- `AUTHENTICATED_RPC_URL` RPC token used to initialize Solana client
+- `AUTHENTICATED_RPC_URL` URL of the node provider, includingthe RPC token, used to initialize the Solana client
 - `RATE_LIMIT` maximum number of RPC calls allowed per second
 
 Then, run the following commands:
