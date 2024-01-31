@@ -112,7 +112,7 @@ def main():
 	streamlit.plotly_chart(figure_or_data=histogram_figure, use_container_width=True)
 
 	# Display information about the last update.
-	last_update = src.persistent_state.load_pickle(path=src.persistent_state.LAST_UPDATE_FILENAME)
+	last_update = src.persistent_state.get_last_update()
 	last_timestamp = last_update["timestamp"]
 	last_block_number = last_update["block_number"]
 	date_str = datetime.datetime.utcfromtimestamp(int(last_timestamp))

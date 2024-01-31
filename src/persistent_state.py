@@ -31,5 +31,5 @@ def load_states() -> dict[str, src.protocols.state.State]:
 
 
 # TODO: To be implemented.
-def load_pickle(path: str) -> Any:
-	pass
+def get_last_update() -> dict[str, str]:
+	return {"timestamp": '1681284183', "block_number": ''}
