@@ -33,7 +33,14 @@ def get_figure(data: pandas.DataFrame, token_pair: str) -> plotly.graph_objs.Fig
 
 # TODO: To be implemented.
 def get_dangerous_price_level_data(data: pandas.DataFrame) -> pandas.Series:
-	return pandas.Series(index=[])
+	return pandas.Series(
+		index=[
+			"collateral_token_price",
+			"liquidable_debt_at_interval",
+			"debt_token_supply",
+			"debt_to_supply_ratio",
+		],
+	)
 
 
 # TODO: To be implemented.

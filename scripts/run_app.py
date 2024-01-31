@@ -48,15 +48,14 @@ def main():
 	dangerous_price_level_data = src.visualizations.main_chart.get_dangerous_price_level_data(data=main_chart_data)
 	if not dangerous_price_level_data.empty:
 		streamlit.subheader(
-			f":warning: At price of {int(dangerous_price_level_data['collateral_token_price']):,}, the risk of "
-			f"acquiring bad debt for lending protocols is "
-			f"{src.visualizations.main_chart.get_risk(data=dangerous_price_level_data)}."
+			f":warning: At price of {dangerous_price_level_data['collateral_token_price']}, the risk of acquiring bad "
+			f"debt for lending protocols is {src.visualizations.main_chart.get_risk(data=dangerous_price_level_data)}."
 		)    
 		streamlit.write(
 			f"The ratio of liquidated debt to available supply is "
-			f"{round(dangerous_price_level_data['debt_to_supply_ratio'] * 100)}%. Debt worth of "
-			f"{int(dangerous_price_level_data['liquidable_debt_at_interval']):,} USD will be liquidated while the AMM "
-			f"swaps capacity will be {int(dangerous_price_level_data['debt_token_supply']):,} USD."
+			f"{dangerous_price_level_data['debt_to_supply_ratio'] * 100}%. Debt worth of "
+			f"{dangerous_price_level_data['liquidable_debt_at_interval']} USD will be liquidated while the AMM swaps "
+			f"capacity will be {dangerous_price_level_data['debt_token_supply']} USD."
 		)
 
 	# Select the range of debt in USD and display individual loans with the lowest health factors.
@@ -64,7 +63,8 @@ def main():
 	loans_table_data = src.visualizations.loans_table.load_data(protocols=protocols, token_pair=token_pair)
 	col1, _ = streamlit.columns([1, 3])
 	with col1:
-		max_debt_usd = int(loans_table_data["Debt (USD)"].max())
+		# TODO: Use `int(loans_table_data["Debt (USD)"].max())`.
+		max_debt_usd = 100
 		debt_usd_lower_bound, debt_usd_upper_bound = streamlit.slider(
 			label="Select range of USD debt",
 			min_value=0,

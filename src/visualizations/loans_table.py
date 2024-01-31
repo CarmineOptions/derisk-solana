@@ -17,4 +17,4 @@ def prepare_data(
 
 # TODO: To be implemented.
 def load_data(protocols: list[str], token_pair: str) -> pandas.DataFrame:
-	return pandas.DataFrame()
+	return pandas.DataFrame(columns=["Debt (USD)", "Health factor"])
