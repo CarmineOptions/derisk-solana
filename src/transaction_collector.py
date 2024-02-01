@@ -88,7 +88,7 @@ class TransactionCollector:
         except SolanaRpcException as e:  # Most likely to catch 503 here. If something else - we stuck in loop TODO fix
             LOGGER.error(f"SolanaRpcException: {e}")
             time.sleep(2)
-            return self._fetch_signatures()
+            return self._fetch_signatures(protocol=protocol, address=address)
 
         if len(signatures) < TX_BATCH_SIZE:
             self._signatures_completed[address] = True
