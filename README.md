@@ -14,6 +14,8 @@ The setup consists of:
 
 Each step is described in detail below.
 
+The relevant commit for which the following commands for running individual containers were tested is `3d40c20cca42425f2d2584cae6592ab75ee08eab`.
+
 ### Database
 
 The project uses _Postgres 15_ as database. The schema can be found in `db/schema.sql`. To start the database run:
