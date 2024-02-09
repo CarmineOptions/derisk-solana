@@ -26,3 +26,57 @@ jobs:
           source venv-solana/bin/activate
           PYTHONPATH=$PWD pytest tests/ -vv
         shell: bash
+
+  mypy-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Install dependencies
+        run: |
+          python3 -V
+          python -m venv venv-solana
+          source venv-solana/bin/activate
+          pip install poetry
+          poetry install --no-root
+          pip3 list
+
+      - name: Find changed files
+        id: files
+        run: |
+          echo "CHANGED_FILES<<EOF" >> $GITHUB_ENV
+          git diff --name-only ${{ github.event.before }} ${{ github.sha }} | grep '\.py$' || echo ""
+          echo "EOF" >> $GITHUB_ENV
+
+      - name: Run mypy
+        if: env.CHANGED_FILES != ''
+        run: |
+          source venv/bin/activate
+          mypy ${{ env.CHANGED_FILES }}
+
+  pylint-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Install dependencies
+        run: |
+          python3 -V
+          python -m venv venv-solana
+          source venv-solana/bin/activate
+          pip install poetry
+          poetry install --no-root
+          pip3 list
+
+      - name: Find changed files
+        id: files
+        run: |
+          echo "CHANGED_FILES<<EOF" >> $GITHUB_ENV
+          git diff --name-only ${{ github.event.before }} ${{ github.sha }} | grep '\.py$' || echo ""
+          echo "EOF" >> $GITHUB_ENV
+
+      - name: Run pylint
+        if: env.CHANGED_FILES != ''
+        run: |
+          source venv/bin/activate
+          pylint ${{ env.CHANGED_FILES }}
