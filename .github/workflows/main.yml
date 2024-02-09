@@ -9,11 +9,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
+      - name: Set up Python environment
         run: |
-          - python3 -V
-          - python3 -m venv venv
-          - source venv/bin/activate
-          - poetry install
+          python3 -V
+          python3 -m venv venv
+          source venv/bin/activate
+          pip install poetry
+          poetry install
 
   test:
     needs: build
@@ -26,6 +28,8 @@ jobs:
           python -m venv venv
           source venv/bin/activate
       - name: Run tests
-        run: PYTHONPATH=$PWD pytest tests/ -vv
+        run: |
+          source venv/bin/activate
+          PYTHONPATH=$PWD pytest tests/ -vv
       - name: Upload coverage report
         uses: actions/upload-artifact@v2
