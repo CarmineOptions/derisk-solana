@@ -81,11 +81,11 @@ jobs:
         id: files
         run: |
           git fetch origin master:master  # Ensure the master branch is up to date
-          git diff --name-only origin/master...HEAD | grep '\.py$' || echo "No changes in Python files"
+          FILES=$(git diff --name-only origin/master...HEAD | grep '\.py$' || echo "No changes in Python files")
           if [ "$FILES" = "No changes in Python files" ]; then
             echo "CHANGED_FILES=No changes in Python files" >> $GITHUB_ENV
           else
-            echo "" >> $GITHUB_ENV
+            echo "CHANGED_FILES=$FILES" >> $GITHUB_ENV
           fi
         shell: bash
 
