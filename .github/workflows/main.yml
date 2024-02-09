@@ -84,10 +84,10 @@ jobs:
           git fetch origin master:master  # Ensure the master branch is up to date
           git diff --name-only origin/master...HEAD | grep '\.py$' || echo "No changes in Python files"
           echo "EOF" >> $GITHUB_ENV
+          echo
         shell: bash
 
       - name: Run pylint
-        if: env.CHANGED_FILES != ''
         run: |
           source venv/bin/activate
           pylint ${{ env.CHANGED_FILES }}
