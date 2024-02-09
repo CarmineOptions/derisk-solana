@@ -45,6 +45,7 @@ jobs:
       - name: Decompress venv-solana archive
         run: |
           tar -xzf venv-solana.tar.gz
+          ls
         shell: bash
 
       - name: Run tests
