@@ -17,6 +17,12 @@ jobs:
           pip install poetry
           poetry install
         shell: bash
+      - name: Upload venv-solana for test job
+        uses: actions/upload-artifact@v2
+        with:
+          name: venv-solana
+          path: venv-solana
+
 
   test:
     needs: build
@@ -24,16 +30,16 @@ jobs:
     container: python:3.10-slim
     steps:
       - uses: actions/checkout@v2
-      - name: Set up Python environment
-        run: |
-          python -m venv venv-solana
-          source venv-solana/bin/activate
-        shell: bash
+
+      - name: Download venv-solana from build job
+        uses: actions/download-artifact@v2
+        with:
+          name: venv-solana
+          path: venv-solana
+
       - name: Run tests
         run: |
           source venv-solana/bin/activate
           pip3 list
           PYTHONPATH=$PWD pytest tests/ -vv
         shell: bash
-      - name: Upload coverage report
-        uses: actions/upload-artifact@v2
