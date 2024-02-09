@@ -15,7 +15,8 @@ jobs:
           python3 -m venv venv-solana
           source venv-solana/bin/activate
           pip install poetry
-          poetry install
+          poetry install --no-root
+          pip3 list
         shell: bash
       - name: Compress venv-solana
         run: |
