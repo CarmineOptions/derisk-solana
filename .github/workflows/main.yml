@@ -27,9 +27,11 @@ jobs:
         run: |
           python -m venv venv
           source venv/bin/activate
+        shell: bash
       - name: Run tests
         run: |
           source venv/bin/activate
           PYTHONPATH=$PWD pytest tests/ -vv
+        shell: bash
       - name: Upload coverage report
         uses: actions/upload-artifact@v2
