@@ -80,7 +80,8 @@ jobs:
         id: files
         run: |
           echo "CHANGED_FILES<<EOF" >> $GITHUB_ENV
-          git diff --name-only ${{ github.event.before }} ${{ github.sha }} | grep '\.py$' || echo ""
+          git fetch origin main:main  # Ensure the main branch is up to date
+          git diff --name-only origin/main...HEAD | grep '\.py$' || echo "No changes in Python files"
           echo "EOF" >> $GITHUB_ENV
         shell: bash
 
