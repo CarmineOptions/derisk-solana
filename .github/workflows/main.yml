@@ -56,7 +56,7 @@ jobs:
       - name: Run mypy
         if: env.CHANGED_FILES != ''
         run: |
-          source venv/bin/activate
+          source venv-solana/bin/activate
           mypy ${{ env.CHANGED_FILES }}
         shell: bash
 
@@ -84,11 +84,10 @@ jobs:
           git fetch origin master:master  # Ensure the master branch is up to date
           git diff --name-only origin/master...HEAD | grep '\.py$' || echo "No changes in Python files"
           echo "EOF" >> $GITHUB_ENV
-          echo
         shell: bash
 
       - name: Run pylint
         run: |
-          source venv/bin/activate
+          source venv-solana/bin/activate
           pylint ${{ env.CHANGED_FILES }}
         shell: bash
