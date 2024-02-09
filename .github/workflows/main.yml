@@ -5,30 +5,6 @@ on:
   pull_request:
 
 jobs:
-  build:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - name: Set up Python environment
-        run: |
-          python3 -V
-          python3 -m venv venv-solana
-          source venv-solana/bin/activate
-          pip install poetry
-          poetry install --no-root
-          pip3 list
-        shell: bash
-      - name: Compress venv-solana
-        run: |
-          tar -czf venv-solana.tar.gz venv-solana
-
-      - name: Upload venv-solana archive for test job
-        uses: actions/upload-artifact@v2
-        with:
-          name: venv-solana-archive
-          path: venv-solana.tar.gz
-
-
   test:
     needs: build
     runs-on: ubuntu-latest
@@ -36,22 +12,17 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      - name: Download venv-solana archive
-        uses: actions/download-artifact@v2
-        with:
-          name: venv-solana-archive
-          path: .
-
-      - name: Decompress venv-solana archive
+      - name: Install dependencies
         run: |
-          tar -xzf venv-solana.tar.gz
-          ls
+          python3 -V
+          python -m venv venv-solana
+          source venv-solana/bin/activate
+          pip install poetry
+          poetry install --no-root
+          pip3 list
         shell: bash
 
       - name: Run tests
         run: |
-          ls
-          source venv-solana/bin/activate
-          pip3 list
           PYTHONPATH=$PWD pytest tests/ -vv
         shell: bash
