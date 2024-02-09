@@ -23,5 +23,6 @@ jobs:
 
       - name: Run tests
         run: |
+          source venv-solana/bin/activate
           PYTHONPATH=$PWD pytest tests/ -vv
         shell: bash
