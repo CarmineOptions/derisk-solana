@@ -31,6 +31,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0  # fetch all the commits for comparison to define what files did change
 
       - name: Install dependencies
         run: |
@@ -40,6 +42,7 @@ jobs:
           pip install poetry
           poetry install --no-root
           pip3 list
+        shell: bash
 
       - name: Find changed files
         id: files
@@ -47,19 +50,21 @@ jobs:
           echo "CHANGED_FILES<<EOF" >> $GITHUB_ENV
           git diff --name-only ${{ github.event.before }} ${{ github.sha }} | grep '\.py$' || echo ""
           echo "EOF" >> $GITHUB_ENV
+        shell: bash
 
       - name: Run mypy
         if: env.CHANGED_FILES != ''
         run: |
           source venv/bin/activate
           mypy ${{ env.CHANGED_FILES }}
+        shell: bash
 
   pylint-check:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
         with:
-          fetch-depth: 0
+          fetch-depth: 0  # fetch all the commits for comparison to define what files did change
 
       - name: Install dependencies
         run: |
@@ -69,6 +74,7 @@ jobs:
           pip install poetry
           poetry install --no-root
           pip3 list
+        shell: bash
 
       - name: Find changed files
         id: files
@@ -76,9 +82,11 @@ jobs:
           echo "CHANGED_FILES<<EOF" >> $GITHUB_ENV
           git diff --name-only ${{ github.event.before }} ${{ github.sha }} | grep '\.py$' || echo ""
           echo "EOF" >> $GITHUB_ENV
+        shell: bash
 
       - name: Run pylint
         if: env.CHANGED_FILES != ''
         run: |
           source venv/bin/activate
           pylint ${{ env.CHANGED_FILES }}
+        shell: bash
