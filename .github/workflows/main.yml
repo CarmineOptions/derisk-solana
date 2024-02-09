@@ -90,5 +90,6 @@ jobs:
       - name: Run pylint
         run: |
           source venv-solana/bin/activate
+          echo ${{ env.CHANGED_FILES }}
           pylint ${{ env.CHANGED_FILES }}
         shell: bash
