@@ -6,7 +6,6 @@ on:
 
 jobs:
   test:
-    needs: build
     runs-on: ubuntu-latest
     container: python:3.10-slim
     steps:
