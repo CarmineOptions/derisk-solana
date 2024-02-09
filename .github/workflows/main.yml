@@ -50,6 +50,7 @@ jobs:
 
       - name: Run tests
         run: |
+          ls
           source venv-solana/bin/activate
           pip3 list
           PYTHONPATH=$PWD pytest tests/ -vv
