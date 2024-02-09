@@ -17,11 +17,15 @@ jobs:
           pip install poetry
           poetry install
         shell: bash
-      - name: Upload venv-solana for test job
+      - name: Compress venv-solana
+        run: |
+          tar -czf venv-solana.tar.gz venv-solana
+
+      - name: Upload venv-solana archive for test job
         uses: actions/upload-artifact@v2
         with:
-          name: venv-solana
-          path: venv-solana
+          name: venv-solana-archive
+          path: venv-solana.tar.gz
 
 
   test:
@@ -31,11 +35,16 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      - name: Download venv-solana from build job
+      - name: Download venv-solana archive
         uses: actions/download-artifact@v2
         with:
-          name: venv-solana
-          path: venv-solana
+          name: venv-solana-archive
+          path: .
+
+      - name: Decompress venv-solana archive
+        run: |
+          tar -xzf venv-solana.tar.gz
+        shell: bash
 
       - name: Run tests
         run: |
