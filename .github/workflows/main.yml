@@ -57,7 +57,7 @@ jobs:
         shell: bash
 
       - name: Run mypy
-        if: env.CHANGED_FILES != ''
+        if: env.CHANGED_FILES != ''  # TODO: remove condition, when most of code base has typing in place.
         run: |
           source venv-solana/bin/activate
           mypy ${{ env.CHANGED_FILES }}
