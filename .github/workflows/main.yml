@@ -93,7 +93,7 @@ jobs:
         shell: bash
 
       - name: Run pylint
-        if: env.CHANGED_FILES != ''
+        if: env.CHANGED_FILES != ''  # TODO: remove condition, when most of code base is inline with linter setup
         run: |
           source venv-solana/bin/activate
           pylint ${{ env.CHANGED_FILES }}
