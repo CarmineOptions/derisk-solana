@@ -144,3 +144,14 @@ class AmmLiquidity(Base):
     token_x_decimals = Column(Integer, default=-1)
     token_y_decimals = Column(Integer, default=-1)
     additional_info = Column(String)
+
+
+if __name__ == "__main__":
+    # create the database engine
+    ENGINE = create_engine(CONN_STRING)
+    # create schema
+    connection = ENGINE.raw_connection()
+    cursor = connection.cursor()
+    cursor.execute(f"CREATE SCHEMA IF NOT EXISTS {SCHEMA};")
+
+    Base.metadata.create_all(ENGINE)
