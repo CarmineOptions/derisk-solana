@@ -20,7 +20,7 @@ class GenericSolanaConnector(ABC):
         self.solana_client: solana.rpc.api.Client = solana.rpc.api.Client(self.authenticated_rpc_url)
         LOG.info(f"{self.__class__.__name__} is all set to collect.")
 
-    def _get_rpc_url(self):
+    def _get_rpc_url(self) -> None:
         rpc_url = os.getenv("RPC_URL")
         if not rpc_url:
             LOG.error(f"RPC url was not found in environment variables.")
