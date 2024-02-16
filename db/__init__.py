@@ -78,3 +78,14 @@ class TransactionStatusMemo(Base):
     id = Column(Integer, primary_key=True)
     memo_body = Column(String, nullable=False)
     tx_signatures_id = Column(Integer, ForeignKey(f'{SCHEMA}.tx_signatures.id'), nullable=False)
+
+
+if __name__ == "__main__":
+    # create the database engine
+    ENGINE = create_engine(CONN_STRING)
+    # create schema
+    connection = ENGINE.raw_connection()
+    cursor = connection.cursor()
+    cursor.execute(f"CREATE SCHEMA IF NOT EXISTS {SCHEMA};")
+
+    Base.metadata.create_all(ENGINE)
