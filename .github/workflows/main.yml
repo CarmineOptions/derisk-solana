@@ -1,0 +1,100 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    container: python:3.10-slim
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Install dependencies
+        run: |
+          python3 -V
+          python -m venv venv-solana
+          source venv-solana/bin/activate
+          pip install poetry
+          poetry install --no-root
+          pip3 list
+        shell: bash
+
+      - name: Run tests
+        run: |
+          source venv-solana/bin/activate
+          PYTHONPATH=$PWD pytest tests/ -vv
+        shell: bash
+
+  mypy-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0  # fetch all the commits for comparison to define what files did change
+
+      - name: Install dependencies
+        run: |
+          python3 -V
+          python -m venv venv-solana
+          source venv-solana/bin/activate
+          pip install poetry
+          poetry install --no-root
+          pip3 list
+        shell: bash
+
+      - name: Find changed files
+        id: files
+        run: |
+          git fetch origin master:master  # Ensure the master branch is up to date
+          FILES=$(git diff --name-only origin/master...HEAD | grep '\.py$' || echo "No changes in Python files")
+          if [ "$FILES" = "No changes in Python files" ]; then
+            echo "CHANGED_FILES=" >> $GITHUB_ENV
+          else
+            echo "CHANGED_FILES=$FILES" >> $GITHUB_ENV
+          fi
+        shell: bash
+
+      - name: Run mypy
+        if: env.CHANGED_FILES != ''  # TODO: remove condition, when most of code base has typing in place.
+        run: |
+          source venv-solana/bin/activate
+          mypy ${{ env.CHANGED_FILES }}
+        shell: bash
+
+  pylint-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0  # fetch all the commits for comparison to define what files did change
+
+      - name: Install dependencies
+        run: |
+          python3 -V
+          python -m venv venv-solana
+          source venv-solana/bin/activate
+          pip install poetry
+          poetry install --no-root
+          pip3 list
+        shell: bash
+
+      - name: Find changed files
+        id: files
+        run: |
+          git fetch origin master:master  # Ensure the master branch is up to date
+          FILES=$(git diff --name-only origin/master...HEAD | grep '\.py$' || echo "No changes in Python files")
+          if [ "$FILES" = "No changes in Python files" ]; then
+            echo "CHANGED_FILES=No changes in Python files" >> $GITHUB_ENV
+          else
+            echo "CHANGED_FILES=$FILES" >> $GITHUB_ENV
+          fi
+        shell: bash
+
+      - name: Run pylint
+        if: env.CHANGED_FILES != ''  # TODO: remove condition, when most of code base is inline with linter setup
+        run: |
+          source venv-solana/bin/activate
+          pylint ${{ env.CHANGED_FILES }}
+        shell: bash
