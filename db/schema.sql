@@ -1,10 +1,10 @@
 CREATE TABLE public.orderbook_liquidity (
-    timestamp bigint NOT NULL
+    timestamp bigint NOT NULL,
     dex character varying NOT NULL, 
     pair character varying NOT NULL,
     market_address character varying NOT NULL,
     bids float[][] NOT NULL,
-    asks float[][] NOT NULL,
+    asks float[][] NOT NULL
 );
 
 CREATE TABLE public.tx_signatures (
