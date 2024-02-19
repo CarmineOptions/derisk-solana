@@ -55,3 +55,20 @@ PAIRS: dict[str, dict[str, str]] = {
 # NOTES: wETH  - from Wormhole bridge
 # NOTES: ETHpo - from Portal bridge
 
+def get_relevant_tickers(dex_identifier: str) -> dict[str, str]:
+    '''
+    Return relevant pairs for given Dex exchange identifier
+
+    Parameters:
+    - dex_identifier (str): String name for given DEX, under which the market
+                            addresses are stored in TICKERS dict.
+
+    Returns:
+    - dict: Maps ticker to it's market address for given DEX.
+    
+    '''       
+    return  {
+        ticker: addresses[dex_identifier] 
+        for ticker, addresses in PAIRS.items()
+        if addresses.get(dex_identifier, False)
+    }
