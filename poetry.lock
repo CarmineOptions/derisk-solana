@@ -166,6 +166,21 @@ astroid = ["astroid (>=1,<2)", "astroid (>=2,<4)"]
 test = ["astroid (>=1,<2)", "astroid (>=2,<4)", "pytest"]
 
 [[package]]
+name = "asyncstdlib"
+version = "3.12.0"
+description = "The missing async toolbox"
+optional = false
+python-versions = "~=3.6"
+files = [
+    {file = "asyncstdlib-3.12.0-py3-none-any.whl", hash = "sha256:68b8dc92d91193fe977825e2dc965b74ae6624d1994bcd5958aa7414ba9d4eaa"},
+    {file = "asyncstdlib-3.12.0.tar.gz", hash = "sha256:83d620553fea73ee924a986e69135bcacb655f6cdc6f2f9e67030a1e259d8be5"},
+]
+
+[package.extras]
+doc = ["sphinx", "sphinxcontrib-trio"]
+test = ["black", "coverage", "flake8", "flake8-2020", "flake8-bugbear", "mypy", "pytest", "pytest-cov"]
+
+[[package]]
 name = "attrs"
 version = "23.2.0"
 description = "Classes Without Boilerplate"
@@ -183,6 +198,20 @@ docs = ["furo", "myst-parser", "sphinx", "sphinx-notfound-page", "sphinxcontrib-
 tests = ["attrs[tests-no-zope]", "zope-interface"]
 tests-mypy = ["mypy (>=1.6)", "pytest-mypy-plugins"]
 tests-no-zope = ["attrs[tests-mypy]", "cloudpickle", "hypothesis", "pympler", "pytest (>=4.3.0)", "pytest-xdist[psutil]"]
+
+[[package]]
+name = "base58"
+version = "2.1.1"
+description = "Base58 and Base58Check implementation."
+optional = false
+python-versions = ">=3.5"
+files = [
+    {file = "base58-2.1.1-py3-none-any.whl", hash = "sha256:11a36f4d3ce51dfc1043f3218591ac4eb1ceb172919cebe05b52a5bcc8d245c2"},
+    {file = "base58-2.1.1.tar.gz", hash = "sha256:c5d0cb3f5b6e81e8e35da5754388ddcc6d0d14b6c6a132cb93d69ed580a7278c"},
+]
+
+[package.extras]
+tests = ["PyHamcrest (>=2.0.2)", "mypy", "pytest (>=4.6)", "pytest-benchmark", "pytest-cov", "pytest-flake8"]
 
 [[package]]
 name = "beautifulsoup4"
@@ -233,6 +262,21 @@ files = [
     {file = "blinker-1.7.0-py3-none-any.whl", hash = "sha256:c3f865d4d54db7abc53758a01601cf343fe55b84c1de4e3fa910e420b438d5b9"},
     {file = "blinker-1.7.0.tar.gz", hash = "sha256:e6820ff6fa4e4d1d8e2747c2283749c3f547e4fee112b98555cdcdae32996182"},
 ]
+
+[[package]]
+name = "borsh-construct"
+version = "0.1.0"
+description = "Python implementation of Borsh serialization, built on the Construct library."
+optional = false
+python-versions = ">=3.8.3,<4.0.0"
+files = [
+    {file = "borsh-construct-0.1.0.tar.gz", hash = "sha256:c916758ceba70085d8f456a1cc26991b88cb64233d347767766473b651b37263"},
+    {file = "borsh_construct-0.1.0-py3-none-any.whl", hash = "sha256:f584c791e2a03f8fc36e6c13011a27bcaf028c9c54ba89cd70f485a7d1c687ed"},
+]
+
+[package.dependencies]
+construct-typing = ">=0.5.1,<0.6.0"
+sumtypes = ">=0.1a5,<0.2"
 
 [[package]]
 name = "cachetools"
@@ -1059,6 +1103,19 @@ files = [
 ]
 
 [[package]]
+name = "jsonrpcclient"
+version = "4.0.3"
+description = "Send JSON-RPC requests"
+optional = false
+python-versions = ">=3.6"
+files = [
+    {file = "jsonrpcclient-4.0.3-py3-none-any.whl", hash = "sha256:3cbb9e27e1be29821becf135ea183144a836215422727e1ffe5056a49a670f0d"},
+]
+
+[package.extras]
+qa = ["pytest", "pytest-cov", "tox"]
+
+[[package]]
 name = "jsonschema"
 version = "4.21.1"
 description = "An implementation of JSON Schema validation for Python"
@@ -1846,6 +1903,17 @@ files = [
 ptyprocess = ">=0.5"
 
 [[package]]
+name = "phoenix-trade"
+version = "0.1.9"
+description = "A Python library for interacting with Phoenix, a limit order book spot exchange on the Solana blockchain."
+optional = false
+python-versions = ">=3.7"
+files = [
+    {file = "phoenix-trade-0.1.9.tar.gz", hash = "sha256:e0579c5eebfff731b1bfb5e079f0c6d438b3bee9e5fa1f5096c20a233dae848c"},
+    {file = "phoenix_trade-0.1.9-py3-none-any.whl", hash = "sha256:5a0ea588bc4191530f1001a3e7999a1a153c34a85bb8316eb5d3db43349a5e94"},
+]
+
+[[package]]
 name = "pillow"
 version = "10.2.0"
 description = "Python Imaging Library (Fork)"
@@ -2311,6 +2379,22 @@ tomli = {version = ">=1.0.0", markers = "python_version < \"3.11\""}
 
 [package.extras]
 testing = ["argcomplete", "attrs (>=19.2.0)", "hypothesis (>=3.56)", "mock", "nose", "pygments (>=2.7.2)", "requests", "setuptools", "xmlschema"]
+
+[[package]]
+name = "pyserum"
+version = "0.5.0a0"
+description = "Python client library for interacting with the Project Serum DEX."
+optional = false
+python-versions = ">=3.7, <4"
+files = [
+    {file = "pyserum-0.5.0a0-py2-none-any.whl", hash = "sha256:f0282afbbb4b4de04eb783502b05f0dc405392c95ab844b28828160db0779a3a"},
+    {file = "pyserum-0.5.0a0.tar.gz", hash = "sha256:0e13a479c839a596095bcd87fd348b90f9020fa5b1d65bbad17e7daf8086fa9c"},
+]
+
+[package.dependencies]
+construct = ">=2.10.56,<3.0.0"
+construct-typing = ">=0.5.1,<1.0.0"
+solana = ">=0.11.3,<1.0.0"
 
 [[package]]
 name = "python-dateutil"
@@ -3025,6 +3109,20 @@ watchdog = {version = ">=2.1.5", markers = "platform_system != \"Darwin\""}
 
 [package.extras]
 snowflake = ["snowflake-connector-python (>=2.8.0)", "snowflake-snowpark-python (>=0.9.0)"]
+
+[[package]]
+name = "sumtypes"
+version = "0.1a6"
+description = "Algebraic types for Python (notably providing Sum Types, aka Tagged Unions)"
+optional = false
+python-versions = "*"
+files = [
+    {file = "sumtypes-0.1a6-py2.py3-none-any.whl", hash = "sha256:3e9d71322dd927d25d935072f8be7daec655ea292fd392359a5bb2c1e53dfdc3"},
+    {file = "sumtypes-0.1a6.tar.gz", hash = "sha256:1a6ff095e06a1885f340ddab803e0f38e3f9bed81f9090164ca9682e04e96b43"},
+]
+
+[package.dependencies]
+attrs = "*"
 
 [[package]]
 name = "tenacity"

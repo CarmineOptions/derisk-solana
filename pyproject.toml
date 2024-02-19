@@ -18,6 +18,11 @@ gunicorn = "^21.2.0"
 streamlit = "^1.30.0"
 plotly = "^5.18.0"
 notebook = "6.5.6"  # This fixes the problem of jupyter showing just a blank page instead of the notebooks.
+phoenix-trade = "0.1.9"
+base58 = "2.1.1"
+asyncstdlib = "3.12.0"
+borsh-construct = "^0.1.0"
+jsonrpcclient = "^4.0.3"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.0.0"
