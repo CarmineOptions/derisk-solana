@@ -1,8 +1,3 @@
--- CREATE TYPE orderbook_level AS (
---     price FLOAT,
---     quantity FLOAT
--- );
-
 CREATE TABLE public.orderbook_liquidity (
     timestamp bigint NOT NULL
     dex character varying NOT NULL, 
