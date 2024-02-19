@@ -4,7 +4,7 @@ import asyncio
 import sys
 sys.path.append(".")
 
-from src.protocols.dexes.dexes import update_ob_dex_data_continuously, load_ob_dex_data
+from src.protocols.dexes.dexes import update_ob_dex_data_continuously
 
 
 if __name__ == '__main__':

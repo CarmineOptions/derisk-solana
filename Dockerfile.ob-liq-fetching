@@ -14,6 +14,8 @@ COPY ./db ./db
 
 RUN python3 -m pip install anchorpy 
 RUN python3 -m pip install solana==0.28.1
+RUN python3 -m pip install mango_explorer_v4
+RUN python3 -m pip install typing-extensions --upgrade
 
 CMD ["python3", "scripts/collect_ob_liq.py"]
 

@@ -45,7 +45,7 @@ async def update_ob_dex_data():
 	Updates CLOB liquidity once. 
 	"""
 	try: 
-		clobs = CLOBs([Phoenix()])
+		clobs = CLOBs([Phoenix(), OpenBook()])
 		await clobs.update_orderbooks()
 		logging.info('Successfuly updated CLOB liquidity')
 	except Exception as err: 
@@ -53,12 +53,12 @@ async def update_ob_dex_data():
 		# to separately catch errors like KeyboardInterrupt since we can 
 		# always just stop the container
 		err_msg = ''.join(traceback.format_exception(err))
-		logging.error(err_msg)
+		logging.error("Following error occured:\n", err_msg)
 
 
 async def update_ob_dex_data_continuously():
 	"""
-	Updates CLOB liquidity continuously, every interval defined by COLLECT_INTERVAL_SECONDS constant.
+	Updates CLOB liquidity continuously, every n-seconds as defined by COLLECT_INTERVAL_SECONDS constant.
 	"""
 
 	while True:
