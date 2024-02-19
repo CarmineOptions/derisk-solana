@@ -1,0 +1,19 @@
+
+FROM python:3.10
+
+WORKDIR /app
+
+RUN pip install poetry
+COPY pyproject.toml poetry.lock* ./
+RUN poetry config virtualenvs.create false \
+  && poetry install --no-interaction --no-ansi
+
+COPY ./scripts ./scripts
+COPY ./src ./src
+COPY ./db ./db
+
+RUN python3 -m pip install anchorpy 
+RUN python3 -m pip install solana==0.28.1
+
+CMD ["python3", "scripts/collect_ob_liq.py"]
+
