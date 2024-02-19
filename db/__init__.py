@@ -1,9 +1,11 @@
+from enum import Enum
 import os
 
-from sqlalchemy import create_engine, Column, Integer, String, BigInteger, ForeignKey, Text, Boolean
+from sqlalchemy import create_engine, Column, Integer, String, BigInteger, ForeignKey
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session
+from sqlalchemy.types import Enum as SQLEnum
 from sqlalchemy import Index
 
 
@@ -27,7 +29,6 @@ CONN_STRING = f"postgresql+psycopg2://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTG
 SCHEMA = 'public'
 
 
-
 def get_db_session() -> Session:
     """
     Initializes a session -> it must be closed manually!
@@ -39,8 +40,13 @@ def get_db_session() -> Session:
     return session()
 
 
+class CollectionStreamTypes(Enum):
+    HISTORICAL = 'historical'
+    CURRENT = 'current'
+
+
 class TransactionStatusWithSignature(Base):
-    __tablename__ = 'tx_signatures'
+    __tablename__ = 'transactions'
 
     id = Column(Integer, primary_key=True)
     source = Column(String, nullable=False)
@@ -48,7 +54,7 @@ class TransactionStatusWithSignature(Base):
     slot = Column(BigInteger, nullable=False)
     block_time = Column(BigInteger, nullable=False)
     tx_raw = Column(String, nullable=True)  # column to store json with transaction's data
-
+    collection_stream = Column(SQLEnum(CollectionStreamTypes, name='collection_stream_types'), nullable=True)
     __table_args__ = (
         Index('ix_transactions_slot', 'slot'),
         Index('ix_transactions_block_time', 'block_time'),
