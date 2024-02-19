@@ -1,11 +1,11 @@
 import os
 
-from sqlalchemy import create_engine, Column, Integer, String, BigInteger, ForeignKey, Text, Boolean
+from sqlalchemy import create_engine, Column, Integer, String, BigInteger, ForeignKey, Text, Boolean, PrimaryKeyConstraint, Float
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy import Index
-
+from sqlalchemy.dialects.postgresql import ARRAY as PG_ARRAY
 
 Base = declarative_base()
 
@@ -78,3 +78,29 @@ class TransactionStatusMemo(Base):
     id = Column(Integer, primary_key=True)
     memo_body = Column(String, nullable=False)
     tx_signatures_id = Column(Integer, ForeignKey(f'{SCHEMA}.tx_signatures.id'), nullable=False)
+
+class CLOBLiqudity(Base):
+    __tablename__ = 'orderbook_liquidity'
+    __table_args__ = (
+        PrimaryKeyConstraint('dex', 'pair', 'market_address', 'timestamp'),
+        {
+        'schema': SCHEMA
+    })
+
+    timestamp = Column(BigInteger, nullable=False)
+    dex = Column(String, nullable = False)
+    pair = Column(String, nullable = False)
+    market_address = Column(String, nullable = False)
+    bids = Column(PG_ARRAY(Float), nullable=False)
+    asks = Column(PG_ARRAY(Float), nullable=False)
+
+    def __repr__(self):
+        return (
+            "CLOBLiqudity("
+            f"timestamp={self.timestamp},"
+            f"dex={self.dex},"
+            f"pair={self.pair},"
+            f"market_address={self.market_address},"
+            f"bids={self.bids},"
+            f"asks={self.asks})"
+        )
