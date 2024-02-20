@@ -26,9 +26,32 @@ class GenericSolanaConnector(ABC):
             LOG.error(f"RPC url was not found in environment variables.")
         self.authenticated_rpc_url = rpc_url
 
-    @abstractmethod
     def run(self):
         """
         Main method to process all necessary operations to collect and write data.
+        """
+        while True:
+            self._get_assignment()
+            self._get_data()
+            self._write_tx_data()
+
+    @abstractmethod
+    def _get_assignment(self) -> None:
+        """
+        Obtain assignment for data collection.
+        """
+        raise NotImplementedError("Implement me!")
+
+    @abstractmethod
+    def _get_data(self) -> None:
+        """
+        Collect required data through Solana API.
+        """
+        raise NotImplementedError("Implement me!")
+
+    @abstractmethod
+    def _write_tx_data(self) -> None:
+        """
+        Write raw tx data to database.
         """
         raise NotImplementedError("Implement me!")
