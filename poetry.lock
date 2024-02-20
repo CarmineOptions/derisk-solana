@@ -1605,15 +1605,6 @@ test = ["flaky", "ipykernel (>=6.19.3)", "ipython", "ipywidgets", "nbconvert (>=
 
 [[package]]
 name = "nbconvert"
-<<<<<<< HEAD
-version = "7.16.0"
-description = "Converting Jupyter Notebooks"
-optional = false
-python-versions = ">=3.8"
-files = [
-    {file = "nbconvert-7.16.0-py3-none-any.whl", hash = "sha256:ad3dc865ea6e2768d31b7eb6c7ab3be014927216a5ece3ef276748dd809054c7"},
-    {file = "nbconvert-7.16.0.tar.gz", hash = "sha256:813e6553796362489ae572e39ba1bff978536192fb518e10826b0e8cadf03ec8"},
-=======
 version = "7.16.1"
 description = "Converting Jupyter Notebooks (.ipynb files) to other formats.  Output formats include asciidoc, html, latex, markdown, pdf, py, rst, script.  nbconvert can be used both as a Python library (`import nbconvert`) or as a command line tool (invoked as `jupyter nbconvert ...`)."
 optional = false
@@ -1621,7 +1612,6 @@ python-versions = ">=3.8"
 files = [
     {file = "nbconvert-7.16.1-py3-none-any.whl", hash = "sha256:3188727dffadfdc9c6a1c7250729063d7bc78b355ad7aa023138afa030d1cd07"},
     {file = "nbconvert-7.16.1.tar.gz", hash = "sha256:e79e6a074f49ba3ed29428ed86487bf51509d9aab613bd8522ac08f6d28fd7fd"},
->>>>>>> 332fa67 (Update poetry.lock)
 ]
 
 [package.dependencies]
@@ -2340,7 +2330,6 @@ plugins = ["importlib-metadata"]
 windows-terminal = ["colorama (>=0.4.6)"]
 
 [[package]]
-<<<<<<< HEAD
 name = "pylint"
 version = "3.0.3"
 description = "python code static checker"
@@ -2371,13 +2360,13 @@ testutils = ["gitpython (>3)"]
 
 [[package]]
 name = "pytest"
-version = "8.0.0"
+version = "8.0.1"
 description = "pytest: simple powerful testing with Python"
 optional = false
 python-versions = ">=3.8"
 files = [
-    {file = "pytest-8.0.0-py3-none-any.whl", hash = "sha256:50fb9cbe836c3f20f0dfa99c565201fb75dc54c8d76373cd1bde06b06657bdb6"},
-    {file = "pytest-8.0.0.tar.gz", hash = "sha256:249b1b0864530ba251b7438274c4d251c58d868edaaec8762893ad4a0d71c36c"},
+    {file = "pytest-8.0.1-py3-none-any.whl", hash = "sha256:3e4f16fe1c0a9dc9d9389161c127c3edc5d810c38d6793042fb81d9f48a59fca"},
+    {file = "pytest-8.0.1.tar.gz", hash = "sha256:267f6563751877d772019b13aacbe4e860d73fe8f651f28112e9ac37de7513ae"},
 ]
 
 [package.dependencies]
@@ -2392,24 +2381,6 @@ tomli = {version = ">=1.0.0", markers = "python_version < \"3.11\""}
 testing = ["argcomplete", "attrs (>=19.2.0)", "hypothesis (>=3.56)", "mock", "nose", "pygments (>=2.7.2)", "requests", "setuptools", "xmlschema"]
 
 [[package]]
-name = "pyserum"
-version = "0.5.0a0"
-description = "Python client library for interacting with the Project Serum DEX."
-optional = false
-python-versions = ">=3.7, <4"
-files = [
-    {file = "pyserum-0.5.0a0-py2-none-any.whl", hash = "sha256:f0282afbbb4b4de04eb783502b05f0dc405392c95ab844b28828160db0779a3a"},
-    {file = "pyserum-0.5.0a0.tar.gz", hash = "sha256:0e13a479c839a596095bcd87fd348b90f9020fa5b1d65bbad17e7daf8086fa9c"},
-]
-
-[package.dependencies]
-construct = ">=2.10.56,<3.0.0"
-construct-typing = ">=0.5.1,<1.0.0"
-solana = ">=0.11.3,<1.0.0"
-
-[[package]]
-=======
->>>>>>> 332fa67 (Update poetry.lock)
 name = "python-dateutil"
 version = "2.8.2"
 description = "Extensions to the standard Python datetime module"
@@ -3602,8 +3573,4 @@ testing = ["big-O", "jaraco.functools", "jaraco.itertools", "more-itertools", "p
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-<<<<<<< HEAD
-content-hash = "c5a82e68f427596a87c45d3d877e7f13f949e0943db99fbbd720325f1cb9486d"
-=======
-content-hash = "af3bf68fd009445e04215066079c846960c96ec737ac32e4039f40363d73b386"
->>>>>>> 332fa67 (Update poetry.lock)
+content-hash = "ec4abac8a7321f72ecde9068d6dfca5b8ce9c74a5d930611232d425fd6caf9d5"
