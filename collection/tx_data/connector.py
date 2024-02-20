@@ -35,15 +35,6 @@ class TXFromBlockConnector(GenericSolanaConnector):
         """Implement in subclasses to define the constant value"""
         pass
 
-    def run(self):
-        """
-        Main method to process all necessary operations to collect and write data.
-        """
-        while True:
-            self._get_assignment()
-            self._get_data()
-            self._write_tx_data()
-
     def _get_data(self):
         """
 
@@ -120,7 +111,6 @@ class TXFromBlockConnector(GenericSolanaConnector):
         Write raw tx data to database.
         """
         with db.get_db_session() as session:
-
             for transaction in self.rel_transactions:
                 signature = transaction.value.transaction.transaction.signatures[0]
                 record = session.query(db.TransactionStatusWithSignature).filter_by(signature=str(signature)).first()
@@ -131,10 +121,10 @@ class TXFromBlockConnector(GenericSolanaConnector):
                     record.tx_raw = transaction.to_json()
                 else:
                     new_record = db.TransactionStatusWithSignature(
-                        source=transaction.source,  # TODO source, slot, signature, bt
-                        slot=transaction.slot,
-                        signature=transaction.signature,
-                        block_time=transaction.block_time,
+                        source=self._get_tx_source(transaction),
+                        slot=transaction.value.slot,
+                        signature=signature,
+                        block_time=transaction.value.block_time,
                         tx_raw=transaction.to_json(),
                         collection_stream=self.COLLECTION_STREAM
                     )
@@ -153,3 +143,16 @@ class TXFromBlockConnector(GenericSolanaConnector):
             i for i in transaction.transaction.message.account_keys if str(i.pubkey) in self.protocol_public_keys
         ]
         return bool(relevant_pubkeys)
+
+    def _get_tx_source(self, transaction) -> str:
+        """
+        Identify transaction source by matching present public keys with relevant protocols' public keys
+        """
+        try:
+            return next(
+                k for k in self.protocol_public_keys
+                if k in [str(i.pubkey) for i in transaction.value.transaction.transaction.message.account_keys]
+            )
+        except StopIteration:
+            LOG.error(f"Transaction `{transaction.value.transaction.transaction.signatures[0]}`"
+                      f" does not contain any relevant public keys.")
