@@ -15,7 +15,7 @@ LOGGER = logging.getLogger(__name__)
 
 class CLOB():
     @abc.abstractmethod
-    def get_onchain_orderbook(self, market_address: str) -> dict[str, list[tuple[float, float]]]:
+    async def get_onchain_orderbook(self, market_address: str) -> dict[str, list[tuple[float, float]]]:
         pass
     
     @abc.abstractmethod
@@ -101,7 +101,7 @@ class OpenBook(CLOB):
             commitment = commitment
         )
 
-    def get_onchain_orderbook(self, market_address: str) -> dict[str, list[tuple[float, float]]]:
+    async def get_onchain_orderbook(self, market_address: str) -> dict[str, list[tuple[float, float]]]:
         """
         Retrieves onchain orderbook data for single market.
 
@@ -148,7 +148,7 @@ class OpenBook(CLOB):
                     accross all the different markets, since we don't need high precision.
         '''
         order_books = { 
-            ticker: self.get_onchain_orderbook(address)
+            ticker: await self.get_onchain_orderbook(address)
             for ticker, address in self.tickers.items()
         }   
         
