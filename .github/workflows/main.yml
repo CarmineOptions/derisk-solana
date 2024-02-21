@@ -47,7 +47,7 @@ jobs:
       - name: Find changed files
         id: files
         run: |
-          FILES=$(git diff --name-only origin/master...HEAD | grep '\.py$' || echo "No changes in Python files")
+          FILES=$(git diff --name-only --diff-filter=AM origin/master...HEAD | grep '\.py$' || echo "No changes in Python files")
           if [ "$FILES" = "No changes in Python files" ]; then
             echo "CHANGED_FILES=" >> $GITHUB_ENV
           else
@@ -82,7 +82,7 @@ jobs:
       - name: Find changed files
         id: files
         run: |
-          FILES=$(git diff --name-only origin/master...HEAD | grep '\.py$' || echo "No changes in Python files")
+          FILES=$(git diff --name-only --diff-filter=AM origin/master...HEAD | grep '\.py$' || echo "No changes in Python files")
           if [ "$FILES" = "No changes in Python files" ]; then
             echo "CHANGED_FILES=No changes in Python files" >> $GITHUB_ENV
           else
