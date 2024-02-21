@@ -47,12 +47,11 @@ jobs:
       - name: Find changed files
         id: files
         run: |
-          git fetch origin master:master  # Ensure the master branch is up to date
           FILES=$(git diff --name-only origin/master...HEAD | grep '\.py$' || echo "No changes in Python files")
           if [ "$FILES" = "No changes in Python files" ]; then
             echo "CHANGED_FILES=" >> $GITHUB_ENV
           else
-            echo "CHANGED_FILES=$FILES" >> $GITHUB_ENV
+            echo "CHANGED_FILES="$FILES >> $GITHUB_ENV
           fi
         shell: bash
 
@@ -83,12 +82,11 @@ jobs:
       - name: Find changed files
         id: files
         run: |
-          git fetch origin master:master  # Ensure the master branch is up to date
           FILES=$(git diff --name-only origin/master...HEAD | grep '\.py$' || echo "No changes in Python files")
           if [ "$FILES" = "No changes in Python files" ]; then
             echo "CHANGED_FILES=No changes in Python files" >> $GITHUB_ENV
           else
-            echo "CHANGED_FILES=$FILES" >> $GITHUB_ENV
+            echo "CHANGED_FILES="$FILES >> $GITHUB_ENV
           fi
         shell: bash
 
