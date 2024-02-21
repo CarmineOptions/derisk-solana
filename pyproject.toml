@@ -21,6 +21,8 @@ notebook = "6.5.6"  # This fixes the problem of jupyter showing just a blank pag
 phoenix-trade = ">=0.1.9"
 anchorpy = ">=0.19.1"
 pyserum = "^0.5.0a0"
+# `pytest-asyncio` is required by `anchorpy`, but is not installed along with it.
+pytest-asyncio = "^0.23.5"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.0.0"
