@@ -13,7 +13,7 @@ import db
 LOGGER = logging.getLogger(__name__)
 
 
-class CLOB:
+class CLOB(abc.ABC):
     @abc.abstractmethod
     async def get_onchain_orderbook(
         self, market_address: str
