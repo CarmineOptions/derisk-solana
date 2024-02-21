@@ -14,8 +14,8 @@ jobs:
       - name: Install dependencies
         run: |
           python3 -V
-          python -m venv venv-solana
-          source venv-solana/bin/activate
+          python -m venv ~/venv-solana
+          source ~/venv-solana/bin/activate
           pip install poetry
           poetry install --no-root
           pip3 list
@@ -23,7 +23,7 @@ jobs:
 
       - name: Run tests
         run: |
-          source venv-solana/bin/activate
+          source ~/venv-solana/bin/activate
           PYTHONPATH=$PWD pytest tests/ -vv
         shell: bash
 
@@ -37,8 +37,8 @@ jobs:
       - name: Install dependencies
         run: |
           python3 -V
-          python -m venv venv-solana
-          source venv-solana/bin/activate
+          python -m venv ~/venv-solana
+          source ~/venv-solana/bin/activate
           pip install poetry
           poetry install --no-root
           pip3 list
@@ -58,7 +58,7 @@ jobs:
       - name: Run mypy
         if: env.CHANGED_FILES != ''  # TODO: remove condition, when most of code base has typing in place.
         run: |
-          source venv-solana/bin/activate
+          source ~/venv-solana/bin/activate
           mypy ${{ env.CHANGED_FILES }}
         shell: bash
 
@@ -94,6 +94,5 @@ jobs:
         if: env.CHANGED_FILES != ''  # TODO: remove condition, when most of code base is inline with linter setup
         run: |
           source ~/venv-solana/bin/activate
-          ls -l
           pylint ${{ env.CHANGED_FILES }}
         shell: bash
