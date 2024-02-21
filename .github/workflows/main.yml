@@ -94,5 +94,6 @@ jobs:
         if: env.CHANGED_FILES != ''  # TODO: remove condition, when most of code base is inline with linter setup
         run: |
           source venv-solana/bin/activate
+          ls -l
           pylint ${{ env.CHANGED_FILES }}
         shell: bash
