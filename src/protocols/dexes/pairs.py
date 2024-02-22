@@ -1,4 +1,6 @@
-# Addresses of trading pair's for given AMM or OB-DEX
+""" 
+Module contains addresses of trading pairs for given AMM or CLOB.
+"""
 
 PAIRS: dict[str, dict[str, str]] = {
     "SOL/USDC": {
