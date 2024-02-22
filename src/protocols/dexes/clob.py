@@ -16,7 +16,7 @@ LOGGER = logging.getLogger(__name__)
 class CLOB(abc.ABC):
     @abc.abstractmethod
     async def get_onchain_orderbook(
-        self, market_address: str, endpoint: str
+        self, market_address: str
     ) -> dict[str, list[tuple[float, float]]]:
         pass
 
@@ -26,7 +26,12 @@ class CLOB(abc.ABC):
 
 
 class Phoenix(CLOB):
-    def __init__(self, commitment: Commitment = Commitment("finalized"), endpoint: str = "https://api.mainnet-beta.solana.com"):
+    def __init__(self, commitment: Commitment = Commitment("finalized"), endpoint: str | None = None):
+
+        if endpoint is None:
+            endpoint = "https://api.mainnet-beta.solana.com"
+
+        
         self.identifier = "PHOENIX"
         self.tickers = get_relevant_tickers(self.identifier)
         self.client = PhoenixClient(commitment=commitment, endpoint=endpoint)
@@ -89,7 +94,11 @@ class Phoenix(CLOB):
 
 # TODO: To be implemented.
 class OpenBook(CLOB):
-    def __init__(self, commitment: Commitment = Commitment("finalized"), endpoint: str = "https://api.mainnet-beta.solana.com"):
+    def __init__(self, commitment: Commitment = Commitment("finalized"), endpoint: str | None = None):
+
+        if endpoint is None:
+            endpoint = "https://api.mainnet-beta.solana.com"
+        
         self.identifier = "OPENBOOK"
         self.tickers = get_relevant_tickers(self.identifier)
         self.client = SolanaClient(
