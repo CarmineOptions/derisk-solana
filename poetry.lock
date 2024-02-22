@@ -2344,22 +2344,6 @@ spelling = ["pyenchant (>=3.2,<4.0)"]
 testutils = ["gitpython (>3)"]
 
 [[package]]
-name = "pyserum"
-version = "0.5.0a0"
-description = "Python client library for interacting with the Project Serum DEX."
-optional = false
-python-versions = ">=3.7, <4"
-files = [
-    {file = "pyserum-0.5.0a0-py2-none-any.whl", hash = "sha256:f0282afbbb4b4de04eb783502b05f0dc405392c95ab844b28828160db0779a3a"},
-    {file = "pyserum-0.5.0a0.tar.gz", hash = "sha256:0e13a479c839a596095bcd87fd348b90f9020fa5b1d65bbad17e7daf8086fa9c"},
-]
-
-[package.dependencies]
-construct = ">=2.10.56,<3.0.0"
-construct-typing = ">=0.5.1,<1.0.0"
-solana = ">=0.11.3,<1.0.0"
-
-[[package]]
 name = "pytest"
 version = "8.0.1"
 description = "pytest: simple powerful testing with Python"
@@ -3559,4 +3543,4 @@ testing = ["big-O", "jaraco.functools", "jaraco.itertools", "more-itertools", "p
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-content-hash = "d763420b5606871893ceb5325b200d13ced26a6b6a06d2845c00e240265fa97a"
+content-hash = "d2cc4fcfb8ef39547a8495d7ddfcce39ffccc76a1b0e66801d851bc3759718f9"

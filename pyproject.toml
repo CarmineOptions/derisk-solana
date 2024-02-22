@@ -19,7 +19,6 @@ streamlit = "^1.30.0"
 plotly = "^5.18.0"
 notebook = "6.5.6"  # This fixes the problem of jupyter showing just a blank page instead of the notebooks.
 phoenix-trade = ">=0.1.9"
-pyserum = "^0.5.0a0"
 base58 = "^2.1.1"
 asyncstdlib = "^3.12.0"
 jsonrpcclient = "^4.0.3"
