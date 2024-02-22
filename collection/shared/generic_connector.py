@@ -4,8 +4,10 @@
 from abc import ABC, abstractmethod
 import logging
 import os
+from typing import List
 
 import solana.rpc.api
+from solders.transaction_status import EncodedTransactionWithStatusMeta, EncodedConfirmedTransactionWithStatusMeta
 
 LOG = logging.getLogger(__name__)
 
@@ -14,10 +16,13 @@ class GenericSolanaConnector(ABC):
     """
     Abstract class with methods, that every Solana connector should implement.
     """
+    assignment: List[int] | None = None
 
     def __init__(self):
         self._get_rpc_url()
         self.solana_client: solana.rpc.api.Client = solana.rpc.api.Client(self.authenticated_rpc_url)
+
+        self.rel_transactions: List[EncodedConfirmedTransactionWithStatusMeta | EncodedTransactionWithStatusMeta] = list()
         LOG.info(f"{self.__class__.__name__} is all set to collect.")
 
     def _get_rpc_url(self) -> None:
