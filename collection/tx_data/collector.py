@@ -1,26 +1,24 @@
 """
 
 """
+from abc import abstractmethod
+from typing import List
 import logging
 import os
 import time
-from abc import abstractmethod
-from typing import List
 
 from solana.exceptions import SolanaRpcException
 from solders.transaction_status import UiConfirmedBlock, EncodedConfirmedTransactionWithStatusMeta, \
     EncodedTransactionWithStatusMeta
 
+from collection.shared.generic_collector import GenericSolanaConnector
 import db
-from collection.shared.generic_connector import GenericSolanaConnector
 
 
 LOG = logging.getLogger(__name__)
 
-BATCH_SIZE = 100
 
-
-class TXFromBlockConnector(GenericSolanaConnector):
+class TXFromBlockCollector(GenericSolanaConnector):
     """
     Class to collect transaction data from Solana blocks.
     """
@@ -63,28 +61,9 @@ class TXFromBlockConnector(GenericSolanaConnector):
     @abstractmethod
     def _get_assigned_blocks(self) -> None:
         """
-
-        :return:
+        Obtains block numbers to fetch.
         """
-        self.assignment = list()
-        # TODO: make it more flexible. we want to be able to get assignments indirectly
-        #  from db so several collectors can serve at once / or change status of tx while fetching tx_raw
-        # Fetch first n blocks that contain transactions without tx_raw.
-        with db.get_db_session() as session:
-            distinct_slots = session.query(
-                db.TransactionStatusWithSignature.slot
-            ).filter(
-                db.TransactionStatusWithSignature.tx_raw.is_(None)
-            ).distinct().subquery()
-
-            # Outer query to order the distinct slots and limit the results
-            slots = session.query(
-                distinct_slots.c.slot
-            ).order_by(
-                distinct_slots.c.slot
-            ).limit(BATCH_SIZE).all()
-
-        self.assignment = [i.slot for i in slots]
+        raise NotImplementedError("Implement me!")
 
     def _get_protocol_public_keys(self) -> None:
         """
@@ -150,7 +129,7 @@ class TXFromBlockConnector(GenericSolanaConnector):
                             signature=signature,
                             block_time=transaction.value.block_time,
                             tx_raw=transaction.to_json(),
-                            collection_stream=self.COLLECTION_STREAM
+                            collection_stream=self.COLLECTION_STREAM.value
                         )
                         session.add(new_record)
 
