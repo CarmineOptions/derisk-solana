@@ -30,7 +30,7 @@ class TXFromBlockCollector(GenericSolanaConnector):
     @abstractmethod
     def COLLECTION_STREAM(self) -> db.CollectionStreamTypes:
         """Implement in subclasses to define the constant value"""
-        pass
+        raise NotImplementedError("Implement me!")
 
     def _get_data(self):
         """
@@ -106,35 +106,45 @@ class TXFromBlockCollector(GenericSolanaConnector):
         """
         Write raw tx data to database.
         """
-        with db.get_db_session() as session:
-            for transaction in self.rel_transactions:
-                assert hasattr(transaction, 'value')
-                signature = transaction.value.transaction.transaction.signatures[0]
-                record = session.query(db.TransactionStatusWithSignature).filter_by(signature=str(signature)).first()
+        if self.rel_transactions:
+            with db.get_db_session() as session:
+                for transaction in self.rel_transactions:
+                    assert hasattr(transaction, 'value')
+                    signature = transaction.value.transaction.transaction.signatures[0]
+                    record = session.query(db.TransactionStatusWithSignature).filter_by(signature=str(signature)).first()
 
-                # Check if the record exists.
-                if record:
-                    # Update the tx_raw field.
-                    record.tx_raw = transaction.to_json()
-                else:
-                    # get sources from pubkeys
-                    sources = self._get_tx_source(transaction)
-                    # TODO: now we store new record for each source but
-                    #  it's possible that some sources already can have record with the same signature
-                    #  and we only need to assign tx_raw to this records
-                    for source in sources:
-                        new_record = db.TransactionStatusWithSignature(
-                            source=source,
-                            slot=transaction.value.slot,
-                            signature=signature,
-                            block_time=transaction.value.block_time,
-                            tx_raw=transaction.to_json(),
-                            collection_stream=self.COLLECTION_STREAM.value
-                        )
-                        session.add(new_record)
+                    # Check if the record exists.
+                    if record:
+                        # Update the tx_raw field.
+                        record.tx_raw = transaction.to_json()
+                    else:
+                        # get sources from pubkeys
+                        sources = self._get_tx_source(transaction)
+                        # TODO: now we store new record for each source but
+                        #  it's possible that some sources already can have record with the same signature
+                        #  and we only need to assign tx_raw to this records
+                        for source in sources:
+                            new_record = db.TransactionStatusWithSignature(
+                                source=source,
+                                slot=transaction.value.slot,
+                                signature=signature,
+                                block_time=transaction.value.block_time,
+                                tx_raw=transaction.to_json(),
+                                collection_stream=self.COLLECTION_STREAM.value
+                            )
+                            session.add(new_record)
 
-            # Commit the changes.
-            session.commit()
+                # Commit the changes.
+                session.commit()
+        self._report_collection()
+
+    @abstractmethod
+    def _report_collection(self):
+        """
+        Report collected blocks.
+        :return:
+        """
+        raise NotImplementedError("Implement me!")
 
     def _is_transaction_relevant(
         self,

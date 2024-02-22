@@ -49,7 +49,7 @@ class TransactionStatusWithSignature(Base):
     __tablename__ = 'transactions'
 
     id = Column(Integer, primary_key=True)
-    source = Column(String, nullable=False)
+    source = Column(String, ForeignKey(f'{SCHEMA}.protocols.public_key'), nullable=False)
     signature = Column(String, nullable=False)
     slot = Column(BigInteger, nullable=False)
     block_time = Column(BigInteger, nullable=False)
@@ -84,6 +84,16 @@ class TransactionStatusMemo(Base):
     id = Column(Integer, primary_key=True)
     memo_body = Column(String, nullable=False)
     tx_signatures_id = Column(Integer, ForeignKey(f'{SCHEMA}.tx_signatures.id'), nullable=False)
+
+
+class Protocols(Base):
+    __tablename__ = 'protocols'
+    __table_args__ = {'schema': SCHEMA}
+
+    id = Column(Integer, primary_key=True)
+    public_key = Column(String, unique=True, nullable=False)
+    watershed_block = Column(Integer, nullable=False)
+    last_block_collected = Column(Integer, nullable=True)
 
 
 if __name__ == "__main__":
