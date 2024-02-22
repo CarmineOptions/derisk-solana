@@ -1,3 +1,6 @@
+"""
+Module containing functionality related to Postgres DB used throughout the repo.
+"""
 import os
 
 from sqlalchemy import (
