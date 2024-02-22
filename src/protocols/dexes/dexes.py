@@ -1,4 +1,5 @@
 import logging
+import os
 import time
 import traceback
 
@@ -11,6 +12,10 @@ import db
 
 # Collect and store orderbook liquidity every 5 minutes
 COLLECT_INTERVAL_SECONDS: int = 5 * 60
+
+AUTHENTICATED_RPC_URL = os.environ.get("AUTHENTICATED_RPC_URL")
+if AUTHENTICATED_RPC_URL is None:
+    raise ValueError("No AUTHENTICATED_RPC_URL env var")
 
 # TODO: To be implemented.
 class AMMs:
@@ -48,7 +53,10 @@ async def update_ob_dex_data():
     Updates CLOB liquidity once.
     """
     try:
-        clobs = CLOBs([Phoenix(), OpenBook()])
+        clobs = CLOBs([
+            Phoenix(endpoint=AUTHENTICATED_RPC_URL), 
+            OpenBook(endpoint=AUTHENTICATED_RPC_URL)
+        ])
         await clobs.update_orderbooks()
         logging.info("Successfuly updated CLOB liquidity")
     except Exception as err:
