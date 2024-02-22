@@ -5,7 +5,8 @@ services:
   # Postgres database
   db:
     build:
-      dockerfile: ./Dockerfile.db
+      context: .
+      dockerfile: Dockerfile.db
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
@@ -21,7 +22,8 @@ services:
   # api - reads from db, serves over http
   api:
     build:
-      dockerfile: ./Dockerfile.api
+      context: .
+      dockerfile: Dockerfile.api
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
@@ -36,7 +38,8 @@ services:
   # data-fetcher - fetches data and stores them in the database
   data-fetcher:
     build:
-      dockerfile: ./Dockerfile.raw-data-fetching
+      context: .
+      dockerfile: Dockerfile.raw-data-fetching
     environment:
       AUTHENTICATED_RPC_URL: https://<rpc_provider>/<api_token>
       RATE_LIMIT: 5
@@ -50,7 +53,8 @@ services:
 
   fe:
     build:
-      dockerfile: ./Dockerfile.frontend
+      context: .
+      dockerfile: Dockerfile.frontend
     ports:
       - 8501:8501
 
@@ -100,3 +104,15 @@ services:
       depends_on:
         db:
           condition: service_healthy
+
+  portainer:
+    image: portainer/portainer-ce
+    ports:
+      - "9000:9000"
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock"
+      - portainer_data:/data
+    restart: always
+
+volumes:
+  portainer_data:
