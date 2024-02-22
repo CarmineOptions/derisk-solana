@@ -8,10 +8,10 @@ COPY pyproject.toml poetry.lock* ./
 RUN poetry config virtualenvs.create false \
   && poetry install --no-interaction --no-ansi
 
-RUN python3 -m pip install anchorpy 
-RUN python3 -m pip install solana==0.28.1
+RUN python3 -m pip install anchorpy==0.19.1
 RUN python3 -m pip install mango_explorer_v4
 RUN python3 -m pip install typing-extensions --upgrade
+
 
 COPY ./scripts ./scripts
 COPY ./src ./src
