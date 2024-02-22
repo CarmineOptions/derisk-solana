@@ -1,3 +1,7 @@
+"""
+Module containg logic for fetching Solana onchain liquidity - 
+both AMM and CLOB (in which case it also pushes it the database).
+"""
 import logging
 import os
 import time
@@ -17,7 +21,7 @@ AUTHENTICATED_RPC_URL = os.environ.get("AUTHENTICATED_RPC_URL")
 if AUTHENTICATED_RPC_URL is None:
     raise ValueError("No AUTHENTICATED_RPC_URL env var")
 
-# TODO: To be implemented.
+# TODO: To be implemented. pylint: disable=W0511
 class AMMs:
     """
     A class that describes the state of all relevant pools of all relevant swap AMMs.
@@ -27,7 +31,9 @@ class AMMs:
         pass
 
     def fetch_pools(self) -> None:
-        pass
+        """
+        Fetches all AMM liquidity on Solana.
+        """
 
 
 class CLOBs:
@@ -53,18 +59,23 @@ async def update_ob_dex_data():
     Updates CLOB liquidity once.
     """
     try:
-        clobs = CLOBs([
-            Phoenix(endpoint=AUTHENTICATED_RPC_URL), 
-            OpenBook(endpoint=AUTHENTICATED_RPC_URL)
-        ])
+        clobs = CLOBs(
+            [
+                Phoenix(endpoint=AUTHENTICATED_RPC_URL),
+                OpenBook(endpoint=AUTHENTICATED_RPC_URL),
+            ]
+        )
         await clobs.update_orderbooks()
         logging.info("Successfuly updated CLOB liquidity")
-    except Exception as err:
+    except Exception as err: # pylint: disable=W0718
+        # We want to log any error but we want the collector
+        # to keep on running.
+
         # Program is designed to run in Docker container - so there is no need
         # to separately catch errors like KeyboardInterrupt since we can
         # always just stop the container
         err_msg = "".join(traceback.format_exception(err))
-        logging.error("Following error occured:\n", err_msg)
+        logging.error(f"Following error occured:\n {err_msg}")
 
 
 async def update_ob_dex_data_continuously():
@@ -106,12 +117,12 @@ def load_ob_dex_data(start_timestamp: int) -> list[db.CLOBLiqudity]:
     return entries
 
 
-# TODO: To be implemented.
+# TODO: To be implemented. pylint: disable=W0511
 # def load_amm_dex_data() -> AMMs:
 # 	amm_dx = AMMs()
 # 	amm_dx.fetch_pools()
 # 	return amm_dx
 
-# TODO: To be implemented.
+# TODO: To be implemented. pylint: disable=W0511
 # def load_dex_data() -> tuple[AMMs, CLOBs]:
 # 	return load_amm_dex_data(), load_ob_dex_data()
