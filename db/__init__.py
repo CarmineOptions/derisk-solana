@@ -45,6 +45,7 @@ CONN_STRING = f"postgresql+psycopg2://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTG
 
 SCHEMA = "public"
 
+
 def get_db_session() -> Session:
     """
     Initializes a session -> it must be closed manually!
@@ -59,6 +60,7 @@ def get_db_session() -> Session:
 class CollectionStreamTypes(Enum):
     HISTORICAL = 'historical'
     CURRENT = 'current'
+    SIGNATURE = 'signature'
 
 
 class TransactionStatusWithSignature(Base):
@@ -161,6 +163,8 @@ class Protocols(Base):
     public_key = Column(String, unique=True, nullable=False)
     watershed_block = Column(Integer, nullable=False)
     last_block_collected = Column(Integer, nullable=True)
+    hist_signatures_collected = Column(Boolean, nullable=False, default=False)
+    hist_tx_collected = Column(Boolean, nullable=False, default=False)
 
 
 if __name__ == "__main__":
