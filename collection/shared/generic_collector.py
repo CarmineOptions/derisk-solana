@@ -2,12 +2,15 @@
 
 """
 from abc import ABC, abstractmethod
+from typing import List
 import logging
 import os
-from typing import List
+import time
 
 import solana.rpc.api
-from solders.transaction_status import EncodedTransactionWithStatusMeta, EncodedConfirmedTransactionWithStatusMeta
+from solana.exceptions import SolanaRpcException
+from solders.transaction_status import EncodedTransactionWithStatusMeta, EncodedConfirmedTransactionWithStatusMeta, \
+    UiConfirmedBlock
 
 LOG = logging.getLogger(__name__)
 
@@ -35,10 +38,36 @@ class GenericSolanaConnector(ABC):
         """
         Main method to process all necessary operations to collect and write data.
         """
-        while True:
+        while not self._collection_completed:
             self._get_assignment()
             self._get_data()
             self._write_tx_data()
+        LOG.info(f"Collection completed for {self.__class__.__name__}.")
+
+    def _fetch_block(self, block_number: int) -> UiConfirmedBlock:
+        """
+        Use solana client to fetch block with provided number.
+        """
+        # Fetch block data.
+        try:
+            block = self.solana_client.get_block(
+                slot=block_number,
+                encoding='jsonParsed',
+                max_supported_transaction_version=0,
+            )
+        except SolanaRpcException as e:
+            LOG.error(f"SolanaRpcException: {e}")
+            time.sleep(1)
+            return self._fetch_block(block_number)
+
+        return block.value
+
+    @property
+    def _collection_completed(self) -> bool:
+        """
+        Flag to mark completion of collection.
+        """
+        return False
 
     @abstractmethod
     def _get_assignment(self) -> None:

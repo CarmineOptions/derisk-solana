@@ -1,7 +1,7 @@
 from enum import Enum
 import os
 
-from sqlalchemy import create_engine, Column, Integer, String, BigInteger, ForeignKey
+from sqlalchemy import create_engine, Column, Integer, String, BigInteger, ForeignKey, Boolean
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session
@@ -43,6 +43,7 @@ def get_db_session() -> Session:
 class CollectionStreamTypes(Enum):
     HISTORICAL = 'historical'
     CURRENT = 'current'
+    SIGNATURE = 'signature'
 
 
 class TransactionStatusWithSignature(Base):
@@ -94,6 +95,8 @@ class Protocols(Base):
     public_key = Column(String, unique=True, nullable=False)
     watershed_block = Column(Integer, nullable=False)
     last_block_collected = Column(Integer, nullable=True)
+    hist_signatures_collected = Column(Boolean, nullable=False, default=False)
+    hist_tx_collected = Column(Boolean, nullable=False, default=False)
 
 
 if __name__ == "__main__":
