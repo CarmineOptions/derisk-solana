@@ -2,10 +2,6 @@
 
 """
 import logging
-from typing import List
-
-from solders.transaction_status import UiConfirmedBlock, EncodedConfirmedTransactionWithStatusMeta, \
-    EncodedTransactionWithStatusMeta
 
 import db
 from collection.tx_data.collector import TXFromBlockCollector

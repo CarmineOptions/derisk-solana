@@ -5,9 +5,7 @@ from abc import abstractmethod
 from typing import List
 import logging
 import os
-import time
 
-from solana.exceptions import SolanaRpcException
 from solders.transaction_status import UiConfirmedBlock, EncodedConfirmedTransactionWithStatusMeta, \
     EncodedTransactionWithStatusMeta
 
@@ -83,24 +81,6 @@ class TXFromBlockCollector(GenericSolanaConnector):
             raise NotImplementedError("Implement storing new protocol watershed block!")
 
         self.protocol_public_keys = keys
-
-    def _fetch_block(self, block_number: int) -> UiConfirmedBlock:
-        """
-        Use solana client to fetch block with provided number.
-        """
-        # Fetch block data.
-        try:
-            block = self.solana_client.get_block(
-                slot=block_number,
-                encoding='jsonParsed',
-                max_supported_transaction_version=0,
-            )
-        except SolanaRpcException as e:
-            LOG.error(f"SolanaRpcException: {e}")
-            time.sleep(1)
-            return self._fetch_block(block_number)
-
-        return block.value
 
     def _write_tx_data(self) -> None:
         """

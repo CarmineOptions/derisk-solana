@@ -10,4 +10,3 @@ if __name__ == "__main__":
     collector = TXFromBlockCollector()
     LOG.info(f"Collector for `{collector.COLLECTION_STREAM.value}` data is ready...")
     collector.run()
-
