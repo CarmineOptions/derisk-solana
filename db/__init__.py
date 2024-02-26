@@ -41,9 +41,7 @@ if POSTGRES_DB is None:
     raise ValueError("no POSTGRES_DB env var")
 
 CONN_STRING = f"postgresql+psycopg2://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_HOST}/{POSTGRES_DB}"
-
-
-SCHEMA = "public"
+SCHEMA = 'lenders'
 
 
 def get_db_session() -> Session:
@@ -163,8 +161,6 @@ class Protocols(Base):
     public_key = Column(String, unique=True, nullable=False)
     watershed_block = Column(Integer, nullable=False)
     last_block_collected = Column(Integer, nullable=True)
-    hist_signatures_collected = Column(Boolean, nullable=False, default=False)
-    hist_tx_collected = Column(Boolean, nullable=False, default=False)
 
 
 if __name__ == "__main__":

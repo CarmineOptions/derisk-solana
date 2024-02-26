@@ -6,6 +6,7 @@ from typing import List
 import logging
 import os
 
+from sqlalchemy.exc import IntegrityError
 from solders.transaction_status import UiConfirmedBlock, EncodedConfirmedTransactionWithStatusMeta, \
     EncodedTransactionWithStatusMeta
 
@@ -68,17 +69,41 @@ class TXFromBlockCollector(GenericSolanaConnector):
         """
         # get list of public keys from env variables.
         keys = os.getenv("PROTOCOL_PUBLIC_KEYS", "").split(',')
-        if not self.protocol_public_keys:
-            self.protocol_public_keys = keys
-            return
 
         # check if new keys are added
         new_keys = set(keys) - set(self.protocol_public_keys)
         if new_keys:
+            watershed_block = self._get_latest_finalized_block_on_chain()
+            for new_key in new_keys:
+                self._add_new_protocol(new_key, watershed_block)
             LOG.warning(f"New protocol(s) added to collection: {new_keys}")
-            raise NotImplementedError("Implement storing new protocol watershed block!")
-
         self.protocol_public_keys = keys
+
+    @staticmethod
+    def _add_new_protocol(public_key: str, watershed_block_number: int) -> None:
+        """
+        Adds new protocol to 'protocols' table, with last finalized block on chain serving as watershed block.
+        """
+        with db.get_db_session() as session:
+            try:
+                new_protocol = db.Protocols(
+                    public_key=public_key,
+                    watershed_block=watershed_block_number
+                )
+
+                # Add the new record to the session and commit it
+                session.add(new_protocol)
+                session.commit()
+            except IntegrityError:
+                session.rollback()  # roll back the session to a clean state
+                LOG.error(f"A protocol with the public key `{public_key}` already exists in the database.")
+
+    def _get_latest_finalized_block_on_chain(self) -> int:
+        """
+        Fetches number of the last finalized block.
+        """
+        self._rate_limit_calls()
+        return self.solana_client.get_slot(commitment='finalized').value
 
     def _write_tx_data(self) -> None:
         """
