@@ -44,3 +44,12 @@ class HistoricalTXCollector(TXFromBlockCollector):
         """
         # TODO: here we can check if last collected block does not  # pylint: disable=W0511
         #  exceed watershed number for historical data, if so stop collection
+
+
+if __name__ == '__main__':
+    import logging
+    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+
+    print('Start collecting old transactions from Solana chain: ...')
+    tx_collector = HistoricalTXCollector()
+    tx_collector.run()
