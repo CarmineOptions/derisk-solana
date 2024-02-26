@@ -11,15 +11,16 @@ BATCH_SIZE = 100
 class HistoricalTXCollector(TXFromBlockCollector):
 
     @property
-    def COLLECTION_STREAM(self) -> db.CollectionStreamTypes:
+    def COLLECTION_STREAM(self) -> db.CollectionStreamTypes:  # pylint: disable=invalid-name
+        """ Property returning stream type."""
         return db.CollectionStreamTypes.HISTORICAL
 
     def _get_assigned_blocks(self) -> None:
         """
-
+        Get `BATCH_SIZE` of unique block numbers we need to fetch and get transaction data from.
         :return:
         """
-        # TODO: make it more flexible. we want to be able to get assignments indirectly
+        # TODO: make it more flexible. we want to be able to get assignments indirectly  # pylint: disable=W0511
         #  from db so several collectors can serve at once / or change status of tx while fetching tx_raw
         # Fetch first n blocks that contain transactions without tx_raw.
         with db.get_db_session() as session:
@@ -36,11 +37,10 @@ class HistoricalTXCollector(TXFromBlockCollector):
                 distinct_slots.c.slot
             ).limit(BATCH_SIZE).all()
 
-        self.assignment = [i.slot for i in slots]
+        self.assignment = [i.slot for i in slots]  # pylint: disable=attribute-defined-outside-init
 
-    def _report_collection(self):
+    def _report_collection(self) -> None:
         """
         """
-        # TODO: here we can check if last collected block does not
+        # TODO: here we can check if last collected block does not  # pylint: disable=W0511
         #  exceed watershed number for historical data, if so stop collection
-        pass

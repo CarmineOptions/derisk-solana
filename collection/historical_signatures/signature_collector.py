@@ -1,15 +1,34 @@
 """
-
+Module contains `SignatureCollector`, class dedicated to collection history of transaction on Solana chain for
+lending protocols.
+Collection logic:
+    t_O - watershed block, block that we assign as divider of historical and current data.
+    Takes `t_0` from db.
+    PPK (protocol public key) is collected from environmental variable.
+    Collects all historical data as follows:
+    1) starts from any transaction (`tx_0`) from block `t_0`.
+    2) Collects 1000 tx signatures starting with `tx_0`.
+    3) Collected transactions belong to sequence of blocks from `t_0` to `t_0 - k`.
+    Store to tx_signatures table all transactions from blocks `t_0 - 1` to `t_0 - k + 1` with flag `from signatures`.
+    If signature already exists - change flag to `from_signatures`.
+    Transactions from block `t_0` are handled in current data collector.
+    4) we get presumably the earliest transaction signature from `t_0 - k + 1` block and collect next 1000 tx.
+    5) repeat 3-4 until reaching the first transaction.
+    6) As first (earliest) transaction is reached - consider historical data (signatures only) for given PPK
+    at time t_0 collected.
+    If being restarted - fetch block number from last tx signature for given PPK and flag `signature`.
+    Use this block instead of `t_0`
 """
 import logging
+import os
 import time
 from typing import List
 
-from solana.exceptions import SolanaRpcException
 from solders.rpc.responses import RpcConfirmedTransactionStatusWithSignature
 from solders.signature import Signature
-import solana.rpc.api
 from solders.transaction_status import TransactionErrorFieldless
+from solana.exceptions import SolanaRpcException
+import solana.rpc.api
 
 from collection.shared.generic_collector import GenericSolanaConnector
 import db
@@ -21,9 +40,9 @@ TX_BATCH_SIZE = 1000
 
 
 class SignatureCollector(GenericSolanaConnector):
-    def __init__(self, protocol: str):
+    def __init__(self):
         super().__init__()
-        self.protocol = protocol  # TODO fixit
+        self.protocol = os.getenv("PROTOCOL_PUBLIC_KEY")
         self._oldest_signature: Signature | None = None  # The oldest signature from the oldest completed block
         self._signatures_completed: bool = False
         self._oldest_completed_slot: int = 0
@@ -87,7 +106,7 @@ class SignatureCollector(GenericSolanaConnector):
                     source=self.protocol,
                     slot=signature.slot,
                     block_time=signature.block_time,
-                    collection_stream="signature"
+                    collection_stream=db.CollectionStreamTypes.SIGNATURE
                 )
                 session.add(tx_status_record)
                 session.flush()  # Flush here to get the ID
@@ -109,12 +128,14 @@ class SignatureCollector(GenericSolanaConnector):
                 self._oldest_signature = signature.signature
             session.commit()
 
-    def _fetch_signatures(self):
+    def _fetch_signatures(self) -> None:
         """
         Fetch transaction signatures.
         Fetch only signatures that occurs before `self._oldest_signature` for the given protocol. If
         `self._oldest_signature` is None, fetch signatures starting from the latest one.
         """
+        self._rate_limit_calls()
+
         try:
             response = self.solana_client.get_signatures_for_address(
                 solana.rpc.api.Pubkey.from_string(self.protocol),
@@ -122,17 +143,18 @@ class SignatureCollector(GenericSolanaConnector):
                 before=self._oldest_signature,
             )
             signatures = response.value
-        except SolanaRpcException as e:  # Most likely to catch 503 here. If something else - we stuck in loop TODO fix
+        except SolanaRpcException as e:
             LOGGER.error(f"SolanaRpcException: {e}")
-            time.sleep(2)
-            return self._fetch_signatures()
+            time.sleep(1)
+            self._fetch_signatures()
+            return
 
         if len(signatures) < TX_BATCH_SIZE:
             self._signatures_completed = True
 
         # Get the oldest block for which it is certain that we fetched all signatures.
-        unique_slots = sorted(set([i.slot for i in signatures]))
-        if len(unique_slots) < 2:  # TODO: take care of blocks hat contain more than 1000 transactions for one protocol
+        unique_slots = sorted(list({i.slot for i in signatures}))
+        if len(unique_slots) < 2:  # TODO: take care of blocks hat contain more than 1000 transactions for one protocol  # pylint: disable=W0511
             LOGGER.warning(
                 "Last batch for protocol = {} contains only signatures from a single slot = {}.".format(
                     self.protocol,
@@ -146,7 +168,7 @@ class SignatureCollector(GenericSolanaConnector):
 
         self._collected_signatures = signatures
 
-    def _get_watershed_block_signature(self):
+    def _get_watershed_block_signature(self) -> None:
         """
         Get signature from watershed block. Signature does not have to be from relevant protocol.
         """
@@ -162,3 +184,11 @@ class SignatureCollector(GenericSolanaConnector):
         LOGGER.info("Signature = {} collected from watershed block `{}` for protocol = {}.".format(
             self._oldest_signature, watershed_block_number, self.protocol)
         )
+
+
+if __name__ == '__main__':
+    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+
+    print('Start collecting signatures from Solana chain: ...')
+    tx_collector = SignatureCollector()
+    tx_collector.run()

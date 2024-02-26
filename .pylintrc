@@ -315,7 +315,7 @@ max-returns=6
 max-statements=50
 
 # Minimum number of public methods for a class (see R0903).
-min-public-methods=2
+min-public-methods=0
 
 
 [EXCEPTIONS]
@@ -442,12 +442,12 @@ disable=raw-checker-failed,
         too-many-locals,
         too-many-arguments,
         bad-indentation,
-        logging-fstring-interpolation,
-        logging-format-interpolation,
-        consider-using-f-string,
         fixme,
         wrong-import-position
-
+        logging-fstring-interpolation,
+        consider-using-f-string,
+        logging-format-interpolation,
+        use-list-literal
 
 # Enable the message, report, category or checker with the given id(s). You can
 # either give multiple identifier separated by comma (,) or put this option
