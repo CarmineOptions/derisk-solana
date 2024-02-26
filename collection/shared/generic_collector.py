@@ -45,10 +45,14 @@ class GenericSolanaConnector(ABC):
         """
         Main method to process all necessary operations to collect and write data.
         """
+        k = 0
+        if k % 1000:
+            LOG.info(f"Iterations completed: {k}")
         while not self._collection_completed:
             self._get_assignment()
             self._get_data()
             self._write_tx_data()
+            k += 1
         LOG.info(f"Collection completed for {self.__class__.__name__}.")
 
     def _fetch_block(self, block_number: int) -> UiConfirmedBlock:
