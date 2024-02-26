@@ -46,9 +46,10 @@ class GenericSolanaConnector(ABC):
         Main method to process all necessary operations to collect and write data.
         """
         k = 0
-        if k % 1000:
-            LOG.info(f"Iterations completed: {k}")
+        start_time = time.time()
         while not self._collection_completed:
+            if k % 10000 == 0:
+                LOG.info(f"Iterations completed: {k}, in {time.time() - start_time:.1f} seconds.")
             self._get_assignment()
             self._get_data()
             self._write_tx_data()
