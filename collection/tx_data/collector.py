@@ -1,5 +1,5 @@
 """
-
+Class for collection of transaction data from Solana chain
 """
 from abc import abstractmethod
 from typing import List
@@ -21,12 +21,10 @@ class TXFromBlockCollector(GenericSolanaConnector):
     Class to collect transaction data from Solana blocks.
     """
     protocol_public_keys: List[str] | None = None
-    last_block_saved: int | None = None
-
 
     @property
     @abstractmethod
-    def COLLECTION_STREAM(self) -> db.CollectionStreamTypes:
+    def COLLECTION_STREAM(self) -> db.CollectionStreamTypes:  # pylint: disable=invalid-name
         """Implement in subclasses to define the constant value"""
         raise NotImplementedError("Implement me!")
 
@@ -34,7 +32,7 @@ class TXFromBlockCollector(GenericSolanaConnector):
         """
         Collect transactions from blocks. Collected transactions are stored in `rel_transactions` attribute.
         """
-        self.rel_transactions = list()
+        self.rel_transactions.clear()
         for block_number in self.assignment:
             block = self._fetch_block(block_number)
             self._select_relevant_tx_from_block(block)
@@ -100,7 +98,7 @@ class TXFromBlockCollector(GenericSolanaConnector):
                     else:
                         # get sources from pubkeys
                         sources = self._get_tx_source(transaction)
-                        # TODO: now we store new record for each source but
+                        # TODO: now we store new record for each source but  # pylint: disable=W0511
                         #  it's possible that some sources already can have record with the same signature
                         #  and we only need to assign tx_raw to this records
                         for source in sources:
@@ -110,7 +108,7 @@ class TXFromBlockCollector(GenericSolanaConnector):
                                 signature=signature,
                                 block_time=transaction.value.block_time,
                                 tx_raw=transaction.to_json(),
-                                collection_stream=self.COLLECTION_STREAM.value
+                                collection_stream=self.COLLECTION_STREAM
                             )
                             session.add(new_record)
 
@@ -133,8 +131,10 @@ class TXFromBlockCollector(GenericSolanaConnector):
         """
         Decide if transaction is relevant based on the presence of relevant address between transactions account keys.
         """
+        assert hasattr(transaction.transaction, 'message')
         relevant_pubkeys = [
-            i for i in transaction.transaction.message.account_keys if str(i.pubkey) in self.protocol_public_keys  # type: ignore
+            i for i in transaction.transaction.message.account_keys
+            if str(i.pubkey) in self.protocol_public_keys  # type: ignore
         ]
         return bool(relevant_pubkeys)
 
@@ -147,7 +147,7 @@ class TXFromBlockCollector(GenericSolanaConnector):
         """
         assert hasattr(transaction, 'value')
         relevant_sources = [
-            k for k in self.protocol_public_keys
+            k for k in self.protocol_public_keys  # type: ignore
             if k in [str(i.pubkey) for i in transaction.value.transaction.transaction.message.account_keys]
         ]
         if not relevant_sources:

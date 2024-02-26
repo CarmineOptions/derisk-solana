@@ -1,5 +1,16 @@
 """
+Module contains `CurrentTXCollector`, class dedicated to collection new (recently occurred) transaction data
+on Solana chain for lending protocols.
 
+    t_O - watershed block, block that we assign as divider of historical and current data.
+    Takes `t_0` from db, assign `t_0` if first run.
+    PPKs (protocol public key) are collected from environmental variable.
+    Takes `t_0` and all PPKs as input
+    1) Fetch block `t_0`, filter by PPKs of all protocols (i.e. Solend, Mango etc)
+    3) For each transaction:
+        create new record in tx_signatures
+    4) repeat for `t_0 + 1`
+    If being restarted - start from last block parsed. The last current block number is collected from db.
 """
 import logging
 
@@ -9,13 +20,16 @@ from collection.tx_data.collector import TXFromBlockCollector
 
 LOG = logging.getLogger(__name__)
 
-BATCH_SIZE = 20
+BATCH_SIZE = 10
 
 
 class CurrentTXCollector(TXFromBlockCollector):
 
     @property
-    def COLLECTION_STREAM(self) -> db.CollectionStreamTypes:
+    def COLLECTION_STREAM(self) -> db.CollectionStreamTypes:  # pylint: disable=invalid-name
+        """
+        Property returning stream type.
+        """
         return db.CollectionStreamTypes.CURRENT
 
     def _get_assigned_blocks(self) -> None:
@@ -37,7 +51,7 @@ class CurrentTXCollector(TXFromBlockCollector):
             if last_collected_block is None or block < last_collected_block:
                 last_collected_block = block
 
-        self.assignment = [i for i in range(last_collected_block, last_collected_block + BATCH_SIZE)]
+        self.assignment = list(range(last_collected_block, last_collected_block + BATCH_SIZE))  # pylint: disable=attribute-defined-outside-init
 
     def _report_collection(self):
         """
