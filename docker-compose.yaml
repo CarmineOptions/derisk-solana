@@ -36,17 +36,50 @@ services:
       - 3001:3000
 
   # data-fetcher - fetches data and stores them in the database
-  data-fetcher:
+  data-fetcher-signatures-mango:
     build:
       context: .
-      dockerfile: Dockerfile.raw-data-fetching
+      dockerfile: Dockerfile.signature-collection
     environment:
       AUTHENTICATED_RPC_URL: https://<rpc_provider>/<api_token>
-      RATE_LIMIT: 5
+      RATE_LIMIT: 50
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
       POSTGRES_HOST: db
       POSTGRES_DB: postgres
+      PROTOCOL_PUBLIC_KEY: 4MangoMjqJ2firMokCjjGgoK8d4MXcrgL7XJaL3w6fVg
+    depends_on:
+      db:
+        condition: service_healthy
+
+  data-fetcher-signatures-solend:
+    build:
+      context: .
+      dockerfile: Dockerfile.signature-collection
+    environment:
+      AUTHENTICATED_RPC_URL: https://<rpc_provider>/<api_token>
+      RATE_LIMIT: 50
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_HOST: db
+      POSTGRES_DB: postgres
+      PROTOCOL_PUBLIC_KEY: So1endDq2YkqhipRh3WViPa8hdiSpxWy6z3Z6tMCpAo
+    depends_on:
+      db:
+        condition: service_healthy
+
+  data-fetcher-signatures-kamino:
+    build:
+      context: .
+      dockerfile: Dockerfile.signature-collection
+    environment:
+      AUTHENTICATED_RPC_URL: https://<rpc_provider>/<api_token>
+      RATE_LIMIT: 50
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_HOST: db
+      POSTGRES_DB: postgres
+      PROTOCOL_PUBLIC_KEY: 6LtLpnUFNByNXLyCoK9wA2MykKAmQNZKBdY8s47dehDc
     depends_on:
       db:
         condition: service_healthy
