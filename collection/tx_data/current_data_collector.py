@@ -65,3 +65,11 @@ class CurrentTXCollector(TXFromBlockCollector):
                 protocol.last_block_collected = max(self.assignment) if self.assignment else None
 
             session.commit()
+
+
+if __name__ == '__main__':
+    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+
+    print('Start collecting new transactions from Solana chain: ...')
+    tx_collector = CurrentTXCollector()
+    tx_collector.run()
