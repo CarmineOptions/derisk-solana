@@ -1,0 +1,20 @@
+{
+  "name": "ts-fetcher",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "start": "tsc && node dist/src/main.js"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@lifinity/sdk-v2": "^1.0.24",
+    "pg": "^8.11.3",
+    "typescript": "^5.3.3"
+  },
+  "devDependencies": {
+    "@types/pg": "^8.11.1"
+  }
+}
