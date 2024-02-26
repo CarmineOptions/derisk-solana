@@ -131,8 +131,7 @@ class SignatureCollector(GenericSolanaConnector):
     def _fetch_signatures(self) -> None:
         """
         Fetch transaction signatures.
-        Fetch only signatures that occurs before `self._oldest_signature` for the given protocol. If
-        `self._oldest_signature` is None, fetch signatures starting from the latest one.
+        Fetch only signatures that occurs before `self._oldest_signature` for the given protocol.
         """
         self._rate_limit_calls()
 
@@ -178,6 +177,12 @@ class SignatureCollector(GenericSolanaConnector):
                 filter(db.Protocols.public_key == self.protocol).first()
             if watershed_block_record:
                 watershed_block_number = watershed_block_record[0]
+            else:
+                LOGGER.warning(f"Protocol {self.protocol} is not in the `protocols` table. "
+                               f"Failing to collect watershed block number.")
+                time.sleep(10)
+                self._get_watershed_block_signature()
+                return
 
         watershed_block = self._fetch_block(watershed_block_number)
         self._oldest_signature = watershed_block.transactions[0].transaction.signatures[0]  # type: ignore
