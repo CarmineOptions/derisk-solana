@@ -6,11 +6,10 @@ from typing import List
 import logging
 import os
 
+from solana.rpc.commitment import Commitment
 from sqlalchemy.exc import IntegrityError
-from solders.transaction_status import UiConfirmedBlock, EncodedConfirmedTransactionWithStatusMeta, \
-    EncodedTransactionWithStatusMeta
 
-from collection.shared.generic_collector import GenericSolanaConnector
+from collection.shared.generic_collector import GenericSolanaConnector, SolanaTransaction
 import db
 
 
@@ -35,16 +34,16 @@ class TXFromBlockCollector(GenericSolanaConnector):
         """
         self.rel_transactions.clear()
         for block_number in self.assignment:
-            block = self._fetch_block(block_number)
-            self._select_relevant_tx_from_block(block)
+            transactions = self._fetch_block(block_number)
+            self._select_relevant_tx_from_block(transactions)
 
-    def _select_relevant_tx_from_block(self, block: UiConfirmedBlock) -> None:
+    def _select_relevant_tx_from_block(self, transactions: List[SolanaTransaction]) -> None:
         """
         Select only relevant transactions based on public keys involved.
         """
-        if block.transactions:
-            transactions = [tx for tx in block.transactions if self._is_transaction_relevant(tx)]
-            self.rel_transactions.extend(transactions)
+        if transactions:
+            relevant_transactions = [tx for tx in transactions if tx.is_relevant(self.protocol_public_keys)]
+            self.rel_transactions.extend(relevant_transactions)
 
     def _get_assignment(self) -> None:
         """
@@ -105,41 +104,43 @@ class TXFromBlockCollector(GenericSolanaConnector):
         Fetches number of the last finalized block.
         """
         self._rate_limit_calls()
-        return self.solana_client.get_slot(commitment='finalized').value
+        return self.solana_client.get_slot(commitment=Commitment('finalized')).value
 
     def _write_tx_data(self) -> None:
         """
         Write raw tx data to database.
         """
-        if self.rel_transactions:
-            with db.get_db_session() as session:
-                for transaction in self.rel_transactions:
-                    signature = transaction.value.transaction.transaction.signatures[0]
-                    record = session.query(db.TransactionStatusWithSignature).filter_by(signature=str(signature)).first()
+        # if relevant transactions were not found in current iteration, do nothing.
+        if not self.rel_transactions:
+            return
+        with db.get_db_session() as session:
+            for transaction in self.rel_transactions:
+                sources = transaction.sources(self.protocol_public_keys if self.protocol_public_keys else [])
+                signature = transaction.signature
+                # Same transaction has to be recorded once per each relevant protocol
+                for source in sources:
+                    record = session.query(db.TransactionStatusWithSignature).filter_by(
+                        signature=str(signature),
+                        source=source
+                    ).first()
 
                     # Check if the record exists.
                     if record:
                         # Update the tx_raw field.
-                        record.tx_raw = transaction.to_json()
+                        record.tx_raw = transaction.tx_body.to_json()
                     else:
-                        # get sources from pubkeys
-                        sources = self._get_tx_source(transaction)
-                        # TODO: now we store new record for each source but  # pylint: disable=W0511
-                        #  it's possible that some sources already can have record with the same signature
-                        #  and we only need to assign tx_raw to this records
-                        for source in sources:
-                            new_record = db.TransactionStatusWithSignature(
-                                source=source,
-                                slot=transaction.value.slot,
-                                signature=signature,
-                                block_time=transaction.value.block_time,
-                                tx_raw=transaction.to_json(),
-                                collection_stream=self.COLLECTION_STREAM
-                            )
-                            session.add(new_record)
+                        new_record = db.TransactionStatusWithSignature(
+                            source=source,
+                            slot=transaction.block_number,
+                            signature=str(signature),
+                            block_time=transaction.block_time,
+                            tx_raw=transaction.tx_body.to_json(),
+                            collection_stream=self.COLLECTION_STREAM
+                        )
+                        session.add(new_record)
 
-                # Commit the changes.
-                session.commit()
+            # Commit the changes.
+            session.commit()
         self._report_collection()
 
     @abstractmethod
@@ -149,35 +150,3 @@ class TXFromBlockCollector(GenericSolanaConnector):
         :return:
         """
         raise NotImplementedError("Implement me!")
-
-    def _is_transaction_relevant(
-        self,
-        transaction: EncodedTransactionWithStatusMeta | EncodedConfirmedTransactionWithStatusMeta,
-    ) -> bool:
-        """
-        Decide if transaction is relevant based on the presence of relevant address between transactions account keys.
-        """
-
-        relevant_pubkeys = [
-            i for i in transaction.transaction.message.account_keys
-            if str(i.pubkey) in self.protocol_public_keys  # type: ignore
-        ]
-        return bool(relevant_pubkeys)
-
-    def _get_tx_source(
-        self,
-        transaction: EncodedTransactionWithStatusMeta | EncodedConfirmedTransactionWithStatusMeta
-    ) -> List[str]:
-        """
-        Identify transaction source by matching present public keys with relevant protocols' public keys
-        """
-
-        relevant_sources = [
-            k for k in self.protocol_public_keys  # type: ignore
-            if k in [str(i.pubkey) for i in transaction.value.transaction.transaction.message.account_keys]
-        ]
-        if not relevant_sources:
-            LOG.error(f"Transaction `{transaction.value.transaction.transaction.signatures[0]}`"
-                      f" does not contain any relevant public keys.")
-
-        return relevant_sources
