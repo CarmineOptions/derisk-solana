@@ -206,15 +206,15 @@ class TXFromBlockCollector(GenericSolanaConnector):
 
                     # Check if the record exists.
                     if record:
-                        # Update the tx_raw field.
-                        record.tx_raw = transaction.tx_body.to_json()
+                        # Update transaction data.
+                        record.transaction_data = transaction.tx_body.to_json()
                     else:
                         new_record = db.TransactionStatusWithSignature(
                             source=source,
                             slot=transaction.block_number,
                             signature=str(signature),
                             block_time=transaction.block_time,
-                            tx_raw=transaction.tx_body.to_json(),
+                            transaction_data=transaction.tx_body.to_json(),
                             collection_stream=self.COLLECTION_STREAM
                         )
                         session.add(new_record)

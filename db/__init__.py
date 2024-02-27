@@ -67,7 +67,7 @@ class TransactionStatusWithSignature(Base):
     signature = Column(String, nullable=False)
     slot = Column(BigInteger, nullable=False)
     block_time = Column(BigInteger, nullable=False)
-    tx_raw = Column(String, nullable=True)  # column to store json with transaction's data
+    transaction_data = Column(String, nullable=True)  # column to store json with transaction's data
     collection_stream = Column(SQLEnum(CollectionStreamTypes, name='collection_stream_types'), nullable=True)
 
     __table_args__ = (
