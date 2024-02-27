@@ -184,8 +184,8 @@ class SignatureCollector(GenericSolanaConnector):
                 self._get_watershed_block_signature()
                 return
 
-        watershed_block = self._fetch_block(watershed_block_number)
-        self._oldest_signature = watershed_block.transactions[0].transaction.signatures[0]  # type: ignore
+        watershed_block_transactions = self._fetch_block(watershed_block_number)
+        self._oldest_signature = watershed_block_transactions[0].signature
         LOGGER.info("Signature = {} collected from watershed block `{}` for protocol = {}.".format(
             self._oldest_signature, watershed_block_number, self.protocol)
         )

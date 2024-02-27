@@ -2,6 +2,7 @@
 Generic class for data collection from Solana chain
 """
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
 from typing import List
 import logging
 import os
@@ -9,10 +10,52 @@ import time
 
 import solana.rpc.api
 from solana.exceptions import SolanaRpcException
-from solders.transaction_status import EncodedTransactionWithStatusMeta, EncodedConfirmedTransactionWithStatusMeta, \
-    UiConfirmedBlock
+from solders.signature import Signature
+from solders.transaction_status import EncodedTransactionWithStatusMeta
 
 LOG = logging.getLogger(__name__)
+
+
+@dataclass
+class SolanaTransaction:
+    block_time: int
+    block_number: int
+    tx_body: EncodedTransactionWithStatusMeta
+
+    def is_relevant(self, ppks: List[str] | None) -> bool:
+        """
+        Determines if the transaction involves any of the specified public keys.
+
+        This method checks if any of the public keys provided in the 'ppks' list
+        are present in the transaction's account keys. It is used to filter transactions
+        based on the involvement of specific protocols identified by their public keys.
+
+        Parameters:
+        - ppks (List[str]): A list of public key strings to check against the transaction's account keys.
+        """
+        if not ppks:
+            ppks = []
+        relevant_public_keys = [i for i in self.tx_body.transaction.message.account_keys if str(i.pubkey) in ppks]  # type: ignore
+        return bool(relevant_public_keys)
+
+    def sources(self, ppks: List[str]) -> List[str]:
+        """
+        Identify transaction source by matching present public keys with provided protocols' public keys
+        """
+        relevant_sources = [
+            k for k in ppks
+            if k in [str(i.pubkey) for i in self.tx_body.transaction.message.account_keys]  # type: ignore
+        ]
+        if not relevant_sources:
+            LOG.error(f"Transaction `{self.tx_body.transaction.signatures[0]}`"
+                      f" does not contain any relevant public keys.")
+
+        return relevant_sources
+
+    @property
+    def signature(self) -> Signature:
+        """ Returns transaction signature. """
+        return self.tx_body.transaction.signatures[0]
 
 
 class GenericSolanaConnector(ABC):
@@ -27,7 +70,7 @@ class GenericSolanaConnector(ABC):
         self.assignment: List[int] = list()
 
         # attribute for storing transactions before assigning to db.
-        self.rel_transactions: List[EncodedConfirmedTransactionWithStatusMeta | EncodedTransactionWithStatusMeta] = list()
+        self.rel_transactions: List[SolanaTransaction] = list()
 
         # rate limiter
         self.rate_limit: int = int(os.getenv("RATE_LIMIT", ""))
@@ -56,7 +99,7 @@ class GenericSolanaConnector(ABC):
             k += 1
         LOG.info(f"Collection completed for {self.__class__.__name__}.")
 
-    def _fetch_block(self, block_number: int) -> UiConfirmedBlock:
+    def _fetch_block(self, block_number: int) -> List[SolanaTransaction]:
         """
         Use solana client to fetch block with provided number.
         """
@@ -73,7 +116,13 @@ class GenericSolanaConnector(ABC):
             time.sleep(1)
             return self._fetch_block(block_number)
 
-        return block.value
+        return [
+            SolanaTransaction(
+                block_number=block_number,
+                block_time=block.value.block_time if block.value.block_time else -1,
+                tx_body=tx
+            ) for tx in block.value.transactions if block.value.transactions  # type: ignore
+        ]
 
     def _rate_limit_calls(self) -> None:
         """
