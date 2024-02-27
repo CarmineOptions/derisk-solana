@@ -12,6 +12,7 @@ on Solana chain for lending protocols.
     4) repeat for `t_0 + 1`
     If being restarted - start from last block parsed. The last current block number is collected from db.
 """
+import asyncio
 import logging
 
 import db
@@ -75,9 +76,13 @@ class CurrentTXCollector(TXFromBlockCollector):
         LOG.info(f"Assignment completed: {self.assignment}")
 
 
+async def main():
+    print('Start collecting new transactions from Solana chain: ...')
+    tx_collector = CurrentTXCollector()
+    await tx_collector.run()
+
+
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
-    print('Start collecting new transactions from Solana chain: ...')
-    tx_collector = CurrentTXCollector()
-    tx_collector.run()
+    asyncio.run(main())
