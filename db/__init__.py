@@ -91,9 +91,7 @@ class TransactionStatusError(Base):
 
     id = Column(Integer, primary_key=True)
     error_body = Column(String, nullable=False)
-    tx_signatures_id = Column(
-        Integer, ForeignKey(f"{SCHEMA}.tx_signatures.id"), nullable=False
-    )
+    tx_signatures_id = Column(Integer, ForeignKey(f'{SCHEMA}.transactions.id'), nullable=False)
 
 
 class TransactionStatusMemo(Base):
@@ -102,9 +100,7 @@ class TransactionStatusMemo(Base):
 
     id = Column(Integer, primary_key=True)
     memo_body = Column(String, nullable=False)
-    tx_signatures_id = Column(
-        Integer, ForeignKey(f"{SCHEMA}.tx_signatures.id"), nullable=False
-    )
+    tx_signatures_id = Column(Integer, ForeignKey(f'{SCHEMA}.transactions.id'), nullable=False)
 
 
 class CLOBLiqudity(Base):
