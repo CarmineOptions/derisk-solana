@@ -1,6 +1,8 @@
 """
 Collector of raw transaction data for historical transactions.
 """
+import asyncio
+
 import db
 from collection.tx_data.collector import TXFromBlockCollector
 
@@ -46,10 +48,13 @@ class HistoricalTXCollector(TXFromBlockCollector):
         #  exceed watershed number for historical data, if so stop collection
 
 
+async def main():
+    print('Start collecting old transactions from Solana chain: ...')
+    tx_collector = HistoricalTXCollector()
+    await tx_collector.run()
+
+
 if __name__ == '__main__':
     import logging
     logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-
-    print('Start collecting old transactions from Solana chain: ...')
-    tx_collector = HistoricalTXCollector()
-    tx_collector.run()
+    asyncio.run(main())
