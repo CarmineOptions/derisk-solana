@@ -7,6 +7,7 @@ import logging
 import os
 
 from solana.rpc.commitment import Commitment
+from solders.transaction_status import EncodedTransactionWithStatusMeta, UiConfirmedBlock
 from sqlalchemy.exc import IntegrityError
 
 from collection.shared.generic_collector import GenericSolanaConnector, SolanaTransaction
@@ -34,16 +35,24 @@ class TXFromBlockCollector(GenericSolanaConnector):
         """
         self.rel_transactions.clear()
         for block_number in self.assignment:
-            transactions = self._fetch_block(block_number)
-            self._select_relevant_tx_from_block(transactions)
+            block = self._fetch_block(block_number)
+            self._select_relevant_tx_from_block(block, block_number)
 
-    def _select_relevant_tx_from_block(self, transactions: List[SolanaTransaction]) -> None:
+    def _select_relevant_tx_from_block(self, block: UiConfirmedBlock, block_number: int) -> None:
         """
         Select only relevant transactions based on public keys involved.
         """
-        if transactions:
-            relevant_transactions = [tx for tx in transactions if tx.is_relevant(self.protocol_public_keys)]
-            self.rel_transactions.extend(relevant_transactions)
+        if block.transactions:
+            relevant_transactions = [tx for tx in block.transactions if self._is_transaction_relevant(tx)]
+            # Store raw transaction data with block metadata as `SolanaTransaction` objects.
+            relevant_solana_transaction = [
+                SolanaTransaction(
+                    block_number=block_number,
+                    block_time=block.block_time if block.block_time else -1,
+                    tx_body=tx
+                ) for tx in relevant_transactions  # type: ignore
+            ]
+            self.rel_transactions.extend(relevant_solana_transaction)
 
     def _get_assignment(self) -> None:
         """
@@ -150,3 +159,20 @@ class TXFromBlockCollector(GenericSolanaConnector):
         :return:
         """
         raise NotImplementedError("Implement me!")
+
+    def _is_transaction_relevant(
+            self,
+            transaction: EncodedTransactionWithStatusMeta
+    ) -> bool:
+        """
+        Determines if the transaction involves any of the specified public keys.
+
+        This method checks if any of the public keys provided in the 'ppks' list
+        are present in the transaction's account keys. It is used to filter transactions
+        based on the involvement of specific protocols identified by their public keys.
+        """
+        relevant_pubkeys = [
+            i for i in transaction.transaction.message.account_keys  # type: ignore
+            if str(i.pubkey) in self.protocol_public_keys  # type: ignore
+        ]
+        return bool(relevant_pubkeys)
