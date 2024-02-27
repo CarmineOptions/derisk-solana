@@ -27,7 +27,7 @@ class HistoricalTXCollector(TXFromBlockCollector):
             distinct_slots = session.query(
                 db.TransactionStatusWithSignature.slot
             ).filter(
-                db.TransactionStatusWithSignature.tx_raw.is_(None)
+                db.TransactionStatusWithSignature.transaction_data.is_(None)
             ).distinct().subquery()
 
             # Outer query to order the distinct slots and limit the results
