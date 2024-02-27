@@ -67,6 +67,8 @@ class TXFromBlockCollector(GenericSolanaConnector):
         Get list of public keys for relevant protocol from env variables.
         :return:
         """
+        if not self.protocol_public_keys:
+            self.protocol_public_keys = list()
         # get list of public keys from env variables.
         keys = os.getenv("PROTOCOL_PUBLIC_KEYS", "").split(',')
 
@@ -112,7 +114,6 @@ class TXFromBlockCollector(GenericSolanaConnector):
         if self.rel_transactions:
             with db.get_db_session() as session:
                 for transaction in self.rel_transactions:
-                    assert hasattr(transaction, 'value')
                     signature = transaction.value.transaction.transaction.signatures[0]
                     record = session.query(db.TransactionStatusWithSignature).filter_by(signature=str(signature)).first()
 
@@ -156,7 +157,7 @@ class TXFromBlockCollector(GenericSolanaConnector):
         """
         Decide if transaction is relevant based on the presence of relevant address between transactions account keys.
         """
-        assert hasattr(transaction.transaction, 'message')
+
         relevant_pubkeys = [
             i for i in transaction.transaction.message.account_keys
             if str(i.pubkey) in self.protocol_public_keys  # type: ignore
@@ -170,7 +171,7 @@ class TXFromBlockCollector(GenericSolanaConnector):
         """
         Identify transaction source by matching present public keys with relevant protocols' public keys
         """
-        assert hasattr(transaction, 'value')
+
         relevant_sources = [
             k for k in self.protocol_public_keys  # type: ignore
             if k in [str(i.pubkey) for i in transaction.value.transaction.transaction.message.account_keys]
