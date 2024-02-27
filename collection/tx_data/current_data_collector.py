@@ -38,7 +38,9 @@ class CurrentTXCollector(TXFromBlockCollector):
         """
         with db.get_db_session() as session:
             # Query the database for protocols with the given public keys
-            protocols = session.query(db.Protocols).filter(db.Protocols.public_key.in_(self.protocol_public_keys))
+            protocols = session.query(db.Protocols).filter(db.Protocols.public_key.in_(
+                self.protocol_public_keys if self.protocol_public_keys else []
+            ))
 
         last_collected_block = None  # Initialize last_collected_block
 
@@ -59,7 +61,9 @@ class CurrentTXCollector(TXFromBlockCollector):
         :return:
         """
         with db.get_db_session() as session:
-            protocols = session.query(db.Protocols).filter(db.Protocols.public_key.in_(self.protocol_public_keys))
+            protocols = session.query(db.Protocols).filter(db.Protocols.public_key.in_(
+                self.protocol_public_keys if self.protocol_public_keys else []
+            ))
 
             for protocol in protocols:
                 protocol.last_block_collected = max(self.assignment) if self.assignment else None
