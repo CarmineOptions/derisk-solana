@@ -3,7 +3,7 @@ Generic class for data collection from Solana chain
 """
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import List
+from typing import List, Tuple
 import logging
 import os
 import time
@@ -83,7 +83,7 @@ class GenericSolanaConnector(ABC):
             k += 1
         LOG.info(f"Collection completed for {self.__class__.__name__}.")
 
-    def _fetch_block(self, block_number: int) -> UiConfirmedBlock:
+    def _fetch_block(self, block_number: int) -> Tuple[UiConfirmedBlock, int]:
         """
         Use solana client to fetch block with provided number.
         """
@@ -100,7 +100,7 @@ class GenericSolanaConnector(ABC):
             time.sleep(1)
             return self._fetch_block(block_number)
 
-        return block.value
+        return block.value, block_number
 
     def _rate_limit_calls(self) -> None:
         """
