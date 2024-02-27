@@ -52,8 +52,11 @@ class CurrentTXCollector(TXFromBlockCollector):
             # Update last_collected_block if it's None or if a smaller block number is found
             if last_collected_block is None or block < last_collected_block:
                 last_collected_block = block
+        last_block_on_chain = self._get_latest_finalized_block_on_chain()
 
-        self.assignment = list(range(last_collected_block, last_collected_block + BATCH_SIZE))  # pylint: disable=attribute-defined-outside-init
+        self.assignment = list(  # pylint: disable=attribute-defined-outside-init
+            range(last_collected_block, min(last_collected_block + BATCH_SIZE, last_block_on_chain))
+        )
 
     def _report_collection(self):
         """
@@ -69,6 +72,7 @@ class CurrentTXCollector(TXFromBlockCollector):
                 protocol.last_block_collected = max(self.assignment) if self.assignment else None
 
             session.commit()
+        LOG.info(f"Assignment completed: {self.assignment}")
 
 
 if __name__ == '__main__':
