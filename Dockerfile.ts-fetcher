@@ -6,7 +6,6 @@ COPY ./ts-fetcher/. .
 
 RUN npm ci
 
-# CMD ["rm", "./package-lock.json"]
 CMD ["npm", "start"]
 
 
