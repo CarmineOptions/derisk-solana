@@ -11,6 +11,7 @@ import time
 from solana.exceptions import SolanaRpcException
 from solana.rpc.async_api import AsyncClient
 from solana.rpc.commitment import Commitment
+from solana.rpc.core import RPCException
 from solders.transaction_status import EncodedTransactionWithStatusMeta, UiConfirmedBlock
 from sqlalchemy.exc import IntegrityError
 
@@ -83,9 +84,11 @@ class TXFromBlockCollector(GenericSolanaConnector):
             *(self._async_fetch_block(block_number) for block_number in self.assignment)
         )
         for block, block_number in blocks:
+            if not block:
+                continue
             self._select_relevant_tx_from_block(block, block_number)
 
-    async def _async_fetch_block(self, block_number: int) -> Tuple[UiConfirmedBlock, int]:
+    async def _async_fetch_block(self, block_number: int) -> Tuple[UiConfirmedBlock | None, int]:
         """
         Use solana client to fetch block with provided number.
         """
@@ -101,6 +104,9 @@ class TXFromBlockCollector(GenericSolanaConnector):
             LOG.error(f"SolanaRpcException while fetching {block_number}: {e}")
             await asyncio.sleep(0.5)
             return await self._async_fetch_block(block_number)
+        except RPCException as e:
+            LOG.error(f"RpcException while fetching {block_number}: {e}")
+            return None, block_number
 
         return block.value, block_number
 
