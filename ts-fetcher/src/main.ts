@@ -1,31 +1,34 @@
-import { Signature, fetchTxSignatures, writeTxSignatures } from "./db.js";
 
-const signatures: Signature[] = [
-  {
-    source: "ExampleSource",
-    signature: "ExampleSignature",
-    slot: 123,
-    block_time: 4567890,
-    tx_raw: "mytxdata",
-  },
-  {
-    source: "ExampleSource",
-    signature: "ExampleSignature",
-    slot: 321,
-    block_time: 12345,
-    tx_raw: "yourtxdata",
-  },
-  {
-    source: "ExampleSource",
-    signature: "ExampleSignature",
-    slot: 132,
-    block_time: 67891,
-    tx_raw: "histxdata",
-  },
-];
+import { sleep } from './utils.js';
 
-await writeTxSignatures(signatures);
+import { updateSaberLiqudity } from './saber.js';
+import { updateInvariantLiqudity } from './invariant.js';
+import { updateLifinityLiqudity } from './lifinity.js';
 
-console.log("WRITING DONE");
+// Collect data every 5 minutes
+const COLLECTION_INTERVAL_MILLISECONDS = 5 * 60 * 1000;
 
-fetchTxSignatures();
+async function main() {
+
+    while (true) {
+        var start = Date.now();
+
+        // Update Liquidity
+        await updateInvariantLiqudity();
+        await updateSaberLiqudity();
+        await updateLifinityLiqudity();
+
+        // Sleep until the end of collection interval
+        var execution_time = Date.now() - start;
+        var to_sleep = Math.max(0, COLLECTION_INTERVAL_MILLISECONDS - execution_time);
+
+        await sleep(to_sleep);
+    };
+
+}
+
+await main()
+
+
+
+

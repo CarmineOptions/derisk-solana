@@ -10,11 +10,16 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@invariant-labs/sdk": "^0.9.65",
     "@lifinity/sdk-v2": "^1.0.24",
-    "pg": "^8.11.3",
-    "typescript": "^5.3.3"
+    "@project-serum/anchor": "^0.26.0",
+    "@saberhq/stableswap-sdk": "^1.15.0",
+    "@sentre/senswap": "^1.0.7",
+    "pg": "^8.11.3"
   },
   "devDependencies": {
-    "@types/pg": "^8.11.1"
+    "@types/pg": "^8.11.1",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.3.3"
   }
 }

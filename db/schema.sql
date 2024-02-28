@@ -1,3 +1,16 @@
+
+CREATE TABLE public.amm_liquidity (
+    timestamp bigint NOT NULL,
+    dex character varying NOT NULL, 
+    pair character varying NOT NULL,
+    market_address character varying NOT NULL,
+    token_x bigint NOT NULL, 
+    token_y bigint NOT NULL,
+    token_x_decimals int NOT NULL, 
+    token_y_decimals int NOT NULL,
+    additional_info character varying NOT NULL
+);
+
 CREATE TABLE public.orderbook_liquidity (
     timestamp bigint NOT NULL,
     dex character varying NOT NULL, 
@@ -44,6 +57,12 @@ ALTER TABLE
     ONLY public.orderbook_liquidity
 ADD 
     CONSTRAINT orderbook_liquidity_pkey 
+    PRIMARY KEY (dex, pair, market_address, timestamp);
+
+ALTER TABLE 
+    ONLY public.amm_liquidity
+ADD 
+    CONSTRAINT amm_liquidity_pkey 
     PRIMARY KEY (dex, pair, market_address, timestamp);
 
 ALTER TABLE
