@@ -68,7 +68,7 @@ class SignatureCollector(GenericSolanaConnector):
             # Get the last signature collector recorded by `SignatureCollector` for given protocol
             oldest_signature = session.query(db.TransactionStatusWithSignature.signature) \
                 .filter(db.TransactionStatusWithSignature.source == self.protocol) \
-                .filter(db.TransactionStatusWithSignature.collection_stream == "signature") \
+                .filter(db.TransactionStatusWithSignature.collection_stream == db.CollectionStreamTypes.SIGNATURE) \
                 .order_by(db.TransactionStatusWithSignature.id.desc()) \
                 .first()
             # If no signatures collected yet, get signature from watershed block
@@ -88,6 +88,7 @@ class SignatureCollector(GenericSolanaConnector):
         Collect signatures with metadata through Solana API.
         """
         self._fetch_signatures()
+        LOGGER.info(f"Collected {len(self._collected_signatures)} signatures for `{self.protocol}")
 
     def _write_tx_data(self) -> None:
         """
@@ -127,6 +128,7 @@ class SignatureCollector(GenericSolanaConnector):
 
                 self._oldest_signature = signature.signature
             session.commit()
+        LOGGER.info(f"Signatures successfully stored to database.")
 
     def _fetch_signatures(self) -> None:
         """
@@ -144,7 +146,7 @@ class SignatureCollector(GenericSolanaConnector):
             signatures = response.value
         except SolanaRpcException as e:
             LOGGER.error(f"SolanaRpcException: {e}")
-            time.sleep(1)
+            time.sleep(0.5)
             self._fetch_signatures()
             return
 
@@ -184,8 +186,9 @@ class SignatureCollector(GenericSolanaConnector):
                 self._get_watershed_block_signature()
                 return
 
-        watershed_block_transactions = self._fetch_block(watershed_block_number)
-        self._oldest_signature = watershed_block_transactions[0].signature
+        watershed_block, _ = self._fetch_block(watershed_block_number)
+        watershed_block_transactions = watershed_block.transactions
+        self._oldest_signature = watershed_block_transactions[0].transaction.signatures[0]
         LOGGER.info("Signature = {} collected from watershed block `{}` for protocol = {}.".format(
             self._oldest_signature, watershed_block_number, self.protocol)
         )
