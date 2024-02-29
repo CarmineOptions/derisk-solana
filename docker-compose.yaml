@@ -74,3 +74,16 @@ services:
     depends_on:
       db:
         condition: service_healthy
+
+  ts-fetcher:
+    build:
+      dockerfile: ./Dockerfile.ts-fetcher
+    environment:
+      AUTHENTICATED_RPC_URL: ""
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_HOST: db
+      POSTGRES_DB: postgres
+    depends_on:
+      db:
+        condition: service_healthy
