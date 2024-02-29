@@ -1,34 +1,33 @@
 
-import { sleep } from './utils.js';
 
-import { updateSaberLiqudity } from './saber.js';
-import { updateInvariantLiqudity } from './invariant.js';
-import { updateLifinityLiqudity } from './lifinity.js';
+import './sentre.js';
 
-// Collect data every 5 minutes
-const COLLECTION_INTERVAL_MILLISECONDS = 5 * 60 * 1000;
+// import { sleep } from './utils.js';
 
-async function main() {
+// import { updateSaberLiqudity } from './saber.js';
+// import { updateInvariantLiqudity } from './invariant.js';
+// import { updateLifinityLiqudity } from './lifinity.js';
 
-    while (true) {
-        const start = Date.now();
+// // Collect data every 5 minutes
+// const COLLECTION_INTERVAL_MILLISECONDS = 5 * 60 * 1000;
 
-        // Update Liquidity
-        await updateInvariantLiqudity();
-        await updateSaberLiqudity();
-        await updateLifinityLiqudity();
+// async function main() {
 
-        // Sleep until the end of collection interval
-        const execution_time = Date.now() - start;
-        const to_sleep = Math.max(0, COLLECTION_INTERVAL_MILLISECONDS - execution_time);
+//     while (true) {
+//         const start = Date.now();
 
-        await sleep(to_sleep);
-    };
+//         // Update Liquidity
+//         await updateInvariantLiqudity();
+//         await updateSaberLiqudity();
+//         await updateLifinityLiqudity();
 
-}
+//         // Sleep until the end of collection interval
+//         const execution_time = Date.now() - start;
+//         const to_sleep = Math.max(0, COLLECTION_INTERVAL_MILLISECONDS - execution_time);
 
-await main()
+//         await sleep(to_sleep);
+//     };
 
+// }
 
-
-
+// await main()
