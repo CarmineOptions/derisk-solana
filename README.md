@@ -52,6 +52,38 @@ The data collection works as follows:
 2. For each slot containing at least 1 signature, all transactions are fetched, but only those which match the previously saved signatures are kept and saved in the database.
 
 The data is being fetched from the newest transactions at the time when the script is run (`T0`). When the available history preceding `T0` is stored in the database, the process starts again at time `T1`, fetching all data between `T0` and `T1`. With the rate limit set high enough, the process approaches a state when the script feeds the database with nearly real-time data. If restarted, the fetching of the data continues from the last transaction stored in the database. 
+
+### CLOB DEXes
+
+For updating CLOB DEXes data following environmental variables are required:
+
+- `POSTGRES_USER` name of the database user
+- `POSTGRES_PASSWORD` database user's password
+- `POSTGRES_HOST` host address, IP address or DNS of the database
+- `POSTGRES_DB` database name
+- `AUTHENTICATED_RPC_URL` Solana rpc url
+
+Then, run the following commands:
+
+```sh
+docker build --file ./Dockerfile.ob-liq-fetcher -t ob-liq-fetcher .
+docker run -d -e POSTGRES_USER=$POSTGRES_USER -e POSTGRES_PASSWORD=$POSTGRES_PASSWORD -e POSTGRES_HOST=$POSTGRES_HOST -e POSTGRES_DB=$POSTGRES_DB -e AUTHENTICATED_RPC_URL=$AUTHENTICATED_RPC_URL ob-liq-fetcher
+```
+
+Data collected from following CLOBs:
+- [Phoenix](https://www.phoenix.trade/), [SDK](https://github.com/Ellipsis-Labs/phoenix-sdk)
+- [OpenBook](https://openbookdex.com/), [SDK](https://github.com/openbook-dex/resources)
+- [GooseFX](https://www.goosefx.io/), [SDK](https://docs.goosefx.io/developer-resources/perpetual-dex-sdks/python-sdk)
+
+#### Database Schema
+The orderbook_liquidity table is structured in a following way:
+
+- `timestamp`: Stores time of the data record.
+- `dex`: Identifies the DEX from which the orderbook data were collected.
+- `pair`: Represents the token pair of the liquidity pool in following format `<symbol_x>/<symbol_y>` e.g. `"SOL/USDC"`.
+- `market_address`: Holds the market's pubkey.
+- `bids` and `asks`: Hold lists of two sized tuples where first entry in the tuple is price level and the second entry is the amount of liquidity on given level.
+
 ### AMMs
 
 For updating AMMs' pools data following environmental variables are required:
@@ -60,6 +92,7 @@ For updating AMMs' pools data following environmental variables are required:
 - `POSTGRES_PASSWORD` database user's password
 - `POSTGRES_HOST` host address, IP address or DNS of the database
 - `POSTGRES_DB` database name
+- `AUTHENTICATED_RPC_URL` Solana rpc url
 
 Then, run the following commands:
 
@@ -68,16 +101,33 @@ docker build --file ./Dockerfile.update-amm-pools -t amms .
 docker run -d --name amms -e POSTGRES_USER=$POSTGRES_USER -e POSTGRES_PASSWORD=$POSTGRES_PASSWORD -e POSTGRES_HOST=$POSTGRES_HOST -e POSTGRES_DB=$POSTGRES_DB amms
 ```
 
+Note that updating of few AMMs' pools is done with their corresponding TypeScript SDK. These are updated in separate Docker container, which is run followingly: 
+
+```sh
+docker build --file ./Dockerfile.ts-fetching -t ts-fetcher .
+docker run -d -e POSTGRES_USER=$POSTGRES_USER -e POSTGRES_PASSWORD=$POSTGRES_PASSWORD -e POSTGRES_HOST=$POSTGRES_HOST -e POSTGRES_DB=$POSTGRES_DB -e AUTHENTICATED_RPC_URL=$AUTHENTICATED_RPC_URL ts-fetcher
+```
+
 Data collected from following DEXes:
 - [Orca](https://www.orca.so/)
 - [Raydium](https://raydium.io/)
 - [Meteora](https://www.meteora.ag/)
+- [LIFINITY](https://lifinity.io/), [SDK](https://www.npmjs.com/package/@lifinity/sdk-v2)
+- [Sentre](https://sentre.io/), [SDK](https://docs.senswap.sentre.io/)
+- [Saber](https://app.saber.so), [SDK](https://docs.saber.so/developing/sdks/saber-common)
+- [Invariant](https://invariant.app/swap), [SDK](https://docs.invariant.app/docs/solana/introduction)
 
 Data Collection Strategy
-The data collection process involves querying each DEX's first-party API for current pool statuses. This process is automated through a scheduled task that runs the above Docker container, ensuring data freshness. The approach is as follows:
+For Orca, Raydium and Meteora the data collection process involves querying each DEX's first-party API for current pool statuses. This process is automated through a scheduled task that runs the above Docker container, ensuring data freshness. The approach is as follows:
 
 1) Initialization: On startup, the Docker container queries the DEX APIs to fetch the initial state of all liquidity pools.
 2) Continuous Update: The container polls the APIs every 300 seconds to capture any changes in pools' liquidity.
+3) Data Transformation: Before insertion into the database, data undergoes normalization to fit the amm_liquidity table schema, ensuring consistency across different DEX sources.
+
+For LIFINITY, Sentre, Saber and Invariant, the data collection is done directly using on-chain data through their respective SDK. This is done in regular intervals in a Docker container. Generally speaking, the process is very similar to previous one:
+
+1) Initialization: On startup, the Docker container fetches initial on-chain state of all liquidity pools.
+2) Continuous Update: The container fetches the liqduity every 300 seconds to capture any changes in pools' liquidity.
 3) Data Transformation: Before insertion into the database, data undergoes normalization to fit the amm_liquidity table schema, ensuring consistency across different DEX sources.
 
 #### Database Schema
