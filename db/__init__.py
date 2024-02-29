@@ -126,6 +126,7 @@ class CLOBLiqudity(Base):
         )
 
 
+
 class AmmLiquidity(Base):
     __tablename__ = 'amm_liquidity'
     __table_args__ = (
@@ -133,6 +134,7 @@ class AmmLiquidity(Base):
         {"schema": SCHEMA},
     )
 
+    id = Column(Integer, primary_key=True)
     timestamp = Column(BigInteger)
     dex = Column(String, nullable=False)
     pair = Column(String, nullable=False)
