@@ -1,5 +1,9 @@
 # TODO: To be implemented.
-from abc import ABC
+import json
+from abc import ABC, abstractmethod
+from typing import Any, Dict, List
+
+import requests
 
 
 class Amms:
@@ -22,18 +26,54 @@ def load_amm_data() -> Amms:
 
 
 class Amm(ABC):
+	# dex_name: str = ''
+	pools: List[Dict[str, Any]]
 
 	def __init__(self):
 		pass
 
+	@abstractmethod
+	def get_pools(self):
+		raise NotImplementedError('Implement me!')
+
+	def store_pools(self):
+		for pool in self.pools:
+			self.store_pool(pool)
+
+	def store_pool(self, pool: Dict[str, Any]) -> bool:
+		raise NotImplementedError('Implement me!')
+
 
 class OrcaAMM(Amm):
-	pass
+	dex_name = 'Orca'
+	def get_pools(self) -> None:
+		result = requests.get('https://api.mainnet.orca.so/v1/whirlpool/list')
+		decoded_result = result.content.decode('utf-8')
+		self.pools = json.loads(decoded_result)['whirlpools']
+
+	def store_pool(self, pool: Dict[str, Any]) -> bool:
+		raise NotImplementedError('Implement me!')
 
 
 class RaydiumAMM(Amm):
-	pass
+	dex_name = 'Orca'
+
+	def get_pools(self):
+		result = requests.get('https://api.raydium.io/v2/ammV3/ammPools')
+		decoded_result = result.content.decode('utf-8')
+		self.pools = json.loads(decoded_result)['data']
+
+	def store_pool(self, pool: Dict[str, Any]) -> bool:
+		raise NotImplementedError('Implement me!')
 
 
 class MeteoraAMM(Amm):
-	pass
+
+	def get_pools(self):
+		response = requests.get("https://app.meteora.ag/amm/pools/")
+		decoded_content = response.content.decode('utf-8')
+		self.pools = json.loads(decoded_content)
+		return self.pools
+
+	def store_pool(self, pool: Dict[str, Any]) -> bool:
+		raise NotImplementedError('Implement me!')
