@@ -15,6 +15,26 @@ from db import AmmLiquidity, get_db_session
 LOG = logging.getLogger(__name__)
 
 
+def check_bigint(value: int) -> int:
+	"""
+	Checks if the given integer value fits within the PostgreSQL bigint range.
+
+	Args:
+		value (int): The integer value to check.
+
+	Returns:
+		int: Returns -2 if the value exceeds the PostgreSQL bigint range
+	"""
+	# Define the bigint limits in PostgreSQL
+	bigint_min = -9223372036854775808
+	bigint_max = 9223372036854775807
+
+	# Check if the value is within the bigint range
+	if not bigint_min <= value <= bigint_max:
+		return -2  # Return -2 if the value is outside the bigint range
+	return value
+
+
 class Amms:
 	"""
 	A class that describes the state of all relevant pools of all relevant swap AMMs.
@@ -245,8 +265,8 @@ class MeteoraAMM(Amm):
 				dex=self.DEX_NAME,
 				pair=pair,
 				market_address=pool.get('pool_address'),
-				token_x=token_x if token_x is not None else -1,
-				token_y=token_y if token_y is not None else -1,
+				token_x=check_bigint(token_x) if token_x is not None else -1,
+				token_y=check_bigint(token_y) if token_y is not None else -1,
 				token_x_decimals=token_x_decimals if token_x_decimals is not None else -1,
 				token_y_decimals=token_y_decimals if token_y_decimals is not None else -1,
 				additional_info=json.dumps(pool)
@@ -266,7 +286,7 @@ if __name__ == '__main__':
 			LOG.info("Successfully processed all pools. Waiting 5 minutes before next update.")
 			time.sleep(300)
 		except Exception as e:  # pylint: disable=broad-exception-caught
-			tb_str = traceback.format_exc()
+			TB_STR = traceback.format_exc()
 			# Log the error message along with the traceback
-			LOG.error(f"An error occurred: {e}\nTraceback:\n{tb_str}")
+			LOG.error(f"An error occurred: {e}\nTraceback:\n{TB_STR}")
 			time.sleep(300)
