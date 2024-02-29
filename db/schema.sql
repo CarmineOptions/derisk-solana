@@ -49,19 +49,6 @@ CREATE TABLE public.tx_status_memo (
     tx_signatures_id integer NOT NULL
 );
 
-CREATE TABLE public.amm_liquidity (
-    timestamp BIGINT,
-    dex VARCHAR NOT NULL,
-    pair VARCHAR NOT NULL,
-    market_address VARCHAR,
-    token_x BIGINT,
-    token_y BIGINT,
-    token_x_decimals INTEGER,
-    token_y_decimals INTEGER,
-    additional_info TEXT,
-    PRIMARY KEY (dex, pair, market_address, timestamp)
-);
-
 CREATE SEQUENCE public.tx_status_memo_id_seq AS integer START WITH 1 INCREMENT BY 1 NO MINVALUE NO MAXVALUE CACHE 1;
 
 ALTER SEQUENCE public.tx_status_memo_id_seq OWNED BY public.tx_status_memo.id;
