@@ -278,6 +278,8 @@ class MeteoraAMM(Amm):
 
 
 if __name__ == '__main__':
+	logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+
 	LOG.info("Start collecting AMM pools.")
 	amms = Amms()
 	while True:
