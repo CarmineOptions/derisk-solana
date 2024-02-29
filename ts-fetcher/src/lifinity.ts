@@ -121,16 +121,10 @@ const RELEVANT_MARKETS = {
 }
 
 
-
-
-// poolCoinMint: 'So11111111111111111111111111111111111111112',
-// poolPcMint: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
-// const amm = new PublicKey(RELEVANT_MARKETS['SOL-USDC'].amm);
-
 async function getLifinityAmmLiquidityEntries(): Promise<AmmLiquidityEntry[]> {
 
-  let relevantMarketsValues = Object.entries(RELEVANT_MARKETS);
-  var pools: AmmLiquidityEntry[] = [];
+  const relevantMarketsValues = Object.entries(RELEVANT_MARKETS);
+  const pools: AmmLiquidityEntry[] = [];
 
   for (let i = 0; i < relevantMarketsValues.length; i++) {
     const [name, poolInfo] = relevantMarketsValues[i];
@@ -154,7 +148,7 @@ async function getLifinityAmmLiquidityEntries(): Promise<AmmLiquidityEntry[]> {
     const multipleInfo = await getMultipleAccounts(solana_connection, publicKeys);
     const data = getParsedData(multipleInfo, poolInfo);
 
-    let entry: AmmLiquidityEntry = {
+    const entry: AmmLiquidityEntry = {
       timestamp: Math.floor(Date.now() / 1000),
       dex: LIFINITY_IDENTIFIER,
       pair: name,
@@ -174,7 +168,7 @@ async function getLifinityAmmLiquidityEntries(): Promise<AmmLiquidityEntry[]> {
 
 export async function updateLifinityLiqudity() {
   try {
-    var poolUpdates = await getLifinityAmmLiquidityEntries();
+    const poolUpdates = await getLifinityAmmLiquidityEntries();
     await writeAmmLiquidityEntries(poolUpdates);
 
     console.log('Updated Lifinity Liquidity');
@@ -183,4 +177,3 @@ export async function updateLifinityLiqudity() {
     console.log(e);
   }
 }
-

@@ -11,7 +11,7 @@ const COLLECTION_INTERVAL_MILLISECONDS = 5 * 60 * 1000;
 async function main() {
 
     while (true) {
-        var start = Date.now();
+        const start = Date.now();
 
         // Update Liquidity
         await updateInvariantLiqudity();
@@ -19,8 +19,8 @@ async function main() {
         await updateLifinityLiqudity();
 
         // Sleep until the end of collection interval
-        var execution_time = Date.now() - start;
-        var to_sleep = Math.max(0, COLLECTION_INTERVAL_MILLISECONDS - execution_time);
+        const execution_time = Date.now() - start;
+        const to_sleep = Math.max(0, COLLECTION_INTERVAL_MILLISECONDS - execution_time);
 
         await sleep(to_sleep);
     };

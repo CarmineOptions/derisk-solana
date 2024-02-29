@@ -107,11 +107,11 @@ async function getInvariantMarket(): Promise<Market> {
 
 async function getInvariantAmmLiquidityEntries(): Promise<AmmLiquidityEntry[]> {
 
-    var pools: AmmLiquidityEntry[] = [];
+    const pools: AmmLiquidityEntry[] = [];
     const market = await getInvariantMarket();
 
     for (let i = 0; i < RELEVANT_MARKETS.length; i++) {
-        let pool = RELEVANT_MARKETS[i];
+        const pool = RELEVANT_MARKETS[i];
         const pool_pubkey = new PublicKey(pool.publicKey)
         const pool_struct = await market.getPoolByAddress(pool_pubkey);
         const pool_positions = await market.getPositionsForPool(pool_pubkey);
@@ -138,7 +138,7 @@ async function getInvariantAmmLiquidityEntries(): Promise<AmmLiquidityEntry[]> {
 
 export async function updateInvariantLiqudity() {
     try {
-        var poolUpdates = await getInvariantAmmLiquidityEntries();
+        const poolUpdates = await getInvariantAmmLiquidityEntries();
         await writeAmmLiquidityEntries(poolUpdates);
 
         console.log('Updated Invariant Liquidity');

@@ -39,8 +39,8 @@ const RELEVANT_MARKETS = [
 
 async function getSaberAmmLiquidityEntries(): Promise<AmmLiquidityEntry[]> {
 
-    var pools: AmmLiquidityEntry[] = [];
-    
+    const pools: AmmLiquidityEntry[] = [];
+
     for (let i = 0; i < RELEVANT_MARKETS.length; i++) {
         const pool = RELEVANT_MARKETS[i];
         const exchangeInfo = await loadExchangeInfoFromSwapAccount(
@@ -73,7 +73,7 @@ async function getSaberAmmLiquidityEntries(): Promise<AmmLiquidityEntry[]> {
 
 export async function updateSaberLiqudity() {
     try {
-        var poolUpdates = await getSaberAmmLiquidityEntries();
+        const poolUpdates = await getSaberAmmLiquidityEntries();
         await writeAmmLiquidityEntries(poolUpdates);
         
         console.log('Updated Saber Liquidity');

@@ -3,16 +3,16 @@ import { ClientConfig } from "pg";
 const { Client } = pkg;
 
 function getDBClientConfig(): ClientConfig {
-  if (process.env.POSTGRES_USER === undefined) {
+  if (!process.env.POSTGRES_USER) {
     throw new Error("PG User ENV undefined");
   }
-  if (process.env.POSTGRES_PASSWORD === undefined) {
+  if (!process.env.POSTGRES_PASSWORD) {
     throw new Error("PG Password ENV undefined");
   }
-  if (process.env.POSTGRES_HOST === undefined) {
+  if (!process.env.POSTGRES_HOST) {
     throw new Error("PG HOST ENV undefined");
   }
-  if (process.env.POSTGRES_DB === undefined) {
+  if (!process.env.POSTGRES_DB) {
     throw new Error("PG DB ENV undefined");
   }
   // Return ClientConfig
@@ -23,6 +23,8 @@ function getDBClientConfig(): ClientConfig {
     database: process.env.POSTGRES_DB,
   };
 }
+
+const dbClientConfig = getDBClientConfig();
 
 export type AmmLiquidityEntry = {
   timestamp: number,
@@ -37,7 +39,7 @@ export type AmmLiquidityEntry = {
 };
 
 export const writeAmmLiquidityEntries = async (signatures: AmmLiquidityEntry[]) => {
-  const client = new Client(getDBClientConfig());
+  const client = new Client(dbClientConfig);
   await client.connect();
   try {
     await client.query("BEGIN");
