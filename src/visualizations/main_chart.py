@@ -14,6 +14,19 @@ import src.protocols.state
 
 
 
+LOOKBACK_DAYS: int = 5
+MAXIMUM_PERCENTAGE_PRICE_CHANGE = 0.05
+
+PAIRS_PAIRS_MAPPING: dict[str, str] = {
+	"ETH-USDC": ("WETH/USDC", "ETHpo/USDC"),
+	"SOL-USDC": ("SOL/USDC", ""),
+	"SOL-USDT": ("SOL/USDT", ""),
+	"JUP-USDC": ("JUP/USDC", ""),
+	"JUP-USDT": ("JUP/USDT", ""),
+}
+
+
+
 def get_token(pair: str, split_character: str, base: bool) -> str:
 	token = pair.split(split_character)[0] if base else pair.split(split_character)[1]
 	# TODO: Create a proper mapping.
@@ -90,6 +103,85 @@ def get_liquidable_debt(
 	collateral_token_price: decimal.Decimal,
 ) -> decimal.Decimal:
 	return decimal.Decimal("0")
+
+
+
+def get_swap_amm_pools(token_pair: str) -> pandas.DataFrame:
+	connection = src.database.establish_connection()
+	collateral_token, debt_token = token_pair.split('-')
+	reversed_token_pair = f'{debt_token}-{collateral_token}' 
+	token_pairs = (token_pair, reversed_token_pair)
+	start_timestamp = time.time() - LOOKBACK_DAYS * 24 * 60 * 60
+	swap_amm_pools = pandas.read_sql(
+		sql=f"""
+			SELECT
+				*
+			FROM
+				public.amm_liquidity
+			WHERE
+				pair IN {token_pairs} 
+            AND
+                timestamp >= {start_timestamp}
+			ORDER BY
+				timestamp, dex, pair ASC;
+		""",
+		con = connection,
+	)
+	connection.close()
+	swap_amm_pools = swap_amm_pools.groupby(['dex', 'pair']).last()
+	return swap_amm_pools.reset_index()
+
+
+def get_available_amm_liquidity_in_usd(
+	token_pair: str, 
+	amm_data: pandas.DataFrame, 
+	prices: dict[str, decimal.Decimal],
+	collateral_token_price: decimal.Decimal,
+) -> decimal.Decimal:
+	_, debt_token = token_pair.split('-')
+	base_token = get_token(pair=amm_data['pair'], split_character='-', base=True)
+	quote_token = get_token(pair=amm_data['pair'], split_character='-', base=False)
+	if amm_data['dex'] == 'Meteora':
+		additional_info = json.loads(amm_data['additional_info'])
+		if float(additional_info['pool_tvl']) <= 0:
+			return decimal.Decimal("0")
+		base_token_amount = decimal.Decimal(additional_info['pool_token_amounts'][0])
+		quote_token_amount = decimal.Decimal(additional_info['pool_token_amounts'][1])
+		pool = Pool(
+			base_token=base_token if debt_token == quote_token else quote_token,
+			quote_token=quote_token if debt_token == quote_token else base_token,
+			base_token_amount=base_token_amount if debt_token == quote_token else quote_token_amount,
+			quote_token_amount=quote_token_amount if debt_token == quote_token else base_token_amount,
+		)
+		return pool.supply_at_price(initial_price=collateral_token_price)
+	base_token_amount = amm_data['token_x']
+	quote_token_amount = amm_data['token_y']
+	pool = Pool(
+		base_token=base_token if debt_token == quote_token else quote_token,
+		quote_token=quote_token if debt_token == quote_token else base_token,
+		base_token_amount=base_token_amount if debt_token == quote_token else quote_token_amount,
+		quote_token_amount=quote_token_amount if debt_token == quote_token else base_token_amount,
+	)
+	return pool.supply_at_price(initial_price=collateral_token_price)
+
+
+def get_supply_at_price(
+	token_pair: str,
+	prices: dict[str, decimal.Decimal],
+	swap_amm_pools: pandas.DataFrame,
+	collateral_token_price: decimal.Decimal,
+	available_orderbook_supply: decimal.Decimal,
+) -> decimal.Decimal:
+	available_amm_supply = swap_amm_pools.apply(
+		lambda x: get_available_amm_liquidity_in_usd(
+			token_pair=token_pair,
+			amm_data=x,
+			prices=prices,
+			collateral_token_price=collateral_token_price,
+		),
+		axis = 1,
+	)
+	return available_amm_supply.sum() + available_orderbook_supply
 
 
 def get_main_chart_data(
