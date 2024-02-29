@@ -38,7 +38,9 @@ if POSTGRES_DB is None:
 
 CONN_STRING = f"postgresql+psycopg2://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_HOST}/{POSTGRES_DB}"
 
+
 SCHEMA = "public"
+
 
 def get_db_session() -> Session:
     """
@@ -137,8 +139,8 @@ class AmmLiquidity(Base):
     dex = Column(String, nullable=False)
     pair = Column(String, nullable=False)
     market_address = Column(String)
-    token_x = Column(BigInteger)
-    token_y = Column(BigInteger)
-    token_x_decimals = Column(Integer)
-    token_y_decimals = Column(Integer)
+    token_x = Column(BigInteger, default=-1)
+    token_y = Column(BigInteger, default=-1)
+    token_x_decimals = Column(Integer, default=-1)
+    token_y_decimals = Column(Integer, default=-1)
     additional_info = Column(String)

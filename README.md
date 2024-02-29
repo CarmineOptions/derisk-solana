@@ -52,6 +52,44 @@ The data collection works as follows:
 2. For each slot containing at least 1 signature, all transactions are fetched, but only those which match the previously saved signatures are kept and saved in the database.
 
 The data is being fetched from the newest transactions at the time when the script is run (`T0`). When the available history preceding `T0` is stored in the database, the process starts again at time `T1`, fetching all data between `T0` and `T1`. With the rate limit set high enough, the process approaches a state when the script feeds the database with nearly real-time data. If restarted, the fetching of the data continues from the last transaction stored in the database. 
+### AMMs
+
+For updating AMMs' pools data following environmental variables are required:
+
+- `POSTGRES_USER` name of the database user
+- `POSTGRES_PASSWORD` database user's password
+- `POSTGRES_HOST` host address, IP address or DNS of the database
+- `POSTGRES_DB` database name
+
+Then, run the following commands:
+
+```sh
+docker build --file ./Dockerfile.update-amm-pools -t amms .
+docker run -d --name amms -e POSTGRES_USER=$POSTGRES_USER -e POSTGRES_PASSWORD=$POSTGRES_PASSWORD -e POSTGRES_HOST=$POSTGRES_HOST -e POSTGRES_DB=$POSTGRES_DB amms
+```
+
+Data collected from following DEXes:
+- [Orca](https://www.orca.so/)
+- [Raydium](https://raydium.io/)
+- [Meteora](https://www.meteora.ag/)
+
+Data Collection Strategy
+The data collection process involves querying each DEX's first-party API for current pool statuses. This process is automated through a scheduled task that runs the above Docker container, ensuring data freshness. The approach is as follows:
+
+1) Initialization: On startup, the Docker container queries the DEX APIs to fetch the initial state of all liquidity pools.
+2) Continuous Update: The container polls the APIs every 300 seconds to capture any changes in pools' liquidity.
+3) Data Transformation: Before insertion into the database, data undergoes normalization to fit the amm_liquidity table schema, ensuring consistency across different DEX sources.
+
+#### Database Schema
+The amm_liquidity table is structured to accommodate data from multiple DEXes efficiently. Key fields include:
+
+- `timestamp`: Stores time of the data record.
+- `dex`: Identifies the DEX from which the pool data was sourced, e.g., Orca, Raydium, Meteora.
+- `pair`: Represents the token pair of the liquidity pool in following format `<symbol_x>-<symbol_y>` e.g. `"SOL-USDC"`.
+- `market_address`: Holds the pool's pubkey.
+- `token_x` and `token_y`: Capture the amounts of the tokens in the liquidity pool.
+- `token_x_decimals` and `token_y_decimals`: Define the decimal precision for each token in the pair.
+- `additional_info`: Additional info provided by DEXes.
 
 ### API
 
