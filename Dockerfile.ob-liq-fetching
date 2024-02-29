@@ -1,0 +1,21 @@
+
+FROM python:3.10
+
+WORKDIR /app
+
+RUN pip install poetry
+COPY pyproject.toml poetry.lock* ./
+RUN poetry config virtualenvs.create false \
+  && poetry install --no-interaction --no-ansi
+
+RUN python3 -m pip install anchorpy==0.19.1
+RUN python3 -m pip install mango_explorer_v4
+RUN python3 -m pip install typing-extensions --upgrade
+
+
+COPY ./scripts ./scripts
+COPY ./src ./src
+COPY ./db ./db
+
+CMD ["python3", "scripts/collect_ob_liq.py"]
+
