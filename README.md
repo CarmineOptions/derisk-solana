@@ -109,9 +109,9 @@ docker run -d -e POSTGRES_USER=$POSTGRES_USER -e POSTGRES_PASSWORD=$POSTGRES_PAS
 ```
 
 Data collected from following DEXes:
-- [Orca](https://www.orca.so/)
-- [Raydium](https://raydium.io/)
-- [Meteora](https://www.meteora.ag/)
+- [Orca](https://www.orca.so/), [API](https://orca-so.gitbook.io/orca-developer-portal/whirlpools/interacting-with-the-protocol/orca-whirlpools-parameters#api-endpoint-for-orca-ui-supported-whirlpools)
+- [Raydium](https://raydium.io/), [API](https://api.raydium.io/v2/main/pairs)
+- [Meteora](https://www.meteora.ag/), [API](https://docs.meteora.ag/dynamic-pools-integration/dynamic-pool-api/pool-info)
 - [LIFINITY](https://lifinity.io/), [SDK](https://www.npmjs.com/package/@lifinity/sdk-v2)
 - [Sentre](https://sentre.io/), [SDK](https://docs.senswap.sentre.io/)
 - [Saber](https://app.saber.so), [SDK](https://docs.saber.so/developing/sdks/saber-common)
