@@ -168,6 +168,14 @@ class RaydiumAMM(Amm):
 			LOG.error("Request to Raydium pool API timed out")
 			self.get_token_list()
 
+	def store_pools(self):
+		"""
+		Save pools data to database.
+		"""
+		self.get_token_list()
+		for pool in self.pools:
+			self.store_pool(pool)
+
 	def store_pool(self, pool: Dict[str, Any]) -> None:
 		"""
 		Save pool data to database.
