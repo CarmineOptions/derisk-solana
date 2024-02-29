@@ -22,6 +22,9 @@ phoenix-trade = ">=0.1.9"
 base58 = "^2.1.1"
 asyncstdlib = "^3.12.0"
 jsonrpcclient = "^4.0.3"
+gfx-perp-sdk = "^0.0.15"
+podite = "^0.1.2"
+deepdiff = "^6.7.1"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.0.0"

@@ -12,6 +12,7 @@ from src.protocols.dexes.clob import CLOB
 # Ordebook-based DEXes
 from src.protocols.dexes.clob import Phoenix
 from src.protocols.dexes.clob import OpenBook
+from src.protocols.dexes.clob import GooseFx
 import db
 
 # Collect and store orderbook liquidity every 5 minutes
@@ -63,11 +64,12 @@ async def update_ob_dex_data():
             [
                 Phoenix(endpoint=AUTHENTICATED_RPC_URL),
                 OpenBook(endpoint=AUTHENTICATED_RPC_URL),
+                GooseFx(endpoint=AUTHENTICATED_RPC_URL),
             ]
         )
         await clobs.update_orderbooks()
         logging.info("Successfuly updated CLOB liquidity")
-    except Exception as err: # pylint: disable=W0718
+    except Exception as err:  # pylint: disable=W0718
         # We want to log any error but we want the collector
         # to keep on running.
 
@@ -102,8 +104,6 @@ def load_ob_dex_data(start_timestamp: int) -> list[db.CLOBLiqudity]:
 
     """
     Returns un-agreggated CLOB liquidity data starting from start_timestamp
-
-
     """
     with db.get_db_session() as session:
         entries = (

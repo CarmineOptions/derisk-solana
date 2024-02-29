@@ -5,14 +5,21 @@ and pushing it to the database.
 import logging
 import abc
 
-from phoenix.client import PhoenixClient
+from solana.keypair import Keypair # pylint: disable=E0611
+from solana.publickey import PublicKey  # pylint: disable=E0611
 from solana.rpc.commitment import Commitment
 from solana.rpc.api import Client as SolanaClient
-from solana.publickey import PublicKey  # pylint: disable=E0611
+
+from phoenix.client import PhoenixClient
 from pyserum.market import Market
 
 # ^^ Ignoring pylint here because correct solana version is installed in
 # the docker container
+
+from gfx_perp_sdk import Perp, Product
+from gfx_perp_sdk.types import MarketProductGroup
+from gfx_perp_sdk.agnostic import Slab
+from gfx_perp_sdk.utils import processOrderbook
 
 from src.protocols.dexes.pairs import get_relevant_tickers
 import db
@@ -152,6 +159,101 @@ class OpenBook(CLOB):
                     dex=self.identifier,
                     pair=ticker,
                     market_address=self.tickers[ticker],
+                    bids=orderbook["bids"],
+                    asks=orderbook["asks"],
+                    timestamp=timestamp,
+                )
+                session.add(ob_liq_record)
+            session.commit()
+
+
+class GooseFx(CLOB):
+    def __init__(
+        self,
+        commitment: Commitment = Commitment("finalized"),
+        endpoint: str | None = None,
+    ):
+        if endpoint is None:
+            endpoint = "https://api.mainnet-beta.solana.com"
+
+        self.identifier = "GOOSEFX"
+        self.tickers = ["SOL-PERP"]
+        self.client = SolanaClient(endpoint=endpoint, commitment=commitment)
+        self.commitment = commitment
+
+        # Set up Perp class
+        _perp = Perp(self.client, "mainnet", Keypair.generate())
+        mpg_id = PublicKey(_perp.ADDRESSES["MPG_ID"])
+        response = self.client.get_account_info(
+            pubkey=PublicKey(mpg_id), commitment=commitment, encoding="base64"
+        )
+
+        # Since the client is broken atm we need to fetch mpg and mpgBytes manually and then pass it to new Perp class
+        try:
+            if response.value:
+                r = response.value.data
+                decoded = r[8:]
+                mpg = MarketProductGroup.from_bytes(decoded)
+                mpg_bytes = decoded
+        except Exception as exc:
+            raise KeyError("Wrong Market Product Group PublicKey") from exc
+
+        # Create new Perp class with complete info
+        self.perp = Perp(self.client, "mainnet", Keypair.generate(), mpg, mpg_bytes)
+
+    async def get_onchain_orderbook(
+        self, market_address: str
+    ) -> dict[str, list[tuple[float, float]]]:
+        try:
+            product = Product(self.perp)
+            product.init_by_name(market_address)
+
+            bid_key = product.BIDS
+            ask_key = product.ASKS
+
+            bids_data = self.client.get_account_info(
+                pubkey=PublicKey(bid_key), commitment=self.commitment, encoding="base64"
+            )
+            asks_data = self.client.get_account_info(
+                pubkey=PublicKey(ask_key), commitment=self.commitment, encoding="base64"
+            )
+
+            if (not bids_data.value) or (not asks_data.value):
+                LOGGER.error(f'GooseFX unable to load bids/asks for market {market_address}')
+                raise ValueError
+
+            r1 = bids_data.value.data
+            r2 = asks_data.value.data
+
+            bid_deserialized = Slab.deserialize(r1, 40)
+            ask_deserialized = Slab.deserialize(r2, 40)
+
+            ob_bids = bid_deserialized.getL2DepthJS(1_000, True)
+            ob_asks = ask_deserialized.getL2DepthJS(1_000, True)
+
+            processed_data = processOrderbook(
+                ob_bids, ob_asks, product.tick_size, product.decimals
+            )
+
+            return {
+                key: [(i["price"], i["size"]) for i in value]
+                for key, value in processed_data.items()
+            }
+        except AttributeError:
+            LOGGER.error(f"Error while collecting GooseFx {market_address} orderbook")
+            return {"bids": [], "asks": []}
+
+    async def update_orderbooks(self, timestamp: int) -> None:
+        order_books = {
+            ticker: await self.get_onchain_orderbook(ticker) for ticker in self.tickers
+        }
+
+        with db.get_db_session() as session:
+            for ticker, orderbook in order_books.items():
+                ob_liq_record = db.CLOBLiqudity(
+                    dex=self.identifier,
+                    pair=ticker,
+                    market_address=ticker,
                     bids=orderbook["bids"],
                     asks=orderbook["asks"],
                     timestamp=timestamp,
