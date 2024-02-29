@@ -6,6 +6,7 @@ from typing import Any, Dict, List, Tuple
 import json
 import logging
 import time
+import traceback
 import requests  # type: ignore
 
 from db import AmmLiquidity, get_db_session
@@ -264,5 +265,7 @@ if __name__ == '__main__':
 			LOG.info("Successfully processed all pools. Waiting 5 minutes before next update.")
 			time.sleep(300)
 		except Exception as e:  # pylint: disable=broad-exception-caught
-			LOG.error(f"An error occurred: {e}")
+			tb_str = traceback.format_exc()
+			# Log the error message along with the traceback
+			LOG.error(f"An error occurred: {e}\nTraceback:\n{tb_str}")
 			time.sleep(300)
