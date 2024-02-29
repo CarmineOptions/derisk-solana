@@ -434,13 +434,11 @@ disable=raw-checker-failed,
         use-symbolic-message-instead,
         import-error,
         missing-class-docstring,
-<<<<<<< HEAD
         logging-fstring-interpolation,
-        too-few-public-methods
-=======
         too-few-public-methods,
-        bad-indentation
->>>>>>> add store pool methods for each amm
+        bad-indentation,
+        logging-fstring-interpolation
+
 
 # Enable the message, report, category or checker with the given id(s). You can
 # either give multiple identifier separated by comma (,) or put this option

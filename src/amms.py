@@ -1,12 +1,17 @@
-# TODO: To be implemented.
-import json
-import time
+"""
+Module dedicated to fetching and storing data from AMM pools.
+"""
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Tuple
-
-import requests
+import json
+import logging
+import time
+import requests  # type: ignore
 
 from db import AmmLiquidity, get_db_session
+
+
+LOG = logging.getLogger(__name__)
 
 
 class Amms:
@@ -18,14 +23,28 @@ class Amms:
 		pass
 
 	def update_pools(self) -> None:
-		pass
+		"""
+		Save pools data to database.
+		:return:
+		"""
+		# set timestamp
+		timestamp = int(time.time())
 
+		# collect and store pools
+		orca_amm = OrcaAMM()
+		orca_amm.timestamp = timestamp
+		orca_amm.get_pools()
+		orca_amm.store_pools()
 
-# TODO: To be implemented.
-def load_amm_data() -> Amms:
-	amms = Amms()
-	amms.update_pools()
-	return amms
+		raydium_amm = RaydiumAMM()
+		raydium_amm.timestamp = timestamp
+		raydium_amm.get_pools()
+		raydium_amm.store_pools()
+
+		meteora_amm = MeteoraAMM()
+		meteora_amm.timestamp = timestamp
+		meteora_amm.get_pools()
+		meteora_amm.store_pools()
 
 
 class Amm(ABC):
@@ -38,17 +57,30 @@ class Amm(ABC):
 
 	@abstractmethod
 	def get_pools(self):
+		"""
+		Fetch pools data.
+		"""
 		raise NotImplementedError('Implement me!')
 
 	def store_pools(self):
+		"""
+		Save pools data to database.
+		"""
 		for pool in self.pools:
 			self.store_pool(pool)
 
-	def store_pool(self, pool: Dict[str, Any]) -> bool:
+	@abstractmethod
+	def store_pool(self, pool: Dict[str, Any]) -> None:
+		"""
+		Save pool data to database.
+		"""
 		raise NotImplementedError('Implement me!')
 
 	@staticmethod
 	def convert_to_big_integer_and_decimals(amount_str: str | None) -> Tuple[int | None, int | None]:
+		"""
+		Convert string containing numerical value into integer and number of decimals.
+		"""
 		if amount_str is None:
 			return None, None
 		# Check if there is a decimal point in the amount_str
@@ -71,11 +103,23 @@ class OrcaAMM(Amm):
 	DEX_NAME = 'Orca'
 
 	def get_pools(self) -> None:
-		result = requests.get('https://api.mainnet.orca.so/v1/whirlpool/list')
-		decoded_result = result.content.decode('utf-8')
-		self.pools = json.loads(decoded_result)['whirlpools']
+		"""
+		Fetches pool data from the Orca API and stores it in the `pools` attribute.
+		"""
+		LOG.info("Fetching pools from Orca API")
+		try:
+			result = requests.get('https://api.mainnet.orca.so/v1/whirlpool/list', timeout=30)
+			decoded_result = result.content.decode('utf-8')
+			self.pools = json.loads(decoded_result)['whirlpools']
+			LOG.info(f"Successfully fetched {len(self.pools)} pools")
+		except requests.exceptions.Timeout:
+			LOG.error("Request to Orca whirlpool API timed out")
+			self.get_pools()
 
 	def store_pool(self, pool: Dict[str, Any]) -> None:
+		"""
+		Save pool data to database.
+		"""
 		pair = f"{pool['tokenA']['symbol']}-{pool['tokenB']['symbol']}"
 		market_address = pool.get('address')
 
@@ -95,16 +139,52 @@ class OrcaAMM(Amm):
 
 class RaydiumAMM(Amm):
 	DEX_NAME = 'Orca'
-	pairs = None
+	token_list: List
 
 	def get_pools(self):
-		result = requests.get('https://api.raydium.io/v2/ammV3/ammPools')
-		decoded_result = result.content.decode('utf-8')
-		self.pools = json.loads(decoded_result)['data']
+		"""
+		Fetches pool data from the Radium API and stores it in the `pools` attribute.
+		"""
+		LOG.info("Fetching pools from Raydium API")
+		try:
+			result = requests.get('https://api.raydium.io/v2/ammV3/ammPools', timeout=30)
+			decoded_result = result.content.decode('utf-8')
+			self.pools = json.loads(decoded_result)['data']
+			LOG.info(f"Successfully fetched {len(self.pools)} pools")
+		except requests.exceptions.Timeout:
+			LOG.error("Request to Raydium pool API timed out")
+			self.get_pools()
+
+	def get_token_list(self) -> None:
+		"""
+		Get list of token with symbols from Orca API.
+		"""
+		LOG.info("Fetching token info API")
+		try:
+			result = requests.get('https://api.mainnet.orca.so/v1/token/list', timeout=30)
+			decoded_result = result.content.decode('utf-8')
+			self.token_list = json.loads(decoded_result)['tokens']
+		except requests.exceptions.Timeout:
+			LOG.error("Request to Raydium pool API timed out")
+			self.get_token_list()
 
 	def store_pool(self, pool: Dict[str, Any]) -> None:
+		"""
+		Save pool data to database.
+		"""
 		market_address = pool.get('id')
-		pair = f"{pool['mintA']}/{pool['mintB']}"  # TODO
+
+		# get token symbols
+		try:
+			token_x_symbol = next(i for i in self.token_list if i['mint'] == pool['mintA']).get('symbol')
+		except StopIteration:
+			token_x_symbol = 'Unknown'
+		try:
+			token_y_symbol = next(i for i in self.token_list if i['mint'] == pool['mintB']).get('symbol')
+		except StopIteration:
+			token_y_symbol = 'Unknown'
+
+		pair = f"{token_x_symbol}-{token_y_symbol}"
 
 		# Create a new AmmLiquidity record
 		with get_db_session() as session:
@@ -125,14 +205,24 @@ class MeteoraAMM(Amm):
 	DEX_NAME = 'Meteora'
 
 	def get_pools(self):
-		response = requests.get("https://app.meteora.ag/amm/pools/")
-		decoded_content = response.content.decode('utf-8')
-		self.pools = json.loads(decoded_content)
-		return self.pools
+		"""
+		Fetches pool data from the Meteora API and stores it in the `pools` attribute.
+		"""
+		try:
+			response = requests.get("https://app.meteora.ag/amm/pools/", timeout=30)
+			decoded_content = response.content.decode('utf-8')
+			self.pools = json.loads(decoded_content)
+			LOG.info(f"Successfully fetched {len(self.pools)} pools")
+		except requests.exceptions.Timeout:
+			LOG.error("Request to Meteora pool API timed out")
+			self.get_pools()
 
 	def store_pool(self, pool: Dict[str, Any]) -> None:
+		"""
+		Save pool data to database.
+		"""
 		pair = pool['pool_name']
-		token_x_amount, token_y_amount = pool.get('pool_token_amounts')
+		token_x_amount, token_y_amount = pool.get('pool_token_amounts', (None, None))
 
 		# Convert amounts to BigInteger and decimals
 		token_x, token_x_decimals = self.convert_to_big_integer_and_decimals(token_x_amount)
@@ -155,3 +245,16 @@ class MeteoraAMM(Amm):
 			# Add to session and commit
 			session.add(liquidity_entry)
 			session.commit()
+
+
+if __name__ == '__main__':
+	LOG.info("Start collecting AMM pools.")
+	amms = Amms()
+	while True:
+		try:
+			amms.update_pools()
+			LOG.info("Successfully processed all pools. Waiting 5 minutes before next update.")
+			time.sleep(300)
+		except Exception as e:  # pylint: disable=broad-exception-caught
+			LOG.error(f"An error occurred: {e}")
+			time.sleep(300)
