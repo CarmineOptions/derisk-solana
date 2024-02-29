@@ -36,8 +36,9 @@ def process_data(states: dict[str, src.protocols.state.State]) -> dict[str, src.
     amms = src.amms.load_amm_data()
     logging.info("Loaded swap AMM data.")
 
-	# Aggregate data for the main chart plotting liquidable debt against available liquidity.
-    prices = src.prices.get_prices()
+    # Aggregate data for the main chart plotting liquidable debt against available liquidity.
+    # TODO: Tepmporarily disable fetching prices since we're not using them ATM.
+    prices = {}
     for token_pair, state in itertools.product(src.visualizations.settings.TOKEN_PAIRS, states.values()):
         collateral_token, debt_token = token_pair.split("-")
         _ = src.visualizations.main_chart.prepare_data(

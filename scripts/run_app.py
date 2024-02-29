@@ -36,10 +36,16 @@ def main():
 		)
 
 	# Load relevant data and plot the liquidable debt against the available supply.
-	main_chart_data = src.visualizations.main_chart.load_data(protocols=protocols, token_pair=token_pair)
-	main_chart_figure = src.visualizations.main_chart.get_figure(
-		data=main_chart_data, 
+	prices = src.prices.get_prices()
+	main_chart_data = src.visualizations.main_chart.get_main_chart_data(
+		protocols=protocols,
 		token_pair=token_pair,
+		prices=prices,
+	)
+	main_chart_figure = src.visualizations.main_chart.get_figure(
+		token_pair=token_pair,
+		data=main_chart_data,
+		prices=prices,
 	)
 	streamlit.plotly_chart(figure_or_data=main_chart_figure, use_container_width=True)
 

@@ -12,7 +12,9 @@ import requests  # type: ignore
 from db import AmmLiquidity, get_db_session
 
 
+
 LOG = logging.getLogger(__name__)
+
 
 
 def check_bigint(value: int) -> int:
@@ -66,6 +68,13 @@ class Amms:
 		meteora_amm.timestamp = timestamp
 		meteora_amm.get_pools()
 		meteora_amm.store_pools()
+
+
+# TODO: To be implemented.
+def load_amm_data() -> Amms:
+	amms = Amms()
+	amms.update_pools()
+	return amms
 
 
 class Amm(ABC):

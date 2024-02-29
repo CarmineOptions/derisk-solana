@@ -117,8 +117,9 @@ Data collected from following DEXes:
 - [Saber](https://app.saber.so), [SDK](https://docs.saber.so/developing/sdks/saber-common)
 - [Invariant](https://invariant.app/swap), [SDK](https://docs.invariant.app/docs/solana/introduction)
 
-Data Collection Strategy
-For Orca, Raydium and Meteora the data collection process involves querying each DEX's first-party API for current pool statuses. This process is automated through a scheduled task that runs the above Docker container, ensuring data freshness. The approach is as follows:
+Data Collection Strategy:
+
+The data collection process involves querying each DEX's first-party API for current pool statuses. This process is automated through a scheduled task that runs the above Docker container, ensuring data freshness. The approach is as follows:
 
 1) Initialization: On startup, the Docker container queries the DEX APIs to fetch the initial state of all liquidity pools.
 2) Continuous Update: The container polls the APIs every 300 seconds to capture any changes in pools' liquidity.
@@ -131,6 +132,7 @@ For LIFINITY, Sentre, Saber and Invariant, the data collection is done directly 
 3) Data Transformation: Before insertion into the database, data undergoes normalization to fit the amm_liquidity table schema, ensuring consistency across different DEX sources.
 
 #### Database Schema
+
 The amm_liquidity table is structured to accommodate data from multiple DEXes efficiently. Key fields include:
 
 - `timestamp`: Stores time of the data record.
@@ -186,6 +188,27 @@ docker run data-processing
 ```
 
 Currently, the script outlines all of the above-mentioned steps, but their implementation is part of the future milestones.
+
+### Available Liquidity
+
+We compute liquidity available at orderbook exchanges and swap AMMs. By `available liquidity` we mean the maximum quantity that can be traded or swapped at the given venue withou moving the price by more than 5%.
+
+##### Swap AMMs
+
+We compute the available liquidity on swap AMMs by aggregating the available liquidities on every single AMM/venue. For the given AMM, given debt token, given collateral token and its price, we follow these steps:
+
+1. Fetch raw data, i.e., information about the pools (namely which tokens are in the pool and how many of them are there), and saving it to the database. This is described in the section `AMMs` in detail.
+2. Load raw data for the pools containing the tokens of interest from the database. We load the latest data fetched, there is no need to load historical data.
+3. Simulate trading/swapping to learn how much of the token of interest can be obtained on the AMM without moving the price by more than 5%.
+
+##### Orderbook Exchanges
+
+In contrast with AMMs, it's not very simple to simulate liquidity that would available on orderbook exchanges in case the price of the collateral token drops. Nevertheless, for the given exchange and given pair of tokens, we use the following approximation:
+
+1. Fetch raw data, i.e., historical snapshots of orderbooks for the tokens of interest, and saving it to the database. This is described in the section `CLOB DEXes` in detail.
+2. Load historical snapshots from the exchange for the tokens of interest. We load historical snapshots fromt the past 5 days.
+3. For every snapshot, compute limit order quantity available within 5% from the mid price in the direction of interest.
+4. Take the resulting time series of snapshots and compute its 5% quantile which is a rough estimate of the liquidity the remains in the orderbook when the price of the collateral token drops suddenly. 
 
 ### Frontend
 
