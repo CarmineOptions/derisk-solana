@@ -38,7 +38,9 @@ if POSTGRES_DB is None:
 
 CONN_STRING = f"postgresql+psycopg2://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_HOST}/{POSTGRES_DB}"
 
+
 SCHEMA = "public"
+
 
 def get_db_session() -> Session:
     """
@@ -126,7 +128,6 @@ class CLOBLiqudity(Base):
         )
 
 
-
 class AmmLiquidity(Base):
     __tablename__ = 'amm_liquidity'
     __table_args__ = (
@@ -134,7 +135,6 @@ class AmmLiquidity(Base):
         {"schema": SCHEMA},
     )
 
-    id = Column(Integer, primary_key=True)
     timestamp = Column(BigInteger)
     dex = Column(String, nullable=False)
     pair = Column(String, nullable=False)
