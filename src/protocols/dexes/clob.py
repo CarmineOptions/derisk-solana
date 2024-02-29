@@ -5,12 +5,12 @@ and pushing it to the database.
 import logging
 import abc
 
-from solana.publickey import PublicKey
-from solana.keypair import Keypair
-from phoenix.client import PhoenixClient
+from solana.keypair import Keypair # pylint: disable=E0611
+from solana.publickey import PublicKey  # pylint: disable=E0611
 from solana.rpc.commitment import Commitment
 from solana.rpc.api import Client as SolanaClient
-from solana.publickey import PublicKey  # pylint: disable=E0611
+
+from phoenix.client import PhoenixClient
 from pyserum.market import Market
 
 # ^^ Ignoring pylint here because correct solana version is installed in
@@ -179,12 +179,13 @@ class GooseFx(CLOB):
         self.identifier = "GOOSEFX"
         self.tickers = ["SOL-PERP"]
         self.client = SolanaClient(endpoint=endpoint, commitment=commitment)
+        self.commitment = commitment
 
         # Set up Perp class
         _perp = Perp(self.client, "mainnet", Keypair.generate())
-        mpgId = PublicKey(_perp.ADDRESSES["MPG_ID"])
+        mpg_id = PublicKey(_perp.ADDRESSES["MPG_ID"])
         response = self.client.get_account_info(
-            pubkey=PublicKey(mpgId), commitment="processed", encoding="base64"
+            pubkey=PublicKey(mpg_id), commitment=commitment, encoding="base64"
         )
 
         # Since the client is broken atm we need to fetch mpg and mpgBytes manually and then pass it to new Perp class
@@ -193,13 +194,12 @@ class GooseFx(CLOB):
                 r = response.value.data
                 decoded = r[8:]
                 mpg = MarketProductGroup.from_bytes(decoded)
-                marketProductGroup = mpg
-                mpgBytes = decoded
-        except:
-            raise KeyError("Wrong Market Product Group PublicKey")
+                mpg_bytes = decoded
+        except Exception as exc:
+            raise KeyError("Wrong Market Product Group PublicKey") from exc
 
         # Create new Perp class with complete info
-        self.perp = Perp(self.client, "mainnet", Keypair.generate(), mpg, mpgBytes)
+        self.perp = Perp(self.client, "mainnet", Keypair.generate(), mpg, mpg_bytes)
 
     async def get_onchain_orderbook(
         self, market_address: str
@@ -208,32 +208,36 @@ class GooseFx(CLOB):
             product = Product(self.perp)
             product.init_by_name(market_address)
 
-            bidKey = product.BIDS
-            askKey = product.ASKS
+            bid_key = product.BIDS
+            ask_key = product.ASKS
 
-            bidsData = self.client.get_account_info(
-                pubkey=PublicKey(bidKey), commitment="processed", encoding="base64"
+            bids_data = self.client.get_account_info(
+                pubkey=PublicKey(bid_key), commitment=self.commitment, encoding="base64"
             )
-            asksData = self.client.get_account_info(
-                pubkey=PublicKey(askKey), commitment="processed", encoding="base64"
+            asks_data = self.client.get_account_info(
+                pubkey=PublicKey(ask_key), commitment=self.commitment, encoding="base64"
             )
 
-            r1 = bidsData.value.data
-            r2 = asksData.value.data
+            if (not bids_data.value) or (not asks_data.value):
+                LOGGER.error(f'GooseFX unable to load bids/asks for market {market_address}')
+                raise ValueError
 
-            bidDeserialized = Slab.deserialize(r1, 40)
-            askDeserialized = Slab.deserialize(r2, 40)
+            r1 = bids_data.value.data
+            r2 = asks_data.value.data
 
-            obBids = bidDeserialized.getL2DepthJS(1_000, True)
-            obAsks = askDeserialized.getL2DepthJS(1_000, True)
+            bid_deserialized = Slab.deserialize(r1, 40)
+            ask_deserialized = Slab.deserialize(r2, 40)
 
-            processedData = processOrderbook(
-                obBids, obAsks, product.tick_size, product.decimals
+            ob_bids = bid_deserialized.getL2DepthJS(1_000, True)
+            ob_asks = ask_deserialized.getL2DepthJS(1_000, True)
+
+            processed_data = processOrderbook(
+                ob_bids, ob_asks, product.tick_size, product.decimals
             )
 
             return {
                 key: [(i["price"], i["size"]) for i in value]
-                for key, value in processedData.items()
+                for key, value in processed_data.items()
             }
         except AttributeError:
             LOGGER.error(f"Error while collecting GooseFx {market_address} orderbook")
