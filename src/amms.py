@@ -166,7 +166,7 @@ class RaydiumAMM(Amm):
 			decoded_result = result.content.decode('utf-8')
 			self.token_list = json.loads(decoded_result)['tokens']
 		except requests.exceptions.Timeout:
-			LOG.error("Request to Raydium pool API timed out")
+			LOG.error("Request to token API timed out")
 			self.get_token_list()
 
 	def store_pools(self):
@@ -217,6 +217,7 @@ class MeteoraAMM(Amm):
 		"""
 		Fetches pool data from the Meteora API and stores it in the `pools` attribute.
 		"""
+		LOG.info("Fetching pools from Meteora API")
 		try:
 			response = requests.get("https://app.meteora.ag/amm/pools/", timeout=30)
 			decoded_content = response.content.decode('utf-8')
