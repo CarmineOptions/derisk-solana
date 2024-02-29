@@ -1,7 +1,47 @@
+import datetime
 import decimal
+import requests
+
+import streamlit
 
 
 
-# TODO: To be implemented.
+@streamlit.cache_data(ttl=datetime.timedelta(minutes=1))
 def get_prices() -> dict[str, decimal.Decimal]:
-	return {}
+	price_fetcher = PriceFetcher()
+	price_fetcher.get_prices()
+	return price_fetcher.prices
+
+
+
+class PriceFetcher:
+
+	# TODO: Move this mapping to `src.settings.TOKEN_SETTINGS`.
+	TOKEN_SYMBOLS_IDS_MAPPING = {
+		"ETH": "ethereum",
+		"SOL": "solana",
+		"JUP": "jupiter-exchange-solana",
+		"USDC": "usd-coin",
+		"USDT": "tether",
+	}
+	VS_CURRENCY = "usd"
+
+	def __init__(self):
+		self.prices: dict[str, decimal.Decimal] = {
+			symbol: decimal.Decimal('NaN')
+			for symbol
+			in self.TOKEN_SYMBOLS_IDS_MAPPING
+		}
+
+	def get_prices(self):
+		ids = ""
+		for id in self.TOKEN_SYMBOLS_IDS_MAPPING.values():
+			ids += id + ","
+		url = f"https://api.coingecko.com/api/v3/simple/price?ids={ids}&vs_currencies={self.VS_CURRENCY}"
+		response = requests.get(url)
+		if response.status_code == 200:
+			data = response.json()
+			for symbol, id in self.TOKEN_SYMBOLS_IDS_MAPPING.items():
+				self.prices[symbol] = decimal.Decimal(data[id][self.VS_CURRENCY])
+		else:
+			raise Exception(f"Failed getting prices, status code = {response.status_code}.")
