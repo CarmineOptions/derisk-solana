@@ -121,7 +121,7 @@ class OrcaAMM(Amm):
 		Save pool data to database.
 		"""
 		pair = f"{pool['tokenA']['symbol']}-{pool['tokenB']['symbol']}"
-		market_address = pool.get('address')
+		market_address = pool.get('address', 'Unknown')
 
 		with get_db_session() as session:
 			# Creating an instance of AmmLiquidity
@@ -172,7 +172,7 @@ class RaydiumAMM(Amm):
 		"""
 		Save pool data to database.
 		"""
-		market_address = pool.get('id')
+		market_address = pool.get('id', 'Unknown')
 
 		# get token symbols
 		try:
@@ -235,10 +235,10 @@ class MeteoraAMM(Amm):
 				dex=self.DEX_NAME,
 				pair=pair,
 				market_address=pool.get('pool_address'),
-				token_x=token_x,
-				token_y=token_y,
-				token_x_decimals=token_x_decimals,
-				token_y_decimals=token_y_decimals,
+				token_x=token_x if token_x is not None else -1,
+				token_y=token_y if token_y is not None else -1,
+				token_x_decimals=token_x_decimals if token_x_decimals is not None else -1,
+				token_y_decimals=token_y_decimals if token_y_decimals is not None else -1,
 				additional_info=json.dumps(pool)
 			)
 
