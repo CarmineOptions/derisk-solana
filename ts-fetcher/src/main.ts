@@ -1,12 +1,14 @@
 
+
 import { sleep } from './utils.js';
 
 import { updateSaberLiqudity } from './saber.js';
 import { updateInvariantLiqudity } from './invariant.js';
 import { updateLifinityLiqudity } from './lifinity.js';
+import { updateSentreLiqudity } from './sentre.js';
 
 // Collect data every 5 minutes
-const COLLECTION_INTERVAL_MILLISECONDS = 5 * 60 * 1000;
+const COLLECTION_INTERVAL_MILLISECONDS = 5 * 1 * 1000;
 
 async function main() {
 
@@ -17,6 +19,7 @@ async function main() {
         await updateInvariantLiqudity();
         await updateSaberLiqudity();
         await updateLifinityLiqudity();
+        await updateSentreLiqudity();
 
         // Sleep until the end of collection interval
         const execution_time = Date.now() - start;
@@ -28,7 +31,3 @@ async function main() {
 }
 
 await main()
-
-
-
-
