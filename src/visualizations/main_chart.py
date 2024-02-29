@@ -105,6 +105,87 @@ def get_liquidable_debt(
 	return decimal.Decimal("0")
 
 
+def get_available_orderbook_liquidity_in_usd(
+	orderbook_data: pandas.DataFrame, 
+	token_pair: str, 
+	prices: dict[str, decimal.Decimal],
+) -> float:
+
+	def _get_best_price(side: str, orderbook_side: list[list[float]]) -> float:
+		assert side in {'bid', 'ask'}
+		_operator = max if side == 'bid' else min
+		return _operator(price for price, _ in orderbook_side)
+
+	# Compute best price.
+	for side in ['bid', 'ask']:
+		orderbook_data[f'best_{side}'] = orderbook_data[f'{side}s'].apply(
+			lambda x: _get_best_price(side=side, orderbook_side=x)
+		)
+	mid_price = (orderbook_data['best_bid'].max() + orderbook_data['best_ask'].min()) / 2
+
+	def _get_target_liquidity_in_usd(
+		orderbook_data: pandas.Series, 
+		debt_token: str, 
+		mid_price: float, 
+		prices: dict[str, decimal.Decimal],
+	) -> tuple[str, float]:
+		base_token = get_token(pair=orderbook_data['pair'], split_character='/', base=True)
+		quote_token = get_token(pair=orderbook_data['pair'], split_character='/', base=False)
+		side = 'bid' if debt_token == quote_token else 'ask'
+
+		available_liquidity_in_usd = 0
+		_operator = operator.gt if side == 'bid' else operator.lt
+		target_price = (
+			mid_price * (1 - MAXIMUM_PERCENTAGE_PRICE_CHANGE)
+			if side == 'bid'
+			else mid_price * (1 + MAXIMUM_PERCENTAGE_PRICE_CHANGE)
+		)
+		for price, liquidity in orderbook_data[f'{side}s']:
+			if _operator(price, target_price):
+				available_liquidity_in_usd += liquidity
+		return available_liquidity_in_usd * float(prices[base_token])
+
+	# Compute the maximum amount of the debt token that can be exchanged for the collateral token without moving the 
+	# price by more than 5% from the mid.
+	_, debt_token = token_pair.split('-')
+	orderbook_data['available_liquidity_in_usd'] = orderbook_data.apply(
+		lambda x: _get_target_liquidity_in_usd(
+			orderbook_data=x, 
+			debt_token=debt_token, 
+			mid_price=mid_price, 
+			prices=prices,
+		),
+		axis=1,
+	)
+	return orderbook_data['available_liquidity_in_usd'].sum()
+
+
+def get_available_orderbook_supply_in_usd(token_pair: str, prices: dict[str, decimal.Decimal]) -> decimal.Decimal:
+	connection = src.database.establish_connection()
+	token_pairs = PAIRS_PAIRS_MAPPING[token_pair]
+	start_timestamp = time.time() - LOOKBACK_DAYS * 24 * 60 * 60
+	orderbook_liquidities = pandas.read_sql(
+		sql=f"""
+			SELECT
+				*
+			FROM
+				public.orderbook_liquidity
+			WHERE
+				pair IN {token_pairs}
+            AND
+                timestamp >= {start_timestamp}
+			ORDER BY
+				timestamp, dex, pair ASC;
+		""",
+		con = connection,
+	)
+	connection.close()
+	available_liquidities = orderbook_liquidities.groupby('timestamp').apply(
+		lambda x: get_available_orderbook_liquidity_in_usd(orderbook_data=x, token_pair=token_pair, prices=prices)
+	)
+	# TODO: Convert to decimals sooner.
+	return decimal.Decimal(str(available_liquidities.quantile(0.05)))
+
 
 def get_swap_amm_pools(token_pair: str) -> pandas.DataFrame:
 	connection = src.database.establish_connection()
