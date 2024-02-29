@@ -40,7 +40,6 @@ CONN_STRING = f"postgresql+psycopg2://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTG
 
 SCHEMA = "public"
 
-
 def get_db_session() -> Session:
     """
     Initializes a session -> it must be closed manually!
@@ -129,8 +128,11 @@ class CLOBLiqudity(Base):
 
 class AmmLiquidity(Base):
     __tablename__ = 'amm_liquidity'
+    __table_args__ = (
+        PrimaryKeyConstraint("dex", "pair", "market_address", "timestamp"),
+        {"schema": SCHEMA},
+    )
 
-    id = Column(Integer, primary_key=True)
     timestamp = Column(BigInteger)
     dex = Column(String, nullable=False)
     pair = Column(String, nullable=False)
