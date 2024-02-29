@@ -6,12 +6,33 @@ from typing import Any, Dict, List, Tuple
 import json
 import logging
 import time
+import traceback
 import requests  # type: ignore
 
 from db import AmmLiquidity, get_db_session
 
 
 LOG = logging.getLogger(__name__)
+
+
+def check_bigint(value: int) -> int:
+	"""
+	Checks if the given integer value fits within the PostgreSQL bigint range.
+
+	Args:
+		value (int): The integer value to check.
+
+	Returns:
+		int: Returns -2 if the value exceeds the PostgreSQL bigint range
+	"""
+	# Define the bigint limits in PostgreSQL
+	bigint_min = -9223372036854775808
+	bigint_max = 9223372036854775807
+
+	# Check if the value is within the bigint range
+	if not bigint_min <= value <= bigint_max:
+		return -2  # Return -2 if the value is outside the bigint range
+	return value
 
 
 class Amms:
@@ -165,8 +186,16 @@ class RaydiumAMM(Amm):
 			decoded_result = result.content.decode('utf-8')
 			self.token_list = json.loads(decoded_result)['tokens']
 		except requests.exceptions.Timeout:
-			LOG.error("Request to Raydium pool API timed out")
+			LOG.error("Request to token API timed out")
 			self.get_token_list()
+
+	def store_pools(self):
+		"""
+		Save pools data to database.
+		"""
+		self.get_token_list()
+		for pool in self.pools:
+			self.store_pool(pool)
 
 	def store_pool(self, pool: Dict[str, Any]) -> None:
 		"""
@@ -208,6 +237,7 @@ class MeteoraAMM(Amm):
 		"""
 		Fetches pool data from the Meteora API and stores it in the `pools` attribute.
 		"""
+		LOG.info("Fetching pools from Meteora API")
 		try:
 			response = requests.get("https://app.meteora.ag/amm/pools/", timeout=30)
 			decoded_content = response.content.decode('utf-8')
@@ -222,7 +252,7 @@ class MeteoraAMM(Amm):
 		Save pool data to database.
 		"""
 		pair = pool['pool_name']
-		token_x_amount, token_y_amount = pool.get('pool_token_amounts', (None, None))
+		token_x_amount, token_y_amount = pool.get('pool_token_amounts', (None, None))[:2]
 
 		# Convert amounts to BigInteger and decimals
 		token_x, token_x_decimals = self.convert_to_big_integer_and_decimals(token_x_amount)
@@ -235,8 +265,8 @@ class MeteoraAMM(Amm):
 				dex=self.DEX_NAME,
 				pair=pair,
 				market_address=pool.get('pool_address'),
-				token_x=token_x if token_x is not None else -1,
-				token_y=token_y if token_y is not None else -1,
+				token_x=check_bigint(token_x) if token_x is not None else -1,
+				token_y=check_bigint(token_y) if token_y is not None else -1,
 				token_x_decimals=token_x_decimals if token_x_decimals is not None else -1,
 				token_y_decimals=token_y_decimals if token_y_decimals is not None else -1,
 				additional_info=json.dumps(pool)
@@ -248,6 +278,8 @@ class MeteoraAMM(Amm):
 
 
 if __name__ == '__main__':
+	logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+
 	LOG.info("Start collecting AMM pools.")
 	amms = Amms()
 	while True:
@@ -256,5 +288,7 @@ if __name__ == '__main__':
 			LOG.info("Successfully processed all pools. Waiting 5 minutes before next update.")
 			time.sleep(300)
 		except Exception as e:  # pylint: disable=broad-exception-caught
-			LOG.error(f"An error occurred: {e}")
+			TB_STR = traceback.format_exc()
+			# Log the error message along with the traceback
+			LOG.error(f"An error occurred: {e}\nTraceback:\n{TB_STR}")
 			time.sleep(300)
