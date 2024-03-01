@@ -72,9 +72,9 @@ class Amms:
 
 # TODO: To be implemented.
 def load_amm_data() -> Amms:
-	amms = Amms()
-	amms.update_pools()
-	return amms
+	swap_amms = Amms()
+	swap_amms.update_pools()
+	return swap_amms
 
 
 class Amm(ABC):

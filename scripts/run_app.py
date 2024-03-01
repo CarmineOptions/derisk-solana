@@ -39,11 +39,11 @@ def main():
 	prices = src.prices.get_prices()
 	main_chart_data = src.visualizations.main_chart.get_main_chart_data(
 		protocols=protocols,
-		token_pair=token_pair,
+		token_pair=token_pair, # type: ignore
 		prices=prices,
 	)
 	main_chart_figure = src.visualizations.main_chart.get_figure(
-		token_pair=token_pair,
+		token_pair=token_pair, # type: ignore
 		data=main_chart_data,
 		prices=prices,
 	)
@@ -56,7 +56,7 @@ def main():
 		streamlit.subheader(
 			f":warning: At price of {dangerous_price_level_data['collateral_token_price']}, the risk of acquiring bad "
 			f"debt for lending protocols is {src.visualizations.main_chart.get_risk(data=dangerous_price_level_data)}."
-		)    
+		)
 		streamlit.write(
 			f"The ratio of liquidated debt to available supply is "
 			f"{dangerous_price_level_data['debt_to_supply_ratio'] * 100}%. Debt worth of "
@@ -66,7 +66,7 @@ def main():
 
 	# Select the range of debt in USD and display individual loans with the lowest health factors.
 	streamlit.header("Loans with low health factor")
-	loans_table_data = src.visualizations.loans_table.load_data(protocols=protocols, token_pair=token_pair)
+	loans_table_data = src.visualizations.loans_table.load_data(protocols=protocols, token_pair=token_pair)  # type: ignore
 	col1, _ = streamlit.columns([1, 3])
 	with col1:
 		# TODO: Use `int(loans_table_data["Debt (USD)"].max())`.
@@ -96,24 +96,24 @@ def main():
 	for column, token in zip(columns, src.visualizations.settings.TOKENS):
 		with column:
 			collateral_stats_figure = src.visualizations.protocol_stats.get_collateral_stats_figure(
-				data=collateral_stats, 
+				data=collateral_stats,
 				token=token,
 			)
 			streamlit.plotly_chart(figure_or_data=collateral_stats_figure, use_container_width=True)
 			debt_stats_figure = src.visualizations.protocol_stats.get_debt_stats_figure(
-				data=debt_stats, 
+				data=debt_stats,
 				token=token,
 			)
 			streamlit.plotly_chart(figure_or_data=debt_stats_figure, use_container_width=True)
 			supply_stats_figure = src.visualizations.protocol_stats.get_supply_stats_figure(
-				data=supply_stats, 
+				data=supply_stats,
 				token=token,
 			)
 			streamlit.plotly_chart(figure_or_data=supply_stats_figure, use_container_width=True)
 
 	# Plot histograms of loan size distribution.
 	streamlit.header("Loan size distribution")
-	histogram_data = src.visualizations.histogram.load_data(protocols=protocols, token_pair=token_pair)  # TODO
+	histogram_data = src.visualizations.histogram.load_data(protocols=protocols, token_pair=token_pair)  # type: ignore
 	histogram_figure = src.visualizations.histogram.get_figure(data=histogram_data)
 	streamlit.plotly_chart(figure_or_data=histogram_figure, use_container_width=True)
 

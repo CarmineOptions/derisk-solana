@@ -135,7 +135,9 @@ bad-names=foo,
           baz,
           toto,
           tutu,
-          tata
+          tata,
+          hu,
+          huhu,
 
 # Bad variable names regexes, separated by a comma. If names match any regex,
 # they will always be refused
@@ -433,11 +435,18 @@ disable=raw-checker-failed,
         use-implicit-booleaness-not-comparison-to-zero,
         use-symbolic-message-instead,
         import-error,
+        missing-function-docstring,
         missing-class-docstring,
-        logging-fstring-interpolation,
+        missing-module-docstring,
         too-few-public-methods,
+        too-many-locals,
+        too-many-arguments,
         bad-indentation,
-        logging-fstring-interpolation
+        logging-fstring-interpolation,
+        logging-format-interpolation,
+        consider-using-f-string,
+        fixme,
+        wrong-import-position
 
 
 # Enable the message, report, category or checker with the given id(s). You can

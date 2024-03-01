@@ -1,3 +1,4 @@
+import decimal
 import itertools
 import logging
 import os
@@ -38,7 +39,7 @@ def process_data(states: dict[str, src.protocols.state.State]) -> dict[str, src.
 
     # Aggregate data for the main chart plotting liquidable debt against available liquidity.
     # TODO: Tepmporarily disable fetching prices since we're not using them ATM.
-    prices = {}
+    prices: dict[str, decimal.Decimal] = {}
     for token_pair, state in itertools.product(src.visualizations.settings.TOKEN_PAIRS, states.values()):
         collateral_token, debt_token = token_pair.split("-")
         _ = src.visualizations.main_chart.prepare_data(
@@ -53,10 +54,10 @@ def process_data(states: dict[str, src.protocols.state.State]) -> dict[str, src.
 
 	# Compute and save histogram data.
     for state in states.values():
-        _ = src.visualizations.histogram.prepare_data(state=state, prices=prices, save_data=True)
+        src.visualizations.histogram.prepare_data(state=state, prices=prices, save_data=True)
     logging.info("Computed histogram data.")
 
-	# Prepara data for the table of individual loans. 
+	# Prepara data for the table of individual loans.
     individual_loan_stats = {}
     for protocol, state in states.items():
         individual_loan_stats[protocol] = src.visualizations.loans_table.prepare_data(
@@ -77,8 +78,8 @@ def process_data(states: dict[str, src.protocols.state.State]) -> dict[str, src.
     debt_stats = src.visualizations.protocol_stats.get_debt_stats(states=states, save_data=True)
     _ = src.visualizations.protocol_stats.get_utilization_stats(
         general_stats=general_stats,
-        supply_stats=supply_stats, 
-        debt_stats=debt_stats, 
+        supply_stats=supply_stats,
+        debt_stats=debt_stats,
         save_data=True,
     )
     logging.info("Computed comparison stats.")

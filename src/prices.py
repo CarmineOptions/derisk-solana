@@ -14,6 +14,8 @@ def get_prices() -> dict[str, decimal.Decimal]:
 
 
 
+class BadResponse(Exception)
+
 class PriceFetcher:
 
 	# TODO: Move this mapping to `src.settings.TOKEN_SETTINGS`.
@@ -35,13 +37,13 @@ class PriceFetcher:
 
 	def get_prices(self):
 		ids = ""
-		for id in self.TOKEN_SYMBOLS_IDS_MAPPING.values():
-			ids += id + ","
+		for _id in self.TOKEN_SYMBOLS_IDS_MAPPING.values():
+			ids += _id + ","
 		url = f"https://api.coingecko.com/api/v3/simple/price?ids={ids}&vs_currencies={self.VS_CURRENCY}"
-		response = requests.get(url)
+		response = requests.get(url, timeout=60)
 		if response.status_code == 200:
 			data = response.json()
-			for symbol, id in self.TOKEN_SYMBOLS_IDS_MAPPING.items():
-				self.prices[symbol] = decimal.Decimal(data[id][self.VS_CURRENCY])
+			for symbol, _id in self.TOKEN_SYMBOLS_IDS_MAPPING.items():
+				self.prices[symbol] = decimal.Decimal(data[_id][self.VS_CURRENCY])
 		else:
-			raise Exception(f"Failed getting prices, status code = {response.status_code}.")
+			response.raise_for_status()
