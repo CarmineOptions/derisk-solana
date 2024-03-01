@@ -17,7 +17,7 @@ import src.protocols.state
 LOOKBACK_DAYS: int = 5
 MAXIMUM_PERCENTAGE_PRICE_CHANGE = 0.05
 
-PAIRS_PAIRS_MAPPING: dict[str, str] = {
+PAIRS_PAIRS_MAPPING: dict[str, tuple[str, ...]] = {
 	"ETH-USDC": ("WETH/USDC", "ETHpo/USDC"),
 	"SOL-USDC": ("SOL/USDC", ""),
 	"SOL-USDT": ("SOL/USDT", ""),
@@ -39,13 +39,13 @@ class Pool:
 		self,
 		base_token: str,
 		quote_token: str,
-		base_token_amount: int,
-		quote_token_amount: int,
+		base_token_amount: decimal.Decimal,
+		quote_token_amount: decimal.Decimal,
 	):
 		self.base_token: str = base_token
 		self.quote_token: str = quote_token
-		self.base_token_amount: int = base_token_amount
-		self.quote_token_amount: int = quote_token_amount
+		self.base_token_amount: decimal.Decimal = base_token_amount
+		self.quote_token_amount: decimal.Decimal = quote_token_amount
 
 	def supply_at_price(self, initial_price: decimal.Decimal):
 		# Assuming constant product function.
@@ -58,12 +58,12 @@ class Pool:
 
 # TODO: To be implemented.
 def prepare_data(
-	state: src.protocols.state.State,
-	prices: dict[str, decimal.Decimal],
-	amms: src.amms.Amms,
-	collateral_token: str,
-	debt_token: str,
-	save_data: bool,
+	state: src.protocols.state.State,  # pylint: disable=W0613
+	prices: dict[str, decimal.Decimal],  # pylint: disable=W0613
+	amms: src.amms.Amms,  # pylint: disable=W0613
+	collateral_token: str,  # pylint: disable=W0613
+	debt_token: str,  # pylint: disable=W0613
+	save_data: bool,  # pylint: disable=W0613
 ) -> pandas.DataFrame:
 	return pandas.DataFrame()
 
@@ -75,7 +75,7 @@ def decimal_range(start: decimal.Decimal, stop: decimal.Decimal, step: decimal.D
 
 
 def get_range(start: decimal.Decimal, stop: decimal.Decimal, step: decimal.Decimal) -> list[decimal.Decimal]:
-    return [x for x in decimal_range(start=start, stop=stop, step=step)]
+    return list(decimal_range(start=start, stop=stop, step=step))
 
 
 def get_collateral_token_range(
@@ -83,7 +83,7 @@ def get_collateral_token_range(
     collateral_token_price: decimal.Decimal,
 ) -> list[decimal.Decimal]:
 	assert collateral_token in {"ETH", "SOL", "JUP"}
-	TOKEN_STEP = {
+	TOKEN_STEP = {  # pylint: disable=C0103
 		"ETH": decimal.Decimal("50"),
 		"SOL": decimal.Decimal("2.5"),
 		"JUP": decimal.Decimal("0.01"),
@@ -97,17 +97,17 @@ def get_collateral_token_range(
 
 # TODO: To be implemented.
 def get_liquidable_debt(
-	protocols: list[str],
-	token_pair: str,
-	prices: dict[str, decimal.Decimal],
-	collateral_token_price: decimal.Decimal,
+	protocols: list[str],  # pylint: disable=W0613
+	token_pair: str,  # pylint: disable=W0613
+	prices: dict[str, decimal.Decimal],  # pylint: disable=W0613
+	collateral_token_price: decimal.Decimal,  # pylint: disable=W0613
 ) -> decimal.Decimal:
 	return decimal.Decimal("0")
 
 
 def get_available_orderbook_liquidity_in_usd(
-	orderbook_data: pandas.DataFrame, 
-	token_pair: str, 
+	orderbook_data: pandas.DataFrame,
+	token_pair: str,
 	prices: dict[str, decimal.Decimal],
 ) -> float:
 
@@ -119,16 +119,16 @@ def get_available_orderbook_liquidity_in_usd(
 	# Compute best price.
 	for side in ['bid', 'ask']:
 		orderbook_data[f'best_{side}'] = orderbook_data[f'{side}s'].apply(
-			lambda x: _get_best_price(side=side, orderbook_side=x)
+			lambda x: _get_best_price(side=side, orderbook_side=x)  # pylint: disable=W0640
 		)
 	mid_price = (orderbook_data['best_bid'].max() + orderbook_data['best_ask'].min()) / 2
 
 	def _get_target_liquidity_in_usd(
-		orderbook_data: pandas.Series, 
-		debt_token: str, 
-		mid_price: float, 
+		orderbook_data: pandas.Series,
+		debt_token: str,
+		mid_price: float,
 		prices: dict[str, decimal.Decimal],
-	) -> tuple[str, float]:
+	) -> float:
 		base_token = get_token(pair=orderbook_data['pair'], split_character='/', base=True)
 		quote_token = get_token(pair=orderbook_data['pair'], split_character='/', base=False)
 		side = 'bid' if debt_token == quote_token else 'ask'
@@ -145,14 +145,14 @@ def get_available_orderbook_liquidity_in_usd(
 				available_liquidity_in_usd += liquidity
 		return available_liquidity_in_usd * float(prices[base_token])
 
-	# Compute the maximum amount of the debt token that can be exchanged for the collateral token without moving the 
+	# Compute the maximum amount of the debt token that can be exchanged for the collateral token without moving the
 	# price by more than 5% from the mid.
 	_, debt_token = token_pair.split('-')
 	orderbook_data['available_liquidity_in_usd'] = orderbook_data.apply(
 		lambda x: _get_target_liquidity_in_usd(
-			orderbook_data=x, 
-			debt_token=debt_token, 
-			mid_price=mid_price, 
+			orderbook_data=x,
+			debt_token=debt_token,
+			mid_price=mid_price,
 			prices=prices,
 		),
 		axis=1,
@@ -190,7 +190,7 @@ def get_available_orderbook_supply_in_usd(token_pair: str, prices: dict[str, dec
 def get_swap_amm_pools(token_pair: str) -> pandas.DataFrame:
 	connection = src.database.establish_connection()
 	collateral_token, debt_token = token_pair.split('-')
-	reversed_token_pair = f'{debt_token}-{collateral_token}' 
+	reversed_token_pair = f'{debt_token}-{collateral_token}'
 	token_pairs = (token_pair, reversed_token_pair)
 	start_timestamp = time.time() - LOOKBACK_DAYS * 24 * 60 * 60
 	swap_amm_pools = pandas.read_sql(
@@ -214,9 +214,9 @@ def get_swap_amm_pools(token_pair: str) -> pandas.DataFrame:
 
 
 def get_available_amm_liquidity_in_usd(
-	token_pair: str, 
-	amm_data: pandas.DataFrame, 
-	prices: dict[str, decimal.Decimal],
+	token_pair: str,
+	amm_data: pandas.DataFrame,
+	prices: dict[str, decimal.Decimal],  # pylint: disable=W0613
 	collateral_token_price: decimal.Decimal,
 ) -> decimal.Decimal:
 	_, debt_token = token_pair.split('-')
@@ -293,7 +293,7 @@ def get_main_chart_data(
 
 	# Compute available debt token supply.
 	available_orderbook_supply = get_available_orderbook_supply_in_usd(
-		token_pair=token_pair, 
+		token_pair=token_pair,
 		prices=prices,
 	)
 	swap_amm_pools = get_swap_amm_pools(token_pair=token_pair)
@@ -327,7 +327,7 @@ def get_figure(
 		# TODO: Align colors with the rest of the app.
 		color_discrete_map={"liquidable_debt_at_interval": "#ECD662", "debt_token_supply": "#4CA7D0"},
 	)
-	figure.update_traces(hovertemplate=("<b>Price:</b> %{x}<br>" "<b>Volume:</b> %{y}"))
+	figure.update_traces(hovertemplate="<b>Price:</b> %{x}<br>" "<b>Volume:</b> %{y}")
 	figure.update_traces(selector={"name": "liquidable_debt_at_interval"}, name=f"Liquidable {debt_token} debt")
 	figure.update_traces(selector={"name": "debt_token_supply"}, name=f"{debt_token} supply")
 	figure.update_xaxes(title_text=f"{collateral_token} Price (USD)")
@@ -353,7 +353,7 @@ def get_figure(
 
 
 # TODO: To be implemented.
-def get_dangerous_price_level_data(data: pandas.DataFrame) -> pandas.Series:
+def get_dangerous_price_level_data(data: pandas.DataFrame) -> pandas.Series:  # pylint: disable=W0613
 	return pandas.Series(
 		index=[
 			"collateral_token_price",
@@ -365,5 +365,5 @@ def get_dangerous_price_level_data(data: pandas.DataFrame) -> pandas.Series:
 
 
 # TODO: To be implemented.
-def get_risk(data: pandas.Series) -> str:
+def get_risk(data: pandas.Series) -> str:  # pylint: disable=W0613
 	return ''

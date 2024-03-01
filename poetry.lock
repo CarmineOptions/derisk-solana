@@ -3291,6 +3291,20 @@ files = [
 ]
 
 [[package]]
+name = "types-requests"
+version = "2.31.0.20240218"
+description = "Typing stubs for requests"
+optional = false
+python-versions = ">=3.8"
+files = [
+    {file = "types-requests-2.31.0.20240218.tar.gz", hash = "sha256:f1721dba8385958f504a5386240b92de4734e047a08a40751c1654d1ac3349c5"},
+    {file = "types_requests-2.31.0.20240218-py3-none-any.whl", hash = "sha256:a82807ec6ddce8f00fe0e949da6d6bc1fbf1715420218a9640d695f70a9e5a9b"},
+]
+
+[package.dependencies]
+urllib3 = ">=2"
+
+[[package]]
 name = "typing-extensions"
 version = "4.9.0"
 description = "Backported and Experimental Type Hints for Python 3.8+"
@@ -3600,4 +3614,4 @@ testing = ["big-O", "jaraco.functools", "jaraco.itertools", "more-itertools", "p
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-content-hash = "92a255b450a428f97cf672afff1dd42088371879b2895ba6dd24827801ce275b"
+content-hash = "4602d44a25e8a0f640abd3c14e9c3b25590e810f32bfeb187570176dbd75c5ac"
