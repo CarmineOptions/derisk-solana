@@ -117,9 +117,9 @@ def get_available_orderbook_liquidity_in_usd(
 		return _operator(price for price, _ in orderbook_side)
 
 	# Compute best price.
-	for _side in ['bid', 'ask']:
-		orderbook_data[f'best_{_side}'] = orderbook_data[f'{_side}s'].apply(
-			lambda x: _get_best_price(side=_side, orderbook_side=x)
+	for side in ['bid', 'ask']:
+		orderbook_data[f'best_{side}'] = orderbook_data[f'{side}s'].apply(
+			lambda x: _get_best_price(side=side, orderbook_side=x)  # pylint: disable=W0640
 		)
 	mid_price = (orderbook_data['best_bid'].max() + orderbook_data['best_ask'].min()) / 2
 

@@ -10,6 +10,7 @@ sys.path.append(".")
 
 import src.data_processing
 import src.persistent_state
+import src.prices
 import src.visualizations.histogram
 import src.visualizations.loans_table
 import src.visualizations.main_chart

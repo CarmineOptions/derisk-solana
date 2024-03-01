@@ -13,9 +13,6 @@ def get_prices() -> dict[str, decimal.Decimal]:
 	return price_fetcher.prices
 
 
-
-class BadResponse(Exception)
-
 class PriceFetcher:
 
 	# TODO: Move this mapping to `src.settings.TOKEN_SETTINGS`.
