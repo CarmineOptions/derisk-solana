@@ -30,7 +30,7 @@ from solders.transaction_status import TransactionErrorFieldless
 from solana.exceptions import SolanaRpcException
 import solana.rpc.api
 
-from collection.shared.generic_collector import GenericSolanaConnector
+from collection.shared.generic_collector import GenericSolanaConnector, log_performance_time
 import db
 
 
@@ -55,6 +55,7 @@ class SignatureCollector(GenericSolanaConnector):
         """
         return self._signatures_completed
 
+    @log_performance_time(LOGGER)
     def _get_assignment(self) -> None:
         """
         Obtain assignment for data collection.
@@ -83,6 +84,7 @@ class SignatureCollector(GenericSolanaConnector):
             LOGGER.info("The oldest stored signature = {} for protocol = {}.".format(oldest_signature, self.protocol))
             self._oldest_signature = Signature.from_string(oldest_signature)
 
+    @log_performance_time(LOGGER)
     def _get_data(self) -> None:
         """
         Collect signatures with metadata through Solana API.
@@ -90,6 +92,7 @@ class SignatureCollector(GenericSolanaConnector):
         self._fetch_signatures()
         LOGGER.info(f"Collected {len(self._collected_signatures)} signatures for `{self.protocol}")
 
+    @log_performance_time(LOGGER)
     def _write_tx_data(self) -> None:
         """
         Write signatures and tx meta data to database.
