@@ -15,7 +15,7 @@ from solana.rpc.core import RPCException
 from solders.transaction_status import EncodedTransactionWithStatusMeta, UiConfirmedBlock
 from sqlalchemy.exc import IntegrityError
 
-from collection.shared.generic_collector import GenericSolanaConnector, SolanaTransaction
+from collection.shared.generic_collector import GenericSolanaConnector, SolanaTransaction, log_performance_time
 import db
 
 
@@ -57,15 +57,16 @@ class TXFromBlockCollector(GenericSolanaConnector):
         """
         Main method to process all necessary operations to collect and write data.
         """
-        k = 0
-        start_time = time.time()
         while not self._collection_completed:
-            if k % 10000 == 0:
-                LOG.info(f"Iterations completed: {k}, in {time.time() - start_time:.1f} seconds.")
             self._get_assignment()
+            start_time = time.perf_counter()
+            log_message = f"START: function `_get_data`."
+            # Log the start of the function
+            LOG.info(log_message)
             await self._get_data()
+            elapsed_time = time.perf_counter() - start_time
+            LOG.info(f"DONE: function `_get_data` in {elapsed_time:.2f} seconds")
             self._write_tx_data()
-            k += 1
         LOG.info(f"Collection completed for {self.__class__.__name__}.")
 
     @property
@@ -117,6 +118,7 @@ class TXFromBlockCollector(GenericSolanaConnector):
         if block.transactions:
             relevant_transactions = [tx for tx in block.transactions if self._is_transaction_relevant(tx)]
             # Store raw transaction data with block metadata as `SolanaTransaction` objects.
+
             relevant_solana_transaction = [
                 SolanaTransaction(
                     block_number=block_number,
@@ -126,6 +128,7 @@ class TXFromBlockCollector(GenericSolanaConnector):
             ]
             self.rel_transactions.extend(relevant_solana_transaction)
 
+    @log_performance_time(LOG)
     def _get_assignment(self) -> None:
         """
         Obtain assignment for data collection.
@@ -192,6 +195,8 @@ class TXFromBlockCollector(GenericSolanaConnector):
             time.sleep(0.5)
             return self._get_latest_finalized_block_on_chain()
 
+    
+    @log_performance_time(LOG)
     def _write_tx_data(self) -> None:
         """
         Write raw tx data to database.
@@ -248,8 +253,7 @@ class TXFromBlockCollector(GenericSolanaConnector):
         are present in the transaction's account keys. It is used to filter transactions
         based on the involvement of specific protocols identified by their public keys.
         """
-        relevant_pubkeys = [
-            i for i in transaction.transaction.message.account_keys  # type: ignore
-            if str(i.pubkey) in self.protocol_public_keys  # type: ignore
-        ]
-        return bool(relevant_pubkeys)
+        for i in transaction.transaction.message.account_keys:  # type: ignore
+            if str(i.pubkey) in self.protocol_public_keys:  # type: ignore
+                return True
+        return False

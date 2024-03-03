@@ -30,7 +30,7 @@ class HistoricalTXCollector(TXFromBlockCollector):
                 db.TransactionStatusWithSignature.slot
             ).filter(
                 db.TransactionStatusWithSignature.transaction_data.is_(None)
-            ).distinct().subquery()
+            ).distinct().limit(BATCH_SIZE*3).subquery()
 
             # Outer query to order the distinct slots and limit the results
             slots = session.query(
