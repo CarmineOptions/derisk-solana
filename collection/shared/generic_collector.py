@@ -16,6 +16,30 @@ from solders.transaction_status import EncodedTransactionWithStatusMeta, UiConfi
 LOG = logging.getLogger(__name__)
 
 
+def log_performance_time(logger = LOG):
+    """
+    Decorator for logging performance time of subjected function.
+    """
+    def decorator(func):
+        def wrapper(*args, **kwargs):
+            start_time = time.perf_counter()
+            log_message = f"START: function '{func.__name__}'."
+            # Log the start of the function
+            logger.info(log_message)
+
+            # Call the actual function
+            result = func(*args, **kwargs)
+
+            # Calculate elapsed time and log the end of the function
+            elapsed_time = time.perf_counter() - start_time
+            logger.info(f"DONE: function '{func.__name__}' in {elapsed_time:.2f} seconds")
+
+            return result
+
+        return wrapper
+    return decorator
+
+
 @dataclass
 class SolanaTransaction:
     block_time: int
