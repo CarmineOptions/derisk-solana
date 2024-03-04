@@ -2,12 +2,14 @@
 Collector of raw transaction data for historical transactions.
 """
 import asyncio
+import os
 
 import db
 from collection.tx_data.collector import TXFromBlockCollector
 
 
 BATCH_SIZE = 100
+OFFSET = os.getenv('OFFSET', 0)
 
 
 class HistoricalTXCollector(TXFromBlockCollector):
@@ -30,7 +32,7 @@ class HistoricalTXCollector(TXFromBlockCollector):
                 db.TransactionStatusWithSignature.slot
             ).filter(
                 db.TransactionStatusWithSignature.transaction_data.is_(None)
-            ).distinct().limit(BATCH_SIZE*3).subquery()
+            ).distinct().offset(int(OFFSET)).limit(BATCH_SIZE*3).subquery()
 
             # Outer query to order the distinct slots and limit the results
             slots = session.query(
