@@ -3,7 +3,7 @@ Class for collection of transaction data from Solana chain
 """
 import asyncio
 from abc import abstractmethod
-from typing import List, Tuple
+from typing import List, Tuple, Awaitable
 import logging
 import os
 import time
@@ -75,7 +75,9 @@ class TXFromBlockCollector(GenericSolanaConnector):
         """Implement in subclasses to define the constant value"""
         raise NotImplementedError("Implement me!")
 
-    async def _get_data(self) -> None:
+    async def _get_data(self) -> Awaitable[None]:  # type: ignore  # Typing is ignored for this method
+        # due to an unapprehendable by mypy conflict between the async nature of this method and
+        # linear nature of same method of superclass
         """
         Collect transactions from blocks. Collected transactions are stored in `rel_transactions` attribute.
         """

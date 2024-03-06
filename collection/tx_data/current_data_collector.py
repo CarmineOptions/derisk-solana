@@ -56,7 +56,7 @@ class CurrentTXCollector(TXFromBlockCollector):
         last_block_on_chain = self._get_latest_finalized_block_on_chain()
 
         self.assignment = list(  # pylint: disable=attribute-defined-outside-init
-            range(last_collected_block, min(last_collected_block + BATCH_SIZE, last_block_on_chain))
+            range(last_collected_block, min(last_collected_block + BATCH_SIZE, last_block_on_chain))  # type: ignore
         )
 
     def _report_collection(self):
