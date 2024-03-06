@@ -11,12 +11,9 @@ from sqlalchemy import (
     String,
     BigInteger,
     ForeignKey,
-    Text,
-    Boolean,
     PrimaryKeyConstraint,
     Float,
 )
-from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.types import Enum as SQLEnum
@@ -93,7 +90,7 @@ class TransactionStatusError(Base):
 
     id = Column(Integer, primary_key=True)
     error_body = Column(String, nullable=False)
-    tx_signatures_id = Column(Integer, ForeignKey(f'{SCHEMA}.transactions.id'), nullable=False)
+    transaction_id = Column(Integer, ForeignKey(f'{SCHEMA}.transactions.id'), nullable=False)
 
 
 class TransactionStatusMemo(Base):
@@ -102,7 +99,7 @@ class TransactionStatusMemo(Base):
 
     id = Column(Integer, primary_key=True)
     memo_body = Column(String, nullable=False)
-    tx_signatures_id = Column(Integer, ForeignKey(f'{SCHEMA}.transactions.id'), nullable=False)
+    transaction_id = Column(Integer, ForeignKey(f'{SCHEMA}.transactions.id'), nullable=False)
 
 
 class CLOBLiqudity(Base):
