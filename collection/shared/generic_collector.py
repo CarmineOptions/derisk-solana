@@ -133,15 +133,13 @@ class GenericSolanaConnector(ABC):
         If the limit is reached, it will pause the execution momentarily before allowing further API calls.
         """
         # Check if the number of calls made in the last second exceeds the maximum limit.
-        while len(self._call_timestamps) >= self.rate_limit:
-            # Calculate the time passed since the first call in the timestamp list.
+        while self.rate_limit <= len(self._call_timestamps):
+            # Calculate the time passed since the first recorded call.
             time_passed = time.time() - self._call_timestamps[0]
 
             if time_passed > 1:
-                # More than a second has passed since the first call, remove it from the list.
                 self._call_timestamps.pop(0)
             else:
-                # Wait for the remainder of the second before allowing more calls.
                 time.sleep(1 - time_passed)
 
         # Record the timestamp of the current call.

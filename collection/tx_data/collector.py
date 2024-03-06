@@ -2,8 +2,9 @@
 Class for collection of transaction data from Solana chain
 """
 import asyncio
+import traceback
 from abc import abstractmethod
-from typing import List, Tuple, Awaitable
+from typing import List, Tuple
 import logging
 import os
 import time
@@ -12,6 +13,7 @@ from solana.exceptions import SolanaRpcException
 from solana.rpc.async_api import AsyncClient
 from solana.rpc.commitment import Commitment
 from solana.rpc.core import RPCException
+from solders.errors import SerdeJSONError
 from solders.transaction_status import EncodedTransactionWithStatusMeta, UiConfirmedBlock
 from sqlalchemy.exc import IntegrityError
 
@@ -53,17 +55,23 @@ class TXFromBlockCollector(GenericSolanaConnector):
         # Record the timestamp of the current call.
         self._call_timestamps.append(time.time())
 
-    async def run(self):
+    def run(self):
         """
         Main method to process all necessary operations to collect and write data.
+        """
+        raise NotImplementedError("Implement me!")
+
+    async def async_run(self):
+        """
+        Main method to process all necessary operations to collect and write data. Data collection is concurrent.
         """
         while not self._collection_completed:
             self._get_assignment()
             start_time = time.perf_counter()
-            log_message = f"START: function `_get_data`."
+            log_message = "START: function `_get_data`."
             # Log the start of the function
             LOG.info(log_message)
-            await self._get_data()
+            await self._async_get_data()
             elapsed_time = time.perf_counter() - start_time
             LOG.info(f"DONE: function `_get_data` in {elapsed_time:.2f} seconds")
             self._write_tx_data()
@@ -75,11 +83,17 @@ class TXFromBlockCollector(GenericSolanaConnector):
         """Implement in subclasses to define the constant value"""
         raise NotImplementedError("Implement me!")
 
-    async def _get_data(self) -> Awaitable[None]:  # type: ignore  # Typing is ignored for this method
-        # due to an unapprehendable by mypy conflict between the async nature of this method and
-        # linear nature of same method of superclass
+    def _get_data(self) -> None:
         """
-        Collect transactions from blocks. Collected transactions are stored in `rel_transactions` attribute.
+        Collect transactions from blocks.
+        Collected transactions are stored in `rel_transactions` attribute.
+        """
+        raise NotImplementedError("Implement me!")
+
+    async def _async_get_data(self):
+        """
+        Concurrently collect transactions from blocks.
+        Collected transactions are stored in `rel_transactions` attribute.
         """
         self.rel_transactions.clear()
         # Use asyncio.gather to fetch blocks concurrently
@@ -110,6 +124,12 @@ class TXFromBlockCollector(GenericSolanaConnector):
         except RPCException as e:
             LOG.error(f"RpcException while fetching {block_number}: {e}")
             return None, block_number
+        except SerdeJSONError as e:
+            tb_str = traceback.format_exc()
+            # Log the error message along with the traceback
+            LOG.error(f"An error occurred: {e}\nTraceback:\n{tb_str}")
+            await asyncio.sleep(0.3)
+            return await self._async_fetch_block(block_number)
 
         return block.value, block_number
 
@@ -197,7 +217,6 @@ class TXFromBlockCollector(GenericSolanaConnector):
             time.sleep(0.5)
             return self._get_latest_finalized_block_on_chain()
 
-    
     @log_performance_time(LOG)
     def _write_tx_data(self) -> None:
         """
