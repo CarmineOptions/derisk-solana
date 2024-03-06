@@ -6,10 +6,13 @@ on Solana chain for lending protocols.
     Takes `t_0` from db, assign `t_0` if first run.
     PPKs (protocol public key) are collected from environmental variable.
     Takes `t_0` and all PPKs as input
-    1) Fetch block `t_0`, filter by PPKs of all protocols (i.e. Solend, Mango etc)
-    3) For each transaction:
-        create new record in tx_signatures
-    4) repeat for `t_0 + 1`
+    1) Concurrently fetch blocks from `t_0` to `t_0`+`BATCH_SIZE` or to last finalized slot obtained with `get_slot`
+     method of RPC API.
+    2) Filter all transactions in fetched blocks by PPKs of all protocols (i.e. Solend, Mango etc)
+     to select relevant transactions.
+    3) For each relevant transaction:
+        create new record in `transactions` table.
+    4) replace `t_0` with last fetched block and repeat 1-3.
     If being restarted - start from last block parsed. The last current block number is collected from db.
 """
 import asyncio
@@ -21,7 +24,7 @@ from collection.tx_data.collector import TXFromBlockCollector
 
 LOG = logging.getLogger(__name__)
 
-BATCH_SIZE = 10
+BATCH_SIZE = 30
 
 
 class CurrentTXCollector(TXFromBlockCollector):
@@ -79,7 +82,7 @@ class CurrentTXCollector(TXFromBlockCollector):
 async def main():
     print('Start collecting new transactions from Solana chain: ...')
     tx_collector = CurrentTXCollector()
-    await tx_collector.run()
+    await tx_collector.async_run()
 
 
 if __name__ == '__main__':

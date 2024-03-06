@@ -1,5 +1,5 @@
 """
-Module contains `SignatureCollector`, class dedicated to collection history of transaction on Solana chain for
+Module contains `SignatureCollector`, class dedicated to collection of history of transaction on Solana chain for
 lending protocols.
 Collection logic:
     t_O - watershed block, block that we assign as divider of historical and current data.
@@ -22,6 +22,7 @@ Collection logic:
 import logging
 import os
 import time
+import traceback
 from typing import List
 
 from solders.rpc.responses import RpcConfirmedTransactionStatusWithSignature
@@ -89,7 +90,16 @@ class SignatureCollector(GenericSolanaConnector):
         """
         Collect signatures with metadata through Solana API.
         """
-        self._fetch_signatures()
+        try:
+            self._fetch_signatures()
+        # catch any possible API's hallucinations, try once again
+        except Exception as e:  # pylint: disable=broad-exception-caught
+            tb_str = traceback.format_exc()
+            # Log the error message along with the traceback
+            LOGGER.error(f"While fetching signatures for `{self.protocol}` before `{self._oldest_signature}`"
+                         f" error occurred: {e}\nTraceback:\n{tb_str}")
+            self._fetch_signatures()
+
         LOGGER.info(f"Collected {len(self._collected_signatures)} signatures for `{self.protocol}")
 
     @log_performance_time(LOGGER)
@@ -131,7 +141,7 @@ class SignatureCollector(GenericSolanaConnector):
 
                 self._oldest_signature = signature.signature
             session.commit()
-        LOGGER.info(f"Signatures successfully stored to database.")
+        LOGGER.info("Signatures successfully stored to database.")
 
     def _fetch_signatures(self) -> None:
         """

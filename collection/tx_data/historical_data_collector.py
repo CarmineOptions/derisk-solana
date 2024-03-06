@@ -1,5 +1,20 @@
 """
 Collector of raw transaction data for historical transactions.
+Dependent on `transactions` db table as its source of blocks to fetch. All PPKs should be known.
+
+
+Fetch all transactions from this block, filter by PPKs of all protocols (i.e., Solend, Mango, etc).
+
+1. Obtains several (`BATCH_SIZE`) oldest slot numbers where there are relevant transactions
+ that do not have transaction data stored in database.
+2. Concurrently fetch blocks from these slots.
+3. Filter all transactions in fetched blocks by PPKs of all lending protocols to select relevant transactions.
+4. For each relevant transaction:
+    - create new record in transactions table if not yet exists.
+    - assign transaction data to existing records.
+5. Repeat 1-4 indefinitely.
+
+If being restarted - nothing changes.
 """
 import asyncio
 import os
@@ -9,7 +24,7 @@ from collection.tx_data.collector import TXFromBlockCollector
 
 
 BATCH_SIZE = 100
-OFFSET = os.getenv('OFFSET', 0)
+OFFSET = os.getenv("OFFSET", "0")
 
 
 class HistoricalTXCollector(TXFromBlockCollector):
@@ -53,7 +68,7 @@ class HistoricalTXCollector(TXFromBlockCollector):
 async def main():
     print('Start collecting old transactions from Solana chain: ...')
     tx_collector = HistoricalTXCollector()
-    await tx_collector.run()
+    await tx_collector.async_run()
 
 
 if __name__ == '__main__':
