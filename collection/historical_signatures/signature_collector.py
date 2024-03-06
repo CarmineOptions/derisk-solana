@@ -42,11 +42,11 @@ TX_BATCH_SIZE = 1000
 class SignatureCollector(GenericSolanaConnector):
     def __init__(self):
         super().__init__()
-        self.protocol = os.getenv("PROTOCOL_PUBLIC_KEY")
+        self.protocol = os.getenv("PROTOCOL_PUBLIC_KEY", "")
         self._oldest_signature: Signature | None = None  # The oldest signature from the oldest completed block
         self._signatures_completed: bool = False
         self._oldest_completed_slot: int = 0
-        self._collected_signatures: List[RpcConfirmedTransactionStatusWithSignature] | None = None
+        self._collected_signatures: List[RpcConfirmedTransactionStatusWithSignature] = []
 
     @property
     def _collection_completed(self) -> bool:
@@ -82,7 +82,7 @@ class SignatureCollector(GenericSolanaConnector):
 
             oldest_signature = oldest_signature.signature
             LOGGER.info("The oldest stored signature = {} for protocol = {}.".format(oldest_signature, self.protocol))
-            self._oldest_signature = Signature.from_string(oldest_signature)
+            self._oldest_signature = Signature.from_string(str(oldest_signature))
 
     @log_performance_time(LOGGER)
     def _get_data(self) -> None:
@@ -119,13 +119,13 @@ class SignatureCollector(GenericSolanaConnector):
                     error = signature.err.to_json() if not isinstance(signature.err, TransactionErrorFieldless) else ""
                     tx_error_record = db.TransactionStatusError(
                         error_body=error,
-                        tx_signatures_id=tx_status_record.id,
+                        transaction_id=tx_status_record.id,
                     )
                     session.add(tx_error_record)
                 if signature.memo:
                     tx_memo_record = db.TransactionStatusMemo(
                         memo_body=signature.memo,
-                        tx_signatures_id=tx_status_record.id,
+                        transaction_id=tx_status_record.id,
                     )
                     session.add(tx_memo_record)
 
@@ -191,7 +191,7 @@ class SignatureCollector(GenericSolanaConnector):
 
         watershed_block, _ = self._fetch_block(watershed_block_number)
         watershed_block_transactions = watershed_block.transactions
-        self._oldest_signature = watershed_block_transactions[0].transaction.signatures[0]
+        self._oldest_signature = watershed_block_transactions[0].transaction.signatures[0]  # type: ignore
         LOGGER.info("Signature = {} collected from watershed block `{}` for protocol = {}.".format(
             self._oldest_signature, watershed_block_number, self.protocol)
         )
