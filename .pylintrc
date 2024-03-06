@@ -443,10 +443,11 @@ disable=raw-checker-failed,
         too-many-arguments,
         bad-indentation,
         fixme,
-        wrong-import-position
+        wrong-import-position,
         logging-fstring-interpolation,
         consider-using-f-string,
         logging-format-interpolation,
+        logging-fstring-interpolation,
         use-list-literal
 
 # Enable the message, report, category or checker with the given id(s). You can
