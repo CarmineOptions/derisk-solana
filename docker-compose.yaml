@@ -79,7 +79,23 @@ services:
       POSTGRES_PASSWORD: postgres
       POSTGRES_HOST: db
       POSTGRES_DB: postgres
-      PROTOCOL_PUBLIC_KEY: 6LtLpnUFNByNXLyCoK9wA2MykKAmQNZKBdY8s47dehDc
+      PROTOCOL_PUBLIC_KEY: KLend2g3cP87fffoy8q1mQqGKjrxjC8boSyAYavgmjD
+    depends_on:
+      db:
+        condition: service_healthy
+
+  data-fetcher-signatures-marginfi:
+    build:
+      context: .
+      dockerfile: Dockerfile.signature-collection
+    environment:
+      AUTHENTICATED_RPC_URL: https://<rpc_provider>/<api_token>
+      RATE_LIMIT: 20
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_HOST: db
+      POSTGRES_DB: postgres
+      PROTOCOL_PUBLIC_KEY: MFv2hWf31Z9kbCa1snEPYctwafyhdvnV7FZnsebVacA
     depends_on:
       db:
         condition: service_healthy
@@ -95,7 +111,7 @@ services:
       POSTGRES_PASSWORD: postgres
       POSTGRES_HOST: db
       POSTGRES_DB: postgres
-      PROTOCOL_PUBLIC_KEYS: 6LtLpnUFNByNXLyCoK9wA2MykKAmQNZKBdY8s47dehDc,So1endDq2YkqhipRh3WViPa8hdiSpxWy6z3Z6tMCpAo,4MangoMjqJ2firMokCjjGgoK8d4MXcrgL7XJaL3w6fVg
+      PROTOCOL_PUBLIC_KEYS: KLend2g3cP87fffoy8q1mQqGKjrxjC8boSyAYavgmjD,So1endDq2YkqhipRh3WViPa8hdiSpxWy6z3Z6tMCpAo,4MangoMjqJ2firMokCjjGgoK8d4MXcrgL7XJaL3w6fVg,MFv2hWf31Z9kbCa1snEPYctwafyhdvnV7FZnsebVacA
     depends_on:
       db:
         condition: service_healthy
