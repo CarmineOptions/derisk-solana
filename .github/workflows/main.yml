@@ -18,6 +18,7 @@ jobs:
           source ~/venv-solana/bin/activate
           pip install poetry
           poetry install --no-root
+          pip install "anchorpy[pytest]"
           pip3 list
         shell: bash
 
