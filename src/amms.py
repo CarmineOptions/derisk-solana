@@ -12,7 +12,9 @@ import os
 import requests  # type: ignore
 
 from solana.rpc.async_api import AsyncClient
+from solana.rpc.api import Client
 from solders.pubkey import Pubkey
+from solana.exceptions import SolanaRpcException
 
 from db import AmmLiquidity, get_db_session
 from src.protocols.anchor_clients.bonkswap_client.accounts import Pool as BonkPool
@@ -80,6 +82,11 @@ class Amms:
         bonk_amm.timestamp = timestamp
         await bonk_amm.get_pools()
         bonk_amm.store_pools()
+
+        doaar_amm = DooarAMM()
+        doaar_amm.timestamp = timestamp
+        doaar_amm.get_pools()
+        doaar_amm.store_pools()
 
 
 # TODO: To be implemented.
@@ -352,7 +359,7 @@ class BonkAMM(Amm):
 
     async def get_pools(self): # pylint: disable=W0236
         self.pools: list[tuple[str, BonkPool]] = []
-        # List[Dict[str, Any]]
+
         for ticker, pool_info in self.TICKERS.items():
             pool = await BonkPool.fetch(
                 AsyncClient(AUTHENTICATED_RPC_URL),
@@ -389,6 +396,64 @@ class BonkAMM(Amm):
             #  Commit
             session.commit()
 
+class DooarAMM(Amm):
+    DEX_NAME = 'DOOAR'
+    TICKERS = {
+        "SOL-USDC" : {
+            "token_x_account": Pubkey.from_string('GVfKYBNMdaER21wwuqa4CSQV8ajVpuPbNZVV3wcuKWhE'),
+            "token_y_account": Pubkey.from_string('ARryk4nSoS6bu7nyv6BgQah8oU23svFm7Rek7kR4fy3X')
+        }
+    }
+
+    def get_pools(self):
+        self.pools: list[tuple[str, dict[str, Any]]] = []
+        client = Client(AUTHENTICATED_RPC_URL)
+
+# client.get_account_info_json_parsed(Pubkey.from_string(USDC_POOL)).value.data.parsed['info']
+
+        for ticker, pool_info in self.TICKERS.items():
+            token_x_acc = client.get_account_info_json_parsed(pool_info['token_x_account']) 
+            token_y_acc = client.get_account_info_json_parsed(pool_info['token_y_account']) 
+            
+            token_x_amt = token_x_acc.value.data.parsed['info']['tokenAmount']['amount']
+            token_y_amt = token_y_acc.value.data.parsed['info']['tokenAmount']['amount']
+
+            token_x_decimals = token_x_acc.value.data.parsed['info']['tokenAmount']['decimals']
+            token_y_decimals = token_y_acc.value.data.parsed['info']['tokenAmount']['decimals']
+
+            self.pools.append((
+                ticker,
+                {
+                    'token_x_amount': token_x_amt,
+                    'token_y_amount': token_y_amt,
+                    'token_x_decimals': token_x_decimals,
+                    'token_y_decimals': token_y_decimals,
+
+                }
+            ))
+
+    def store_pool(self, pool: tuple[str, dict[str, Any]]):
+
+        ticker, pool_info = pool
+        
+        with get_db_session() as session:
+            entry = AmmLiquidity(
+                timestamp = self.timestamp,
+                dex=self.DEX_NAME,
+                pair=ticker,
+                market_address='',
+                token_x=pool_info['token_x_amount'],
+                token_y=pool_info['token_y_amount'],
+                token_x_decimals=pool_info['token_x_decimals'],
+                token_y_decimals=pool_info['token_y_decimals'],
+                additional_info="{}",
+            )
+
+            # Add to session
+            session.add(entry)
+
+            #  Commit
+            session.commit()
 
 async def main():
     amms = Amms()
