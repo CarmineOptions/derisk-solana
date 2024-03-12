@@ -494,7 +494,7 @@ class DooarAMM(Amm):
 class FluxBeam(Amm):
     DEX_NAME = "FLUXBEAM"
 
-    async def get_pools(self): # pylint: disable=W0236
+    async def get_pools(self):  # pylint: disable=W0236
         LOG.info("Fetching FLUXBEAM pools.")
         client = AsyncClient(AUTHENTICATED_RPC_URL)
 
@@ -515,14 +515,14 @@ class FluxBeam(Amm):
         tasks = [_fetch_pool(i) for i in pool_infos]
 
         # Separate tasks list into chunks so we don't exceed RPC limit
-        chunk_size = 20 
-        tasks_chunks = [tasks[i:i+chunk_size] for i in range(0, len(tasks), chunk_size)]
+        chunk_size = 20
+        tasks_chunks = [
+            tasks[i : i + chunk_size] for i in range(0, len(tasks), chunk_size)
+        ]
 
         self.pools = []
         for chunk in tasks_chunks:
-            self.pools += await asyncio.gather(
-                *chunk, return_exceptions=True
-            )
+            self.pools += await asyncio.gather(*chunk, return_exceptions=True)
             time.sleep(2)
 
     def store_pool(self, pool: dict[str, Any]) -> None:
@@ -575,7 +575,7 @@ class FluxBeam(Amm):
                 timestamp=self.timestamp,
                 dex=self.DEX_NAME,
                 pair=pool["pool_info"]["ticker"],
-                market_address=pool['pool_info']['address'],
+                market_address=pool["pool_info"]["address"],
                 token_x=token_x_amt,
                 token_y=token_y_amt,
                 token_x_decimals=token_x_decimals,
