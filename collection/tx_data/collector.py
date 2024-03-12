@@ -231,15 +231,16 @@ class TXFromBlockCollector(GenericSolanaConnector):
                 signature = transaction.signature
                 # Same transaction has to be recorded once per each relevant protocol
                 for source in sources:
-                    record = session.query(db.TransactionStatusWithSignature).filter_by(
+                    records = session.query(db.TransactionStatusWithSignature).filter_by(
                         signature=str(signature),
                         source=source
-                    ).first()
+                    ).all()
 
                     # Check if the record exists.
-                    if record:
-                        # Update transaction data.
-                        record.transaction_data = transaction.tx_body.to_json()
+                    if records:
+                        # Iterate over each record and update transaction data.
+                        for record in records:
+                            record.transaction_data = transaction.tx_body.to_json()
                     else:
                         new_record = db.TransactionStatusWithSignature(
                             source=source,
