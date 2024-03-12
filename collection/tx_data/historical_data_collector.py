@@ -17,12 +17,13 @@ Fetch all transactions from this block, filter by PPKs of all protocols (i.e., S
 If being restarted - nothing changes.
 """
 import asyncio
+import logging
 import os
 
 import db
 from collection.tx_data.collector import TXFromBlockCollector
 
-
+LOG = logging.getLogger(__name__)
 BATCH_SIZE = 100
 OFFSET = os.getenv("OFFSET", "0")
 
@@ -63,6 +64,7 @@ class HistoricalTXCollector(TXFromBlockCollector):
         """
         # TODO: here we can check if last collected block does not  # pylint: disable=W0511
         #  exceed watershed number for historical data, if so stop collection
+        LOG.info(f"Data for {len(self.rel_transactions)} have been stored to the database.")
 
 
 async def main():
