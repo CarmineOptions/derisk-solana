@@ -88,6 +88,11 @@ class Amms:
         doaar_amm.get_pools()
         doaar_amm.store_pools()
 
+        fluxbeam_amm = FluxBeam()
+        fluxbeam_amm.timestamp = timestamp
+        await fluxbeam_amm.get_pools()
+        fluxbeam_amm.store_pools()
+
 
 # TODO: To be implemented.
 # def load_amm_data() -> Amms:
@@ -476,6 +481,105 @@ class DooarAMM(Amm):
                 token_y=pool_info["token_y_amount"],
                 token_x_decimals=pool_info["token_x_decimals"],
                 token_y_decimals=pool_info["token_y_decimals"],
+                additional_info="{}",
+            )
+
+            # Add to session
+            session.add(entry)
+
+            #  Commit
+            session.commit()
+
+
+class FluxBeam(Amm):
+    DEX_NAME = "FLUXBEAM"
+
+    async def get_pools(self): # pylint: disable=W0236
+        LOG.info("Fetching FLUXBEAM pools.")
+        client = AsyncClient(AUTHENTICATED_RPC_URL)
+
+        with open("src/protocols/idls/fluxbeam_pools.json", "rb") as f:
+            pool_infos = json.load(f)
+
+        async def _fetch_pool(pool):
+            return {
+                "pool_info": pool,
+                "tokenA": await client.get_account_info_json_parsed(
+                    Pubkey.from_string(pool["tokenAccountA"])
+                ),
+                "tokenB": await client.get_account_info_json_parsed(
+                    Pubkey.from_string(pool["tokenAccountB"])
+                ),
+            }
+
+        tasks = [_fetch_pool(i) for i in pool_infos]
+
+        # Separate tasks list into chunks so we don't exceed RPC limit
+        chunk_size = 20 
+        tasks_chunks = [tasks[i:i+chunk_size] for i in range(0, len(tasks), chunk_size)]
+
+        self.pools = []
+        for chunk in tasks_chunks:
+            self.pools += await asyncio.gather(
+                *chunk, return_exceptions=True
+            )
+            time.sleep(2)
+
+    def store_pool(self, pool: dict[str, Any]) -> None:
+
+        if isinstance(pool, Exception):
+            LOG.error(f"FluxBeam error: {pool}")
+            return
+
+        token_x_acc = pool["tokenA"]
+        token_y_acc = pool["tokenB"]
+
+        if not token_x_acc.value:
+            LOG.warning(
+                f"No value found for X of {self.DEX_NAME}:{pool['pool_info']['ticker']}"
+            )
+            return
+
+        if not token_y_acc.value:
+            LOG.warning(
+                f"No value found for Y of {self.DEX_NAME}:{pool['pool_info']['ticker']}"
+            )
+            return
+
+        token_x_data = token_x_acc.value.data
+        token_y_data = token_y_acc.value.data
+
+        if not isinstance(token_x_data, ParsedAccount):
+            LOG.warning(
+                f"Unable to parse X of {self.DEX_NAME}:{pool['pool_info']['ticker']}"
+            )
+            return
+
+        if not isinstance(token_y_data, ParsedAccount):
+            LOG.warning(
+                f"Unable to parse Y of {self.DEX_NAME}:{pool['pool_info']['ticker']}"
+            )
+            return
+
+        token_x_parsed: dict = token_x_data.parsed
+        token_y_parsed: dict = token_y_data.parsed
+
+        token_x_amt = token_x_parsed["info"]["tokenAmount"]["amount"]
+        token_y_amt = token_y_parsed["info"]["tokenAmount"]["amount"]
+
+        token_x_decimals = token_x_parsed["info"]["tokenAmount"]["decimals"]
+        token_y_decimals = token_y_parsed["info"]["tokenAmount"]["decimals"]
+
+        with get_db_session() as session:
+            entry = AmmLiquidity(
+                timestamp=self.timestamp,
+                dex=self.DEX_NAME,
+                pair=pool["pool_info"]["ticker"],
+                market_address=pool['pool_info']['address'],
+                token_x=token_x_amt,
+                token_y=token_y_amt,
+                token_x_decimals=token_x_decimals,
+                token_y_decimals=token_y_decimals,
                 additional_info="{}",
             )
 
