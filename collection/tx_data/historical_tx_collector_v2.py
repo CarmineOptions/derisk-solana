@@ -31,7 +31,7 @@ class QuickHistoricalTXCollector(HistoricalTXCollector):
         """
         # receive block numbers ready for collection
         self._get_assigned_transactions()
-        LOG.info(f"Blocks for collection: {self.assignment}")
+        LOG.info(f"Transactions for collection: {len(self.assignment)}")
 
     def _get_assigned_transactions(self):
         """
@@ -57,9 +57,9 @@ class QuickHistoricalTXCollector(HistoricalTXCollector):
         transactions = await asyncio.gather(
             *(self._async_fetch_transaction(tx_sign) for tx_sign in self.assignment)
         )
-        self.rel_transactions.append(transactions)
+        self.rel_transactions = transactions
 
-    async def _async_fetch_transaction(self, tx_signature: Signature) -> EncodedTransactionWithStatusMeta:
+    async def _async_fetch_transaction(self, tx_signature: str) -> EncodedTransactionWithStatusMeta:
         """
         Use solana client to fetch block with provided number.
         """
@@ -67,7 +67,7 @@ class QuickHistoricalTXCollector(HistoricalTXCollector):
         # Fetch block data.
         try:
             transaction = await self.async_solana_client.get_transaction(
-                tx_signature,
+                Signature.from_string(tx_signature),
                 encoding='jsonParsed',
                 max_supported_transaction_version=0,
             )
@@ -88,7 +88,7 @@ class QuickHistoricalTXCollector(HistoricalTXCollector):
             return
         with db.get_db_session() as session:
             for transaction in self.rel_transactions:
-                signature = transaction.transaction.signatures  # type: ignore
+                signature = transaction.transaction.signatures[0]  # type: ignore
                 records = session.query(db.TransactionStatusWithSignature).filter_by(
                     signature=str(signature)
                 ).all()
@@ -97,7 +97,7 @@ class QuickHistoricalTXCollector(HistoricalTXCollector):
                 if records:
                     # Iterate over each record and update transaction data.
                     for record in records:
-                        record.transaction_data = transaction.tx_body.to_json()
+                        record.transaction_data = transaction.to_json()
 
             # Commit the changes.
             session.commit()
