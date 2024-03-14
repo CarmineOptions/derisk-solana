@@ -129,13 +129,13 @@ class SignatureCollector(GenericSolanaConnector):
                     error = signature.err.to_json() if not isinstance(signature.err, TransactionErrorFieldless) else ""
                     tx_error_record = db.TransactionStatusError(
                         error_body=error,
-                        transaction_id=tx_status_record.id,
+                        tx_signatures_id=tx_status_record.id,
                     )
                     session.add(tx_error_record)
                 if signature.memo:
                     tx_memo_record = db.TransactionStatusMemo(
                         memo_body=signature.memo,
-                        transaction_id=tx_status_record.id,
+                        tx_signatures_id=tx_status_record.id,
                     )
                     session.add(tx_memo_record)
 
