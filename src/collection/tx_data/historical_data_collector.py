@@ -21,7 +21,7 @@ import logging
 import os
 
 import db
-from collection.tx_data.collector import TXFromBlockCollector
+from src.collection.tx_data.collector import TXFromBlockCollector
 
 LOG = logging.getLogger(__name__)
 BATCH_SIZE = 100
@@ -74,6 +74,5 @@ async def main():
 
 
 if __name__ == '__main__':
-    import logging
     logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
     asyncio.run(main())

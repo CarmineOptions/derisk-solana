@@ -9,7 +9,7 @@ COPY pyproject.toml poetry.lock* ./
 RUN poetry config virtualenvs.create false \
   && poetry install --no-interaction --no-ansi
 
-COPY ./collection ./collection
+COPY ./src ./src
 COPY ./db ./db
 
-CMD ["python3", "collection/tx_data/historical_data_collector.py"]
+CMD ["python3", "src/collection/tx_data/historical_data_collector.py"]
