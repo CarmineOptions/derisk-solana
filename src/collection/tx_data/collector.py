@@ -17,7 +17,7 @@ from solders.errors import SerdeJSONError
 from solders.transaction_status import EncodedTransactionWithStatusMeta, UiConfirmedBlock
 from sqlalchemy.exc import IntegrityError
 
-from collection.shared.generic_collector import GenericSolanaConnector, SolanaTransaction, log_performance_time
+from src.collection.shared.generic_collector import GenericSolanaConnector, SolanaTransaction, log_performance_time
 import db
 
 
