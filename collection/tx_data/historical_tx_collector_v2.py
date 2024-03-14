@@ -76,6 +76,10 @@ class QuickHistoricalTXCollector(HistoricalTXCollector):
             await asyncio.sleep(0.25)
             return await self._async_fetch_transaction(tx_signature)
 
+        if not transaction.value:
+            LOG.error(f"No transaction in received response. Transaction signature: {tx_signature}")
+            return await self._async_fetch_transaction(tx_signature)
+    
         return transaction.value.transaction
 
     @log_performance_time(LOG)
