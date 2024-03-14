@@ -31,7 +31,7 @@ from solders.transaction_status import TransactionErrorFieldless
 from solana.exceptions import SolanaRpcException
 import solana.rpc.api
 
-from collection.shared.generic_collector import GenericSolanaConnector, log_performance_time
+from src.collection.shared.generic_collector import GenericSolanaConnector, log_performance_time
 import db
 
 

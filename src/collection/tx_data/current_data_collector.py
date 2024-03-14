@@ -19,7 +19,7 @@ import asyncio
 import logging
 
 import db
-from collection.tx_data.collector import TXFromBlockCollector
+from src.collection.tx_data.collector import TXFromBlockCollector
 
 
 LOG = logging.getLogger(__name__)
