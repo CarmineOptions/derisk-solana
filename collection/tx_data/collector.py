@@ -224,6 +224,7 @@ class TXFromBlockCollector(GenericSolanaConnector):
         """
         # if relevant transactions were not found in current iteration, do nothing.
         if not self.rel_transactions:
+            self._report_collection()
             return
         with db.get_db_session() as session:
             for transaction in self.rel_transactions:
