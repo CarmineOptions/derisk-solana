@@ -21,6 +21,8 @@ from sqlalchemy.types import Enum as SQLEnum
 from sqlalchemy import Index
 from sqlalchemy.dialects.postgresql import ARRAY as PG_ARRAY
 
+from db.utils import check_bigint
+
 Base = declarative_base()
 
 POSTGRES_USER = os.environ.get("POSTGRES_USER")
