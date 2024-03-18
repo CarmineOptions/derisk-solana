@@ -590,7 +590,8 @@ class FluxBeam(Amm):
             session.commit()
 
 
-async def main():
+async def update_amm_dex_data_continuously():
+    LOG.info("Start collecting AMM pools.")
     amms = Amms()
     while True:
         try:
@@ -605,11 +606,3 @@ async def main():
             LOG.error(f"An error occurred: {e}\nTraceback:\n{tb_str}")
             time.sleep(300)
 
-
-if __name__ == "__main__":
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    )
-    LOG.info("Start collecting AMM pools.")
-    asyncio.run(main())
