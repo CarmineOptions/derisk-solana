@@ -21,6 +21,8 @@ from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy import Index
 from sqlalchemy.dialects.postgresql import ARRAY as PG_ARRAY
 
+from db.utils import check_bigint
+
 Base = declarative_base()
 
 POSTGRES_USER = os.environ.get("POSTGRES_USER")
