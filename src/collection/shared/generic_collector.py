@@ -61,7 +61,7 @@ class SolanaTransaction:
         return relevant_sources
 
     @property
-    def signature(self) -> Signature:
+    def first_signature(self) -> Signature:
         """ Returns transaction signature. """
         return self.tx_body.transaction.signatures[0]
 
@@ -78,10 +78,10 @@ class GenericSolanaConnector(ABC):
         self.assignment: List[int] = list()
 
         # attribute for storing transactions before assigning to db.
-        self.rel_transactions: List[SolanaTransaction] = list()
+        self.relevant_transactions: List[SolanaTransaction] = list()
 
         # rate limiter
-        self.rate_limit: int = int(os.getenv("RATE_LIMIT", ""))
+        self._set_rate_limit()
         self._call_timestamps = []
 
         LOG.info(f"{self.__class__.__name__} is all set to collect.")
@@ -91,6 +91,14 @@ class GenericSolanaConnector(ABC):
         if not rpc_url:
             LOG.error("RPC url was not found in environment variables.")
         self.authenticated_rpc_url = rpc_url
+
+    def _set_rate_limit(self) -> None:
+        rate_limit = os.getenv("RATE_LIMIT", "")
+        if not rate_limit:
+            LOG.error("Rate limit was not found in environment variables and set to 1.")
+            self.rate_limit = 1
+            return
+        self.rate_limit = int(rate_limit)
 
     def run(self):
         """
