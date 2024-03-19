@@ -25,6 +25,9 @@ from src.collection.tx_data.collector import TXFromBlockCollector
 
 LOG = logging.getLogger(__name__)
 BATCH_SIZE = 100
+# Defines offset of `HistoricalTXCollector._get_assigned_blocks method.
+# In case when several historical data collector are run simultaneously, different offsets will ensure
+# that these collectors don't get same block numbers in assignment.
 OFFSET = os.getenv("OFFSET", "0")
 
 
@@ -64,7 +67,7 @@ class HistoricalTXCollector(TXFromBlockCollector):
         """
         # TODO: here we can check if last collected block does not  # pylint: disable=W0511
         #  exceed watershed number for historical data, if so stop collection
-        LOG.info(f"Data for {len(self.rel_transactions)} have been stored to the database.")
+        LOG.info(f"Data for {len(self.relevant_transactions)} have been stored to the database.")
 
 
 async def main():

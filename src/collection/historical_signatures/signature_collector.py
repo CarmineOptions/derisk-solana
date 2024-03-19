@@ -9,10 +9,11 @@ Collection logic:
     1) starts from any transaction (`tx_0`) from block `t_0`.
     2) Collects 1000 tx signatures starting with `tx_0`.
     3) Collected transactions belong to sequence of blocks from `t_0` to `t_0 - k`.
-    Store to tx_signatures table all transactions from blocks `t_0 - 1` to `t_0 - k + 1` with flag `from signatures`.
+    Store to tx_signatures table all transactions from blocks `t_0 - 1` to `t_0 - k + 1` with flag `signature`.
     If signature already exists - change flag to `from_signatures`.
     Transactions from block `t_0` are handled in current data collector.
-    4) we get presumably the earliest transaction signature from `t_0 - k + 1` block and collect next 1000 tx.
+    4) we get presumably the earliest transaction signature from `t_0 - k + 1` block
+    and collect previous (timewise) 1000 tx.
     5) repeat 3-4 until reaching the first transaction.
     6) As first (earliest) transaction is reached - consider historical data (signatures only) for given PPK
     at time t_0 collected.
@@ -46,7 +47,7 @@ class SignatureCollector(GenericSolanaConnector):
         self.protocol = os.getenv("PROTOCOL_PUBLIC_KEY", "")
         self._oldest_signature: Signature | None = None  # The oldest signature from the oldest completed block
         self._signatures_completed: bool = False
-        self._oldest_completed_slot: int = 0
+        self._oldest_completed_slot: int = -1
         self._collected_signatures: List[RpcConfirmedTransactionStatusWithSignature] = []
 
     @property
@@ -210,6 +211,6 @@ class SignatureCollector(GenericSolanaConnector):
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
-    print('Start collecting signatures from Solana chain: ...')
+    LOGGER.info('Start collecting signatures from Solana chain: ...')
     tx_collector = SignatureCollector()
     tx_collector.run()
