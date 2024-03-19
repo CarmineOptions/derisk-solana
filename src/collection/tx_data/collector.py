@@ -95,7 +95,7 @@ class TXFromBlockCollector(GenericSolanaConnector):
         Concurrently collect transactions from blocks.
         Collected transactions are stored in `rel_transactions` attribute.
         """
-        self.rel_transactions.clear()
+        self.relevant_transactions.clear()
         # Use asyncio.gather to fetch blocks concurrently
         blocks = await asyncio.gather(
             *(self._async_fetch_block(block_number) for block_number in self.assignment)
@@ -148,7 +148,7 @@ class TXFromBlockCollector(GenericSolanaConnector):
                     tx_body=tx
                 ) for tx in relevant_transactions  # type: ignore
             ]
-            self.rel_transactions.extend(relevant_solana_transaction)
+            self.relevant_transactions.extend(relevant_solana_transaction)
 
     @log_performance_time(LOG)
     def _get_assignment(self) -> None:
@@ -223,13 +223,13 @@ class TXFromBlockCollector(GenericSolanaConnector):
         Write raw tx data to database.
         """
         # if relevant transactions were not found in current iteration, do nothing.
-        if not self.rel_transactions:
+        if not self.relevant_transactions:
             self._report_collection()
             return
         with db.get_db_session() as session:
-            for transaction in self.rel_transactions:
+            for transaction in self.relevant_transactions:
                 sources = transaction.sources(self.protocol_public_keys if self.protocol_public_keys else [])
-                signature = transaction.signature
+                signature = transaction.first_signature
                 # Same transaction has to be recorded once per each relevant protocol
                 for source in sources:
                     records = session.query(db.TransactionStatusWithSignature).filter_by(

@@ -38,7 +38,7 @@ if POSTGRES_DB is None:
     raise ValueError("no POSTGRES_DB env var")
 
 CONN_STRING = f"postgresql+psycopg2://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_HOST}/{POSTGRES_DB}"
-SCHEMA = 'lenders'
+SCHEMA = 'public'
 
 
 def get_db_session() -> Session:
@@ -152,6 +152,8 @@ class Protocols(Base):
 
     id = Column(Integer, primary_key=True)
     public_key = Column(String, unique=True, nullable=False)
+    # watershed block, block that we assign as divider of historical and current data,
+    # to define what collection stream to use for their collection.
     watershed_block = Column(Integer, nullable=False)
     last_block_collected = Column(Integer, nullable=True)
 
