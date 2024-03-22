@@ -24,7 +24,7 @@ import db
 from src.collection.tx_data.collector import TXFromBlockCollector
 
 LOG = logging.getLogger(__name__)
-BATCH_SIZE = 100
+BATCH_SIZE = 10
 # Defines offset of `HistoricalTXCollector._get_assigned_blocks method.
 # In case when several historical data collector are run simultaneously, different offsets will ensure
 # that these collectors don't get same block numbers in assignment.
@@ -47,20 +47,24 @@ class HistoricalTXCollector(TXFromBlockCollector):
         #  from db so several collectors can serve at once / or change status of tx while fetching tx_raw
         # Fetch first n blocks that contain transactions without tx_raw.
         with db.get_db_session() as session:
-            distinct_slots = session.query(
-                db.TransactionStatusWithSignature.slot
-            ).filter(
-                db.TransactionStatusWithSignature.transaction_data.is_(None)
-            ).distinct().offset(int(OFFSET)).limit(BATCH_SIZE*3).subquery()
+            # Step 1: Select the first 100 slots that are not processed and lock them for update
+            slots_to_update = session.query(db.SlotTable) \
+                .filter(db.SlotTable.is_processed == False) \
+                .limit(BATCH_SIZE) \
+                .with_for_update() \
+                .all()
 
-            # Outer query to order the distinct slots and limit the results
-            slots = session.query(
-                distinct_slots.c.slot
-            ).order_by(
-                distinct_slots.c.slot
-            ).limit(BATCH_SIZE).all()
+            # Step 2: Extract slot numbers and mark them as processed
+            slot_numbers = []
+            for slot in slots_to_update:
+                slot_numbers.append(slot.slot)
+                slot.is_processed = True  # Mark as processed
 
-        self.assignment = [i.slot for i in slots]  # pylint: disable=attribute-defined-outside-init
+            # Commit the transaction to save changes
+            session.commit()
+
+            # Print or return the slot numbers
+            self.assignment = slot_numbers  # pylint: disable=attribute-defined-outside-init
 
     def _report_collection(self) -> None:
         """

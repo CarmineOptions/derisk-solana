@@ -13,6 +13,7 @@ from sqlalchemy import (
     ForeignKey,
     PrimaryKeyConstraint,
     Float,
+    Boolean
 )
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session
@@ -36,7 +37,7 @@ if POSTGRES_DB is None:
     raise ValueError("no POSTGRES_DB env var")
 
 CONN_STRING = f"postgresql+psycopg2://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_HOST}/{POSTGRES_DB}"
-SCHEMA = 'public'
+SCHEMA = 'lenders'
 
 
 def get_db_session() -> Session:
@@ -98,6 +99,15 @@ class TransactionStatusMemo(Base):
     id = Column(Integer, primary_key=True)
     memo_body = Column(String, nullable=False)
     tx_signatures_id = Column(Integer, ForeignKey(f'{SCHEMA}.transactions.id'), nullable=False)
+
+
+class SlotTable(Base):
+    """ Temporary table """
+    __tablename__ = "slots_for_collection"
+    __table_args__ = {"schema": SCHEMA}
+    slot = Column(Integer, primary_key=True)
+    cnt = Column(Integer)
+    is_processed = Column(Boolean, default=False)
 
 
 class CLOBLiqudity(Base):
