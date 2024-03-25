@@ -282,7 +282,7 @@ class MeteoraAMM(Amm):
 
 class BonkAMM(Amm):
     DEX_NAME = "BonkSwap"
-    TICKERS: dict[str, dict[str, Any]] = {
+    POOLS_INFO: dict[str, dict[str, str | int]] = {
         "BONK-USDC": {
             "market_address": "5MMaArf3NgUjaDqYZiwYP2wbXLd8myKmmYzBzzqdfYSb",
             "token_x_decimals": 5,
@@ -313,10 +313,10 @@ class BonkAMM(Amm):
     async def get_pools(self):  # pylint: disable=W0236
         self.pools: list[tuple[str, BonkPool]] = []
 
-        for ticker, pool_info in self.TICKERS.items():
+        for ticker, pool_info in self.POOLS_INFO.items():
             pool = await BonkPool.fetch(
                 AsyncClient(AUTHENTICATED_RPC_URL),
-                Pubkey.from_string(pool_info["market_address"]),
+                Pubkey.from_string(str(pool_info["market_address"])),
             )
             if not pool:
                 LOG.error(f"No pool found for address: {pool_info['market_address']}")
@@ -335,11 +335,11 @@ class BonkAMM(Amm):
                 timestamp=self.timestamp,
                 dex=self.DEX_NAME,
                 pair=ticker,
-                market_address=self.TICKERS[ticker]["market_address"],
+                market_address=str(self.POOLS_INFO[ticker]["market_address"]),
                 token_x=pool_info.token_x_reserve.v,
                 token_y=pool_info.token_y_reserve.v,
-                token_x_decimals=self.TICKERS[ticker]["token_x_decimals"],
-                token_y_decimals=self.TICKERS[ticker]["token_y_decimals"],
+                token_x_decimals=int(self.POOLS_INFO[ticker]["token_x_decimals"]),
+                token_y_decimals=int(self.POOLS_INFO[ticker]["token_y_decimals"]),
                 additional_info="{}",
             )
 
@@ -376,11 +376,11 @@ class DooarAMM(Amm):
             )
 
             if not token_x_account.value:
-                LOG.warning(f"No value found for X of {self.DEX_NAME}:{ticker}")
+                LOG.warning(f"No value found for token X of {self.DEX_NAME}:{ticker}")
                 continue
 
             if not token_y_account.value:
-                LOG.warning(f"No value found for Y of {self.DEX_NAME}:{ticker}")
+                LOG.warning(f"No value found for token Y of {self.DEX_NAME}:{ticker}")
                 continue
 
             token_x_data = token_x_account.value.data
@@ -484,13 +484,13 @@ class FluxBeam(Amm):
 
         if not token_x_account.value:
             LOG.warning(
-                f"No value found for X of {self.DEX_NAME}:{pool['pool_info']['ticker']}"
+                f"No value found for token X of {self.DEX_NAME}:{pool['pool_info']['ticker']}"
             )
             return
 
         if not token_y_account.value:
             LOG.warning(
-                f"No value found for Y of {self.DEX_NAME}:{pool['pool_info']['ticker']}"
+                f"No value found for token Y of {self.DEX_NAME}:{pool['pool_info']['ticker']}"
             )
             return
 
