@@ -27,52 +27,6 @@ LOG = logging.getLogger(__name__)
 
 
 
-class Amms:
-    """
-    A class that describes the state of all relevant pools of all relevant swap AMMs.
-    """
-
-    def __init__(self) -> None:
-        pass
-
-    async def update_pools(self) -> None:
-        """
-        Save pools data to database.
-        :return:
-        """
-        # set timestamp
-        timestamp = int(time.time())
-
-        # collect and store pools
-        orca_amm = OrcaAMM()
-        orca_amm.timestamp = timestamp
-        orca_amm.get_pools()
-        orca_amm.store_pools()
-
-        raydium_amm = RaydiumAMM()
-        raydium_amm.timestamp = timestamp
-        raydium_amm.get_pools()
-        raydium_amm.store_pools()
-
-        meteora_amm = MeteoraAMM()
-        meteora_amm.timestamp = timestamp
-        meteora_amm.get_pools()
-        meteora_amm.store_pools()
-
-        bonk_amm = BonkAMM()
-        bonk_amm.timestamp = timestamp
-        await bonk_amm.get_pools()
-        bonk_amm.store_pools()
-
-        doaar_amm = DooarAMM()
-        doaar_amm.timestamp = timestamp
-        doaar_amm.get_pools()
-        doaar_amm.store_pools()
-
-        fluxbeam_amm = FluxBeam()
-        fluxbeam_amm.timestamp = timestamp
-        await fluxbeam_amm.get_pools()
-        fluxbeam_amm.store_pools()
 
 
 class Amm(ABC):
@@ -84,7 +38,7 @@ class Amm(ABC):
         pass
 
     @abstractmethod
-    def get_pools(self):
+    async def get_pools(self):
         """
         Fetch pools data.
         """
@@ -127,6 +81,28 @@ class Amm(ABC):
             amount_big_integer = int(amount_str)
 
         return amount_big_integer, decimals
+
+class Amms:
+    """
+    A class that describes the state of all relevant pools of all relevant swap AMMs.
+    """
+
+    def __init__(self, amms: list[Amm]) -> None:
+        self.amms = amms
+
+    async def update_pools(self) -> None:
+        """
+        Save pools data to database.
+        :return:
+        """
+        # set timestamp
+        timestamp = int(time.time())
+
+        for amm in self.amms:
+            # collect and store pools
+            amm.timestamp = timestamp
+            await amm.get_pools()
+            amm.store_pools()
 
 
 class OrcaAMM(Amm):
@@ -566,9 +542,16 @@ class FluxBeam(Amm):
 
 async def update_amm_dex_data_continuously():
     LOG.info("Start collecting AMM pools.")
-    amms = Amms()
     while True:
         try:
+            amms = Amms([
+                OrcaAMM(),
+                RaydiumAMM(),
+                MeteoraAMM(),
+                BonkAMM(),
+                DooarAMM(),
+                FluxBeam(),
+            ])
             await amms.update_pools()
             LOG.info(
                 "Successfully processed all pools. Waiting 5 minutes before next update."
@@ -579,4 +562,3 @@ async def update_amm_dex_data_continuously():
             # Log the error message along with the traceback
             LOG.error(f"An error occurred: {e}\nTraceback:\n{tb_str}")
             time.sleep(300)
-
