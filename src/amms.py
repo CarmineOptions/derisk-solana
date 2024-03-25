@@ -30,8 +30,8 @@ LOG = logging.getLogger(__name__)
 
 
 class Amm(ABC):
-    pools: Any
-    timestamp = int(time.time())
+    pools: list[Any]
+    timestamp: int
 
     def __init__(self):
         pass
@@ -143,7 +143,7 @@ class OrcaAMM(Amm):
 
 
 class RaydiumAMM(Amm):
-    DEX_NAME = "Orca"
+    DEX_NAME = "Raydium"
     token_list: List
 
     async def get_pools(self):
@@ -281,7 +281,7 @@ class MeteoraAMM(Amm):
 
 
 class BonkAMM(Amm):
-    DEX_NAME = "BONKSWAP"
+    DEX_NAME = "BonkSwap"
     TICKERS: dict[str, dict[str, Any]] = {
         "BONK-USDC": {
             "market_address": "5MMaArf3NgUjaDqYZiwYP2wbXLd8myKmmYzBzzqdfYSb",
@@ -440,7 +440,7 @@ class DooarAMM(Amm):
 
 
 class FluxBeam(Amm):
-    DEX_NAME = "FLUXBEAM"
+    DEX_NAME = "FluxBeam"
 
     async def get_pools(self):  # pylint: disable=W0236
         LOG.info("Fetching FLUXBEAM pools.")
