@@ -30,7 +30,6 @@ LOG = logging.getLogger(__name__)
 
 
 class Amm(ABC):
-    # dex_name: str = ''
     pools: Any
     timestamp = int(time.time())
 
@@ -75,12 +74,10 @@ class Amm(ABC):
             decimals = len(fractional_part)
             # Remove the decimal point and convert the remaining string to an integer
             amount_big_integer = int(whole_part + fractional_part)
-        else:
-            # If there is no decimal point, there are no decimals and the conversion is straightforward
-            decimals = 0
-            amount_big_integer = int(amount_str)
 
-        return amount_big_integer, decimals
+            return amount_big_integer, decimals
+
+        return int(amount_str), 0
 
 class Amms:
     """
@@ -172,7 +169,8 @@ class RaydiumAMM(Amm):
         LOG.info("Fetching token info API")
         try:
             result = requests.get(
-                "https://api.mainnet.orca.so/v1/token/list", timeout=30
+                "https://api.mainnet.orca.so/v1/token/list", 
+                timeout=30
             )
             decoded_result = result.content.decode("utf-8")
             self.token_list = json.loads(decoded_result)["tokens"]
