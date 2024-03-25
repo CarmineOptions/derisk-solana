@@ -25,6 +25,8 @@ jsonrpcclient = "^4.0.3"
 gfx-perp-sdk = "^0.0.15"
 podite = "^0.1.2"
 deepdiff = "^6.7.1"
+borsh-construct = "^0.1.0"
+anchorpy = "^0.19.1"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.0.0"

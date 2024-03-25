@@ -87,3 +87,16 @@ services:
     depends_on:
       db:
         condition: service_healthy
+
+  amm-liq-fetcher:
+      build:
+        dockerfile: ./Dockerfile.update-amm-pools
+      environment:
+        AUTHENTICATED_RPC_URL: ""
+        POSTGRES_USER: postgres
+        POSTGRES_PASSWORD: postgres
+        POSTGRES_HOST: db
+        POSTGRES_DB: postgres
+      depends_on:
+        db:
+          condition: service_healthy
