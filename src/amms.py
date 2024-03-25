@@ -105,7 +105,7 @@ class Amms:
 class OrcaAMM(Amm):
     DEX_NAME = "Orca"
 
-    def get_pools(self) -> None:
+    async def get_pools(self) -> None:
         """
         Fetches pool data from the Orca API and stores it in the `pools` attribute.
         """
@@ -119,7 +119,7 @@ class OrcaAMM(Amm):
             LOG.info(f"Successfully fetched {len(self.pools)} pools")
         except requests.exceptions.Timeout:
             LOG.error("Request to Orca whirlpool API timed out")
-            self.get_pools()
+            await self.get_pools()
 
     def store_pool(self, pool: Dict[str, Any]) -> None:
         """
@@ -146,7 +146,7 @@ class RaydiumAMM(Amm):
     DEX_NAME = "Orca"
     token_list: List
 
-    def get_pools(self):
+    async def get_pools(self):
         """
         Fetches pool data from the Radium API and stores it in the `pools` attribute.
         """
@@ -226,7 +226,7 @@ class RaydiumAMM(Amm):
 class MeteoraAMM(Amm):
     DEX_NAME = "Meteora"
 
-    def get_pools(self):
+    async def get_pools(self):
         """
         Fetches pool data from the Meteora API and stores it in the `pools` attribute.
         """
@@ -363,7 +363,7 @@ class DooarAMM(Amm):
         }
     }
 
-    def get_pools(self):
+    async def get_pools(self):
         self.pools: list[tuple[str, dict[str, Any]]] = []
         client = Client(AUTHENTICATED_RPC_URL)
 
