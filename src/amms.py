@@ -368,23 +368,23 @@ class DooarAMM(Amm):
         client = Client(AUTHENTICATED_RPC_URL)
 
         for ticker, pool_info in self.TICKERS.items():
-            token_x_acc = client.get_account_info_json_parsed(
+            token_x_account = client.get_account_info_json_parsed(
                 pool_info["token_x_account"]
             )
-            token_y_acc = client.get_account_info_json_parsed(
+            token_y_account = client.get_account_info_json_parsed(
                 pool_info["token_y_account"]
             )
 
-            if not token_x_acc.value:
+            if not token_x_account.value:
                 LOG.warning(f"No value found for X of {self.DEX_NAME}:{ticker}")
                 continue
 
-            if not token_y_acc.value:
+            if not token_y_account.value:
                 LOG.warning(f"No value found for Y of {self.DEX_NAME}:{ticker}")
                 continue
 
-            token_x_data = token_x_acc.value.data
-            token_y_data = token_y_acc.value.data
+            token_x_data = token_x_account.value.data
+            token_y_data = token_y_account.value.data
 
             if not isinstance(token_x_data, ParsedAccount):
                 LOG.warning(f"Unable to parse X of {self.DEX_NAME}:{ticker}")
@@ -397,8 +397,8 @@ class DooarAMM(Amm):
             token_x_parsed: dict = token_x_data.parsed
             token_y_parsed: dict = token_y_data.parsed
 
-            token_x_amt = token_x_parsed["info"]["tokenAmount"]["amount"]
-            token_y_amt = token_y_parsed["info"]["tokenAmount"]["amount"]
+            token_x_amount = token_x_parsed["info"]["tokenAmount"]["amount"]
+            token_y_amount = token_y_parsed["info"]["tokenAmount"]["amount"]
 
             token_x_decimals = token_x_parsed["info"]["tokenAmount"]["decimals"]
             token_y_decimals = token_y_parsed["info"]["tokenAmount"]["decimals"]
@@ -407,8 +407,8 @@ class DooarAMM(Amm):
                 (
                     ticker,
                     {
-                        "token_x_amount": token_x_amt,
-                        "token_y_amount": token_y_amt,
+                        "token_x_amount": token_x_amount,
+                        "token_y_amount": token_y_amount,
                         "token_x_decimals": token_x_decimals,
                         "token_y_decimals": token_y_decimals,
                     },
@@ -479,23 +479,23 @@ class FluxBeam(Amm):
             LOG.error(f"FluxBeam error: {pool}")
             return
 
-        token_x_acc = pool["tokenA"]
-        token_y_acc = pool["tokenB"]
+        token_x_account = pool["tokenA"]
+        token_y_account = pool["tokenB"]
 
-        if not token_x_acc.value:
+        if not token_x_account.value:
             LOG.warning(
                 f"No value found for X of {self.DEX_NAME}:{pool['pool_info']['ticker']}"
             )
             return
 
-        if not token_y_acc.value:
+        if not token_y_account.value:
             LOG.warning(
                 f"No value found for Y of {self.DEX_NAME}:{pool['pool_info']['ticker']}"
             )
             return
 
-        token_x_data = token_x_acc.value.data
-        token_y_data = token_y_acc.value.data
+        token_x_data = token_x_account.value.data
+        token_y_data = token_y_account.value.data
 
         if not isinstance(token_x_data, ParsedAccount):
             LOG.warning(
@@ -512,8 +512,8 @@ class FluxBeam(Amm):
         token_x_parsed: dict = token_x_data.parsed
         token_y_parsed: dict = token_y_data.parsed
 
-        token_x_amt = token_x_parsed["info"]["tokenAmount"]["amount"]
-        token_y_amt = token_y_parsed["info"]["tokenAmount"]["amount"]
+        token_x_amount = token_x_parsed["info"]["tokenAmount"]["amount"]
+        token_y_amount = token_y_parsed["info"]["tokenAmount"]["amount"]
 
         token_x_decimals = token_x_parsed["info"]["tokenAmount"]["decimals"]
         token_y_decimals = token_y_parsed["info"]["tokenAmount"]["decimals"]
@@ -524,8 +524,8 @@ class FluxBeam(Amm):
                 dex=self.DEX_NAME,
                 pair=pool["pool_info"]["ticker"],
                 market_address=pool["pool_info"]["address"],
-                token_x=token_x_amt,
-                token_y=token_y_amt,
+                token_x=token_x_amount,
+                token_y=token_y_amount,
                 token_x_decimals=token_x_decimals,
                 token_y_decimals=token_y_decimals,
                 additional_info="{}",
