@@ -24,7 +24,7 @@ import db
 from src.collection.tx_data.collector import TXFromBlockCollector
 
 LOG = logging.getLogger(__name__)
-BATCH_SIZE = 10
+BATCH_SIZE = 50
 # Defines offset of `HistoricalTXCollector._get_assigned_blocks method.
 # In case when several historical data collector are run simultaneously, different offsets will ensure
 # that these collectors don't get same block numbers in assignment.
@@ -51,8 +51,9 @@ class HistoricalTXCollector(TXFromBlockCollector):
             slots_to_update = session.query(db.SlotTable) \
                 .filter(db.SlotTable.is_processed == False) \
                 .limit(BATCH_SIZE) \
-                .with_for_update() \
                 .all()
+            
+            LOG.info(f'q1 done: {len(slots_to_update)}')
 
             # Step 2: Extract slot numbers and mark them as processed
             slot_numbers = []
