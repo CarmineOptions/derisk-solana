@@ -15,7 +15,6 @@ on Solana chain for lending protocols.
     4) replace `t_0` with last fetched block and repeat 1-3.
     If being restarted - start from the latest block saved. The last current block number is collected from db.
 """
-import asyncio
 import logging
 
 import db

@@ -83,7 +83,7 @@ class GenericSolanaConnector(ABC):
 
         # rate limiter
         self._set_rate_limit()
-        self._call_timestamps = deque(maxlen=self.rate_limit)
+        self._call_timestamps: deque[float] = deque(maxlen=self.rate_limit)
 
         LOGGER.info(f"{self.__class__.__name__} is all set to collect.")
 
@@ -94,7 +94,7 @@ class GenericSolanaConnector(ABC):
         self.authenticated_rpc_url = rpc_url
 
     def _set_rate_limit(self) -> None:
-        rate_limit = os.getenv("RATE_LIMIT", "")
+        rate_limit = os.getenv("RATE_LIMIT", None)
         if not rate_limit:
             LOGGER.error("Rate limit was not found in environment variables and set to 1.")
             self.rate_limit = 1

@@ -16,7 +16,6 @@ Fetch all transactions from this block, filter by PPKs of all protocols (i.e., S
 
 If being restarted - nothing changes.
 """
-import asyncio
 import logging
 import os
 
