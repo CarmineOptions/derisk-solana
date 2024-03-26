@@ -8,16 +8,16 @@ from based58 import based58
 from solana.rpc.async_api import AsyncClient, Pubkey
 from solana.rpc.api import Client
 from solders.signature import Signature
-import base58
 import base64
 from construct.core import StreamError
 from anchorpy.program.event import EventParser
 
 from anchorpy.provider import Provider, Wallet, Keypair
+from anchorpy.program.common import Event
 from solders.transaction_status import EncodedTransactionWithStatusMeta, ParsedInstruction, \
     UiPartiallyDecodedInstruction
 from dataclasses import is_dataclass, asdict
-from typing import NamedTuple
+
 import collections.abc
 
 
@@ -60,6 +60,24 @@ class TransactionDecoder:
             idl = Idl.from_json(json_str)
         # intitialize main program
         self.program = Program(idl, program_id, Provider(AsyncClient(), Wallet(Keypair())))
+        self.event_parser = EventParser(program_id, self.program.coder)
+
+        self.events = list()  # temporary storage for parsed events.
+
+    def save_event(self, tx_signature: Signature, block_number: int, event: Event) -> None:  # TODO replace when decided how to store events.
+        """"""
+        self.events.append((block_number, str(tx_signature), event))
+
+    def decode(self, transaction_with_meta: EncodedTransactionWithStatusMeta, block_number: int = -1):
+        """
+
+        :return:
+        """
+        log_msgs = transaction_with_meta.meta.log_messages
+
+        self.event_parser.parse_logs(
+            log_msgs, lambda x: self.save_event(transaction_with_meta.transaction.signatures[0], block_number, x)
+        )
 
     def decode_transaction(self, transaction_with_meta: EncodedTransactionWithStatusMeta):
         """
