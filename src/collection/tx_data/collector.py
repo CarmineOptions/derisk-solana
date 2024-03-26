@@ -47,7 +47,7 @@ class TXFromBlockCollector(GenericSolanaConnector):
 
             if time_passed > 1:
                 # More than a second has passed since the first call, remove it from the list.
-                self._call_timestamps.pop(0)
+                self._call_timestamps.popleft()
             else:
                 # Wait for the remainder of the second before allowing more calls, asynchronously.
                 await asyncio.sleep(1 - time_passed)
