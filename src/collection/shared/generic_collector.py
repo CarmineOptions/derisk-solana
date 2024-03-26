@@ -2,6 +2,7 @@
 Generic class for data collection from Solana chain
 """
 from abc import ABC, abstractmethod
+from collections import deque
 from dataclasses import dataclass
 from typing import List, Tuple
 import logging
@@ -13,10 +14,10 @@ from solana.exceptions import SolanaRpcException
 from solders.signature import Signature
 from solders.transaction_status import EncodedTransactionWithStatusMeta, UiConfirmedBlock
 
-LOG = logging.getLogger(__name__)
+LOGGER = logging.getLogger(__name__)
 
 
-def log_performance_time(logger = LOG):
+def log_performance_time(logger = LOGGER):
     """
     Decorator for logging performance time of subjected function.
     """
@@ -55,7 +56,7 @@ class SolanaTransaction:
             if k in [str(i.pubkey) for i in self.tx_body.transaction.message.account_keys]  # type: ignore
         ]
         if not relevant_sources:
-            LOG.error(f"Transaction `{self.tx_body.transaction.signatures[0]}`"
+            LOGGER.error(f"Transaction `{self.tx_body.transaction.signatures[0]}`"
                       f" does not contain any relevant public keys.")
 
         return relevant_sources
@@ -82,20 +83,20 @@ class GenericSolanaConnector(ABC):
 
         # rate limiter
         self._set_rate_limit()
-        self._call_timestamps = []
+        self._call_timestamps = deque(maxlen=self.rate_limit)
 
-        LOG.info(f"{self.__class__.__name__} is all set to collect.")
+        LOGGER.info(f"{self.__class__.__name__} is all set to collect.")
 
     def _get_rpc_url(self) -> None:
         rpc_url = os.getenv("RPC_URL")
         if not rpc_url:
-            LOG.error("RPC url was not found in environment variables.")
+            LOGGER.error("RPC url was not found in environment variables.")
         self.authenticated_rpc_url = rpc_url
 
     def _set_rate_limit(self) -> None:
         rate_limit = os.getenv("RATE_LIMIT", "")
         if not rate_limit:
-            LOG.error("Rate limit was not found in environment variables and set to 1.")
+            LOGGER.error("Rate limit was not found in environment variables and set to 1.")
             self.rate_limit = 1
             return
         self.rate_limit = int(rate_limit)
@@ -108,12 +109,12 @@ class GenericSolanaConnector(ABC):
         start_time = time.time()
         while not self._collection_completed:
             if k % 10000 == 0:
-                LOG.info(f"Iterations completed: {k}, in {time.time() - start_time:.1f} seconds.")
+                LOGGER.info(f"Iterations completed: {k}, in {time.time() - start_time:.1f} seconds.")
             self._get_assignment()
             self._get_data()
-            self._write_tx_data()
+            self._write_data()
             k += 1
-        LOG.info(f"Collection completed for {self.__class__.__name__}.")
+        LOGGER.info(f"Collection completed for {self.__class__.__name__}.")
 
     def _fetch_block(self, block_number: int) -> Tuple[UiConfirmedBlock, int]:
         """
@@ -128,7 +129,7 @@ class GenericSolanaConnector(ABC):
                 max_supported_transaction_version=0,
             )
         except SolanaRpcException as e:
-            LOG.error(f"SolanaRpcException: {e}")
+            LOGGER.error(f"SolanaRpcException: {e}")
             time.sleep(1)
             return self._fetch_block(block_number)
 
@@ -140,17 +141,16 @@ class GenericSolanaConnector(ABC):
         It ensures that the number of API calls does not exceed a predefined limit per second.
         If the limit is reached, it will pause the execution momentarily before allowing further API calls.
         """
-        # Check if the number of calls made in the last second exceeds the maximum limit.
-        while self.rate_limit <= len(self._call_timestamps):
-            # Calculate the time passed since the first recorded call.
-            time_passed = time.time() - self._call_timestamps[0]
+        now = time.time()
 
-            if time_passed > 1:
-                self._call_timestamps.pop(0)
-            else:
-                time.sleep(1 - time_passed)
+        # If we've reached the rate limit and the current time is within 1 second of the oldest call
+        if len(self._call_timestamps) == self.rate_limit and now - self._call_timestamps[0] < 1:
+            # Calculate the time to wait until making the next call
+            time_to_wait = 1 - (now - self._call_timestamps[0])
+            # Wait for the required time
+            time.sleep(time_to_wait)
 
-        # Record the timestamp of the current call.
+        # Record the timestamp of the current call, discarding the oldest one.
         self._call_timestamps.append(time.time())
 
     @property
@@ -175,7 +175,7 @@ class GenericSolanaConnector(ABC):
         raise NotImplementedError("Implement me!")
 
     @abstractmethod
-    def _write_tx_data(self) -> None:
+    def _write_data(self) -> None:
         """
         Write raw tx data to database.
         """

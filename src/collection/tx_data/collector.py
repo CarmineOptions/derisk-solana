@@ -1,13 +1,13 @@
 """
 Class for collection of transaction data from Solana chain
 """
-import asyncio
-import traceback
 from abc import abstractmethod
 from typing import List, Tuple
+import asyncio
 import logging
 import os
 import time
+import traceback
 
 from solana.exceptions import SolanaRpcException
 from solana.rpc.async_api import AsyncClient
@@ -68,18 +68,17 @@ class TXFromBlockCollector(GenericSolanaConnector):
         while not self._collection_completed:
             self._get_assignment()
             start_time = time.perf_counter()
-            log_message = "START: function `_get_data`."
             # Log the start of the function
-            LOG.info(log_message)
+            LOG.info("START: function `_get_data`.")
             await self._async_get_data()
             elapsed_time = time.perf_counter() - start_time
             LOG.info(f"DONE: function `_get_data` in {elapsed_time:.2f} seconds")
-            self._write_tx_data()
+            self._write_data()
         LOG.info(f"Collection completed for {self.__class__.__name__}.")
 
     @property
     @abstractmethod
-    def COLLECTION_STREAM(self) -> db.CollectionStreamTypes:  # pylint: disable=invalid-name
+    def collection_stream(self) -> db.CollectionStreamTypes:
         """Implement in subclasses to define the constant value"""
         raise NotImplementedError("Implement me!")
 
@@ -218,7 +217,7 @@ class TXFromBlockCollector(GenericSolanaConnector):
             return self._get_latest_finalized_block_on_chain()
 
     @log_performance_time(LOG)
-    def _write_tx_data(self) -> None:
+    def _write_data(self) -> None:
         """
         Write raw tx data to database.
         """
@@ -249,7 +248,7 @@ class TXFromBlockCollector(GenericSolanaConnector):
                             signature=str(signature),
                             block_time=transaction.block_time,
                             transaction_data=transaction.tx_body.to_json(),
-                            collection_stream=self.COLLECTION_STREAM
+                            collection_stream=self.collection_stream
                         )
                         session.add(new_record)
 

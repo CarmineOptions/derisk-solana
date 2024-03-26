@@ -22,7 +22,7 @@ import db
 from src.collection.tx_data.collector import TXFromBlockCollector
 
 
-LOG = logging.getLogger(__name__)
+LOGGER = logging.getLogger(__name__)
 
 BATCH_SIZE = 30
 
@@ -30,7 +30,7 @@ BATCH_SIZE = 30
 class CurrentTXCollector(TXFromBlockCollector):
 
     @property
-    def COLLECTION_STREAM(self) -> db.CollectionStreamTypes:  # pylint: disable=invalid-name
+    def collection_stream(self) -> db.CollectionStreamTypes:
         """
         Property returning stream type.
         """
@@ -76,16 +76,4 @@ class CurrentTXCollector(TXFromBlockCollector):
                 protocol.last_block_collected = max(self.assignment) if self.assignment else None
 
             session.commit()
-        LOG.info(f"Assignment completed: {self.assignment}")
-
-
-async def main():
-    print('Start collecting new transactions from Solana chain: ...')
-    tx_collector = CurrentTXCollector()
-    await tx_collector.async_run()
-
-
-if __name__ == '__main__':
-    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-
-    asyncio.run(main())
+        LOGGER.info(f"Assignment completed: {self.assignment}")
