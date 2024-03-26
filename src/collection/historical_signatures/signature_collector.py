@@ -10,7 +10,7 @@ Collection logic:
     2) Collects 1000 tx signatures starting with `tx_0`.
     3) Collected transactions belong to sequence of blocks from `t_0` to `t_0 - k`.
     Store to tx_signatures table all transactions from blocks `t_0 - 1` to `t_0 - k + 1` with flag `signature`.
-    If signature already exists - change flag to `from_signatures`.
+    If signature already exists - change flag to `signature`.
     Transactions from block `t_0` are handled in current data collector.
     4) we get presumably the earliest transaction signature from `t_0 - k + 1` block
     and collect previous (timewise) 1000 tx.
@@ -97,14 +97,15 @@ class SignatureCollector(GenericSolanaConnector):
         except Exception as e:  # pylint: disable=broad-exception-caught
             tb_str = traceback.format_exc()
             # Log the error message along with the traceback
-            LOGGER.error(f"While fetching signatures for `{self.protocol}` before `{self._oldest_signature}`"
+            LOGGER.error(f"While fetching signatures for protocol = `{self.protocol}`"
+                         f" before the signature = `{self._oldest_signature}`"
                          f" error occurred: {e}\nTraceback:\n{tb_str}")
             self._fetch_signatures()
 
         LOGGER.info(f"Collected {len(self._collected_signatures)} signatures for `{self.protocol}")
 
     @log_performance_time(LOGGER)
-    def _write_tx_data(self) -> None:
+    def _write_data(self) -> None:
         """
         Write signatures and tx meta data to database.
         """
@@ -185,7 +186,7 @@ class SignatureCollector(GenericSolanaConnector):
 
     def _get_watershed_block_signature(self) -> None:
         """
-        Get signature from watershed block. Signature does not have to be from relevant protocol.
+        Get signature from watershed block.
         """
         with db.get_db_session() as session:
             # Query the database for protocols with the given public keys
@@ -194,7 +195,7 @@ class SignatureCollector(GenericSolanaConnector):
             if watershed_block_record:
                 watershed_block_number = watershed_block_record[0]
             else:
-                LOGGER.warning(f"Protocol {self.protocol} is not in the `protocols` table. "
+                LOGGER.warning(f"Protocol = `{self.protocol}` is not in the `protocols` table. "
                                f"Failing to collect watershed block number.")
                 time.sleep(10)
                 self._get_watershed_block_signature()
@@ -203,14 +204,6 @@ class SignatureCollector(GenericSolanaConnector):
         watershed_block, _ = self._fetch_block(watershed_block_number)
         watershed_block_transactions = watershed_block.transactions
         self._oldest_signature = watershed_block_transactions[0].transaction.signatures[0]  # type: ignore
-        LOGGER.info("Signature = {} collected from watershed block `{}` for protocol = {}.".format(
+        LOGGER.info("Signature = {} collected from watershed block = `{}` for protocol = {}.".format(
             self._oldest_signature, watershed_block_number, self.protocol)
         )
-
-
-if __name__ == '__main__':
-    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-
-    LOGGER.info('Start collecting signatures from Solana chain: ...')
-    tx_collector = SignatureCollector()
-    tx_collector.run()

@@ -39,7 +39,7 @@ services:
   data-fetcher-signatures-mango:
     build:
       context: .
-      dockerfile: Dockerfile.signature-collection
+      dockerfile: Dockerfile.signature-collector
     environment:
       AUTHENTICATED_RPC_URL: https://<rpc_provider>/<api_token>
       RATE_LIMIT: 60
@@ -55,7 +55,7 @@ services:
   data-fetcher-signatures-solend:
     build:
       context: .
-      dockerfile: Dockerfile.signature-collection
+      dockerfile: Dockerfile.signature-collector
     environment:
       AUTHENTICATED_RPC_URL: https://<rpc_provider>/<api_token>
       RATE_LIMIT: 20
@@ -71,7 +71,7 @@ services:
   data-fetcher-signatures-kamino:
     build:
       context: .
-      dockerfile: Dockerfile.signature-collection
+      dockerfile: Dockerfile.signature-collector
     environment:
       AUTHENTICATED_RPC_URL: https://<rpc_provider>/<api_token>
       RATE_LIMIT: 20
@@ -87,7 +87,7 @@ services:
   data-fetcher-signatures-marginfi:
     build:
       context: .
-      dockerfile: Dockerfile.signature-collection
+      dockerfile: Dockerfile.signature-collector
     environment:
       AUTHENTICATED_RPC_URL: https://<rpc_provider>/<api_token>
       RATE_LIMIT: 20
@@ -103,7 +103,7 @@ services:
   data-fetcher-current-tx-data:
     build:
       context: .
-      dockerfile: Dockerfile.tx-fetcher-current
+      dockerfile: Dockerfile.current-transactions-collector
     environment:
       AUTHENTICATED_RPC_URL: https://<rpc_provider>/<api_token>
       RATE_LIMIT: 20
@@ -119,7 +119,7 @@ services:
   data-fetcher-hist-tx-data:
     build:
       context: .
-      dockerfile: Dockerfile.tx-fetcher-hist
+      dockerfile: Dockerfile.historical-transactions-collector
     environment:
       AUTHENTICATED_RPC_URL: https://<rpc_provider>/<api_token>
       RATE_LIMIT: 20
