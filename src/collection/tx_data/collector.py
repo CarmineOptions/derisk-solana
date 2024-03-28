@@ -18,6 +18,7 @@ from solders.transaction_status import EncodedTransactionWithStatusMeta, UiConfi
 from sqlalchemy.exc import IntegrityError
 
 from src.collection.shared.generic_collector import GenericSolanaConnector, SolanaTransaction, log_performance_time
+from src.protocols.addresses import ALL_ADDRESSES
 import db
 
 
@@ -175,8 +176,13 @@ class TXFromBlockCollector(GenericSolanaConnector):
         if not self.protocol_public_keys:
             self.protocol_public_keys = list()
         # get list of public keys from env variables.
-        keys = os.getenv("PROTOCOL_PUBLIC_KEYS", "").split(',')
+        keys_env = os.getenv("PROTOCOL_PUBLIC_KEYS", "")
 
+        # if no PPKs in env variables, use all protocol keys
+        if not keys_env:
+            keys = ALL_ADDRESSES.values()
+        else:
+            keys = keys_env.split(',')
         # check if new keys are added
         new_keys = set(keys) - set(self.protocol_public_keys)
         if new_keys:
