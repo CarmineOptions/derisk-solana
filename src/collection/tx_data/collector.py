@@ -180,7 +180,7 @@ class TXFromBlockCollector(GenericSolanaConnector):
 
         # if no PPKs in env variables, use all protocol keys
         if not keys_env:
-            keys = ALL_ADDRESSES.values()
+            keys = list(ALL_ADDRESSES.values())
         else:
             keys = keys_env.split(',')
         # check if new keys are added
