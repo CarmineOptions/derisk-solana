@@ -57,7 +57,7 @@ class SolanaTransaction:
         ]
         if not relevant_sources:
             LOGGER.error(f"Transaction `{self.tx_body.transaction.signatures[0]}`"
-                      f" does not contain any relevant public keys.")
+                         f" does not contain any relevant public keys.")
 
         return relevant_sources
 
@@ -143,10 +143,10 @@ class GenericSolanaConnector(ABC):
         """
         now = time.time()
 
-        # If we've reached the rate limit and the current time is within 1 second of the oldest call
-        if len(self._call_timestamps) == self.rate_limit and now - self._call_timestamps[0] < 1:
-            # Calculate the time to wait until making the next call
-            time_to_wait = 1 - (now - self._call_timestamps[0])
+        # Calculate the time to wait until making the next call
+        time_to_wait = 1 - (now - self._call_timestamps[0])
+        # If we've reached the rate limit and the time to wait is above 0.
+        if len(self._call_timestamps) == self.rate_limit and time_to_wait > 0:
             # Wait for the required time
             time.sleep(time_to_wait)
 
