@@ -247,7 +247,7 @@ class MeteoraAMM(Amm):
         pair = pool["pool_name"]
         token_x_amount, token_y_amount = pool.get("pool_token_amounts", (None, None))[
             :2
-        ]
+        ] # TODO: Find out why there are two values
 
         # Convert amounts to BigInteger and decimals
         token_x, token_x_decimals = self.convert_to_big_integer_and_decimals(
