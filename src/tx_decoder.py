@@ -68,7 +68,7 @@ class TransactionDecoder:
         """"""
         self.events.append((block_number, str(tx_signature), event))
 
-    def decode(self, transaction_with_meta: EncodedTransactionWithStatusMeta, block_number: int = -1):
+    def decode_marginfi_transaction(self, transaction_with_meta: EncodedTransactionWithStatusMeta, block_number: int = -1):
         """
 
         :return:
@@ -161,17 +161,45 @@ class TransactionDecoder:
         return parsed_instructions, logs_parsed, get_account_balances(transaction_with_meta), get_token_balance(transaction_with_meta)
 
 
+def match_token_balances(list1, list2):
+    matched = []
+    unmatched_list1 = list1.copy()
+    unmatched_list2 = list2.copy()
+
+    for item1 in list1:
+        match_found = False
+        for item2 in unmatched_list2:
+            if item1.mint == item2.mint and item1.program_id == item2.program_id and item1.owner == item2.owner:
+                matched.append((item1, item2))
+                unmatched_list2.remove(item2)
+                unmatched_list1.remove(item1)
+                match_found = True
+                break
+        if not match_found:
+            matched.append((item1, None))
+
+    # Add remaining unmatched items from list2
+    for item2 in unmatched_list2:
+        matched.append((None, item2))
+
+    return matched
+
+
 def get_token_balance(transaction_with_meta:  EncodedTransactionWithStatusMeta):
     meta = transaction_with_meta.meta
 
     balances = list()
-    for pre_balance, post_balance in zip(meta.pre_token_balances, meta.post_token_balances):
-        mint = str(pre_balance.mint)
-        pre = pre_balance.ui_token_amount.amount
-        post = post_balance.ui_token_amount.amount
-        owner = str(pre_balance.owner)
-        program_id = str(pre_balance.program_id)
-        balances.append(f"Owner: {owner}, mint: {mint}, change: {pre} -> {post},  Program: {program_id}")
+    paired_balances = match_token_balances(meta.pre_token_balances, meta.post_token_balances)
+    for pre, post in paired_balances:
+        owner = post.owner if post else pre.owner
+        mint = post.mint if post else pre.mint
+        program_id = post.program_id if post else post.program_id
+
+        initial_balance = int(pre.ui_token_amount.amount) if pre else 0
+        final_balance = int(post.ui_token_amount.amount)
+        balances.append(f"Owner: {owner}, mint: {mint}, "
+                        f"balance: {initial_balance:,} -> {final_balance:,}, "
+                        f"change = {final_balance - initial_balance:,},  Program: {program_id}")
     return balances
 
 
@@ -186,9 +214,9 @@ def get_account_balances(transaction_with_meta:  EncodedTransactionWithStatusMet
     ):
         pre = meta.pre_balances[i]
         post = meta.post_balances[i]
-        msg = f"acc.key: {ac}, balance {pre} -> {post} "
+        msg = f"acc.key: {ac}, balance {pre:,} -> {post:,} "
         if pre != post:
-            msg += f"  ! change: {post - pre}"
+            msg += f"  ! change: {post - pre:,}"
         balance_changes.append(msg)
     return balance_changes
 
