@@ -12,4 +12,4 @@ RUN poetry config virtualenvs.create false \
 COPY ./src ./src
 COPY ./db ./db
 
-CMD ["python3", "src/amms.py"]
+CMD ["python3", "scripts/collect_amm_liq.py"]
