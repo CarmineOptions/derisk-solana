@@ -102,6 +102,29 @@ class TransactionStatusMemo(Base):
     tx_signatures_id = Column(Integer, ForeignKey(f'{SCHEMA}.transactions.id'), nullable=False)
 
 
+class ParsedTransactions(Base):
+    __tablename__ = "parsed_transactions"
+    __table_args__ = {"schema": SCHEMA}
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    transaction_id = Column(Integer, nullable=False)
+    instruction_name = Column(String, nullable=False)
+    event_name = Column(String, nullable=True)
+    token_address = Column(String, nullable=False)
+    recipient = Column(String, nullable=False)
+    sender = Column(String, nullable=False)
+    amount = Column(Integer, nullable=False)
+    amount_decimal = Column(Integer, nullable=False)
+
+
+class MarginfiParsedTransactions(ParsedTransactions):
+    __tablename__ = "marginfi_parsed_transactions"
+
+
+class KaminoParsedTransactions(ParsedTransactions):
+    __tablename__ = "kamino_parsed_transactions"
+
+
 class CLOBLiqudity(Base):
     __tablename__ = "orderbook_liquidity"
     __table_args__ = (
