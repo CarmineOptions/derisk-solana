@@ -4,7 +4,7 @@ import logging
 import os
 import time
 
-import src.amms
+import src.protocols.dexes.amms
 import src.persistent_state
 import src.prices
 import src.protocols.events
