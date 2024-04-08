@@ -3727,6 +3727,17 @@ MarkupSafe = ">=2.1.1"
 watchdog = ["watchdog (>=2.3)"]
 
 [[package]]
+name = "whirlpool-essentials"
+version = "0.0.5"
+description = "A core library to interact with Orca Whirlpool"
+optional = false
+python-versions = ">=3.10"
+files = [
+    {file = "whirlpool_essentials-0.0.5-py3-none-any.whl", hash = "sha256:e22d34726476c6425d5b46d78c3188e650c0db4c39eca4b4ff74cedd7dd2fcd5"},
+    {file = "whirlpool_essentials-0.0.5.tar.gz", hash = "sha256:fb18f9405a308900e307cba65cec61071395897e19e278c132fd9c04e16c6f69"},
+]
+
+[[package]]
 name = "widgetsnbextension"
 version = "4.0.10"
 description = "Jupyter interactive widgets for Jupyter Notebook"
@@ -3755,4 +3766,4 @@ testing = ["big-O", "jaraco.functools", "jaraco.itertools", "more-itertools", "p
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-content-hash = "52b2fb77335522582d35d7498af6584c5a2c0b335244cd16c369f58ee097df1c"
+content-hash = "26622778c76a56e6832780f5d106b7d4a61e1baab12df583b2e7f0bbede37de2"
