@@ -61,6 +61,15 @@ class CurrentTXCollector(TXFromBlockCollector):
             range(last_collected_block, min(last_collected_block + BATCH_SIZE, last_block_on_chain))  # type: ignore
         )
 
+        if 253152004 in self.assignment:
+            self.assignment.remove(253152004)  # Unknown bug with block 253152004
+        if 255312004 in self.assignment:
+            self.assignment.remove(255312004)  # Unknown bug with block 255312004
+        if 253584001 in self.assignment:
+            self.assignment.remove(253584001)  # Unknown bug with block 253584001
+        if 255744008 in self.assignment:
+            self.assignment.remove(255744008)  # Unknown bug with block 255744008
+
     def _report_collection(self):
         """
         Updates `last_collected_block` for each protocol.
