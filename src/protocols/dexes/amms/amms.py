@@ -1,8 +1,8 @@
 """
 Module dedicated to fetching and storing data from AMM pools.
 """
-from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Tuple
+
+from typing import Any, Dict, List
 import json
 import logging
 import time
@@ -17,64 +17,14 @@ from solders.pubkey import Pubkey
 from solders.account_decoder import ParsedAccount
 
 from src.protocols.dexes.amms.amm import Amm
-from db import AmmLiquidity, get_db_session, check_bigint
 from src.protocols.anchor_clients.bonkswap_client.accounts import Pool as BonkPool
+from db import AmmLiquidity, get_db_session, check_bigint
 
 AUTHENTICATED_RPC_URL = os.environ.get("AUTHENTICATED_RPC_URL")
 if AUTHENTICATED_RPC_URL is None:
     raise ValueError("No AUTHENTICATED_RPC_URL env var")
 
 LOG = logging.getLogger(__name__)
-
-class Amm(ABC):
-    pools: list[Any]
-    timestamp: int
-
-    def __init__(self):
-        pass
-
-    @abstractmethod
-    async def get_pools(self):
-        """
-        Fetch pools data.
-        """
-        raise NotImplementedError("Implement me!")
-
-    def store_pools(self):
-        """
-        Save pools data to database.
-        """
-        for pool in self.pools:
-            self.store_pool(pool)
-
-    @abstractmethod
-    def store_pool(self, pool: Any) -> None:
-        """
-        Save pool data to database.
-        """
-        raise NotImplementedError("Implement me!")
-
-    @staticmethod
-    def convert_to_big_integer_and_decimals(
-        amount_str: str | None,
-    ) -> Tuple[int | None, int | None]:
-        """
-        Convert string containing numerical value into integer and number of decimals.
-        """
-        if amount_str is None:
-            return None, None
-        # Check if there is a decimal point in the amount_str
-        if "." in amount_str:
-            # Split the string into whole and fractional parts
-            whole_part, fractional_part = amount_str.split(".")
-            # Calculate the number of decimals as the length of the fractional part
-            decimals = len(fractional_part)
-            # Remove the decimal point and convert the remaining string to an integer
-            amount_big_integer = int(whole_part + fractional_part)
-
-            return amount_big_integer, decimals
-
-        return int(amount_str), 0
 
 class Amms:
     """
@@ -166,8 +116,7 @@ class RaydiumAMM(Amm):
         LOG.info("Fetching token info API")
         try:
             result = requests.get(
-                "https://api.mainnet.orca.so/v1/token/list", 
-                timeout=30
+                "https://api.mainnet.orca.so/v1/token/list", timeout=30
             )
             decoded_result = result.content.decode("utf-8")
             self.token_list = json.loads(decoded_result)["tokens"]
@@ -244,7 +193,7 @@ class MeteoraAMM(Amm):
         pair = pool["pool_name"]
         token_x_amount, token_y_amount = pool.get("pool_token_amounts", (None, None))[
             :2
-        ] # TODO: Find out why there are two values
+        ]  # TODO: Find out why there are two values
 
         # Convert amounts to BigInteger and decimals
         token_x, token_x_decimals = self.convert_to_big_integer_and_decimals(
@@ -263,12 +212,12 @@ class MeteoraAMM(Amm):
                 market_address=pool.get("pool_address"),
                 token_x=check_bigint(token_x) if token_x is not None else -1,
                 token_y=check_bigint(token_y) if token_y is not None else -1,
-                token_x_decimals=token_x_decimals
-                if token_x_decimals is not None
-                else -1,
-                token_y_decimals=token_y_decimals
-                if token_y_decimals is not None
-                else -1,
+                token_x_decimals=(
+                    token_x_decimals if token_x_decimals is not None else -1
+                ),
+                token_y_decimals=(
+                    token_y_decimals if token_y_decimals is not None else -1
+                ),
                 additional_info=json.dumps(pool),
             )
 
@@ -539,14 +488,16 @@ async def update_amm_dex_data_continuously():
     LOG.info("Start collecting AMM pools.")
     while True:
         try:
-            amms = Amms([
-                OrcaAMM(),
-                RaydiumAMM(),
-                MeteoraAMM(),
-                BonkAMM(),
-                DooarAMM(),
-                FluxBeam(),
-            ])
+            amms = Amms(
+                [
+                    OrcaAMM(),
+                    RaydiumAMM(),
+                    MeteoraAMM(),
+                    BonkAMM(),
+                    DooarAMM(),
+                    FluxBeam(),
+                ]
+            )
             await amms.update_pools()
             LOG.info(
                 "Successfully processed all pools. Waiting 5 minutes before next update."
