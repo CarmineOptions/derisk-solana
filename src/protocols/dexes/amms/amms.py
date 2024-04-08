@@ -17,6 +17,7 @@ from solders.pubkey import Pubkey
 from solders.account_decoder import ParsedAccount
 
 from src.protocols.dexes.amms.amm import Amm
+from src.protocols.dexes.amms.orca import OrcaAMM
 from src.protocols.anchor_clients.bonkswap_client.accounts import Pool as BonkPool
 from db import AmmLiquidity, get_db_session, check_bigint
 
@@ -47,46 +48,6 @@ class Amms:
             amm.timestamp = timestamp
             await amm.get_pools()
             amm.store_pools()
-
-
-class OrcaAMM(Amm):
-    DEX_NAME = "Orca"
-
-    async def get_pools(self) -> None:
-        """
-        Fetches pool data from the Orca API and stores it in the `pools` attribute.
-        """
-        LOG.info("Fetching pools from Orca API")
-        try:
-            result = requests.get(
-                "https://api.mainnet.orca.so/v1/whirlpool/list", timeout=30
-            )
-            decoded_result = result.content.decode("utf-8")
-            self.pools = json.loads(decoded_result)["whirlpools"]
-            LOG.info(f"Successfully fetched {len(self.pools)} pools")
-        except requests.exceptions.Timeout:
-            LOG.error("Request to Orca whirlpool API timed out")
-            await self.get_pools()
-
-    def store_pool(self, pool: Dict[str, Any]) -> None:
-        """
-        Save pool data to database.
-        """
-        pair = f"{pool['tokenA']['symbol']}-{pool['tokenB']['symbol']}"
-        market_address = pool.get("address", "Unknown")
-
-        with get_db_session() as session:
-            # Creating an instance of AmmLiquidity
-            liquidity_entry = AmmLiquidity(
-                timestamp=self.timestamp,
-                dex=self.DEX_NAME,
-                pair=pair,
-                market_address=market_address,
-                additional_info=json.dumps(pool),
-            )
-            # Add to session and commit
-            session.add(liquidity_entry)
-            session.commit()
 
 
 class RaydiumAMM(Amm):
