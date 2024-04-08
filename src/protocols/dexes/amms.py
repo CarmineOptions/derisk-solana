@@ -446,7 +446,7 @@ class FluxBeam(Amm):
         LOG.info("Fetching FLUXBEAM pools.")
         client = AsyncClient(AUTHENTICATED_RPC_URL)
 
-        with open("src/protocols/idls/fluxbeam_pools.json", "rb") as f:
+        with open("src/protocols/pools/fluxbeam_pools.json", "rb") as f:
             pool_infos = json.load(f)
 
         async def _fetch_pool(pool):
