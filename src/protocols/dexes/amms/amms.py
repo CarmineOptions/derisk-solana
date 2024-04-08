@@ -16,6 +16,7 @@ from solana.rpc.api import Client
 from solders.pubkey import Pubkey
 from solders.account_decoder import ParsedAccount
 
+from src.protocols.dexes.amms.amm import Amm
 from db import AmmLiquidity, get_db_session, check_bigint
 from src.protocols.anchor_clients.bonkswap_client.accounts import Pool as BonkPool
 
@@ -24,10 +25,6 @@ if AUTHENTICATED_RPC_URL is None:
     raise ValueError("No AUTHENTICATED_RPC_URL env var")
 
 LOG = logging.getLogger(__name__)
-
-
-
-
 
 class Amm(ABC):
     pools: list[Any]
