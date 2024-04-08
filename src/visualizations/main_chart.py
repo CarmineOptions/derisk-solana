@@ -8,7 +8,7 @@ import pandas
 import plotly.express
 import plotly.graph_objs
 
-import src.amms
+import src.protocols.dexes.amms
 import src.database
 import src.protocols.state
 
@@ -60,7 +60,7 @@ class Pool:
 def prepare_data(
 	state: src.protocols.state.State,  # pylint: disable=W0613
 	prices: dict[str, decimal.Decimal],  # pylint: disable=W0613
-	amms: src.amms.Amms,  # pylint: disable=W0613
+	amms: src.protocols.dexes.amms.Amms,  # pylint: disable=W0613
 	collateral_token: str,  # pylint: disable=W0613
 	debt_token: str,  # pylint: disable=W0613
 	save_data: bool,  # pylint: disable=W0613
