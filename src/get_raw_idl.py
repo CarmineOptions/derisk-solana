@@ -1,4 +1,5 @@
 import asyncio
+import os
 
 from anchorpy import Program, Idl
 import json
@@ -19,7 +20,7 @@ with open('../mango_v4.json', 'r') as fp:
 
 program_id = Pubkey.from_string("MFv2hWf31Z9kbCa1snEPYctwafyhdvnV7FZnsebVacA")
 
-solana_client = AsyncClient('https://mainnet.helius-rpc.com/?api-key=efee52f7-fc55-4473-ae58-25a66e70fd6f')
+solana_client = AsyncClient(os.getenv("RPC_URL"))
 program = Program(idl, program_id, Provider(solana_client, Wallet(Keypair())))
 DATA_SUBSTRING = 'Program data: '
 
