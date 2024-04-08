@@ -1,4 +1,5 @@
 import binascii
+import os
 from pathlib import Path
 
 from anchorpy import Program, Idl
@@ -227,7 +228,7 @@ if __name__ == "__main__":
         Pubkey.from_string("MFv2hWf31Z9kbCa1snEPYctwafyhdvnV7FZnsebVacA")
     )
 
-    token = 'https://mainnet.helius-rpc.com/?api-key=efee52f7-fc55-4473-ae58-25a66e70fd6f'
+    token = os.getenv("RPC_URL")
     solana_client = Client(token)
     transaction = solana_client.get_transaction(
         Signature.from_string(
