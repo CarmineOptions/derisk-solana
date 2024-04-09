@@ -1,3 +1,4 @@
+from abc import ABC, abstractmethod
 import binascii
 import os
 from pathlib import Path
@@ -20,6 +21,8 @@ from solders.transaction_status import EncodedTransactionWithStatusMeta, ParsedI
 from dataclasses import is_dataclass, asdict
 
 import collections.abc
+
+from db import get_db_session, ParsedTransactions
 
 
 def is_namedtuple(obj):
@@ -50,7 +53,7 @@ PROGRAM_LOG_START_INDEX = len(PROGRAM_LOG)
 PROGRAM_DATA_START_INDEX = len(PROGRAM_DATA)
 
 
-class TransactionDecoder:
+class TransactionDecoder(ABC):
 
     def __init__(self, path_to_idl: Path, program_id: Pubkey):
         self.program_id = program_id
@@ -62,12 +65,37 @@ class TransactionDecoder:
         # intitialize main program
         self.program = Program(idl, program_id, Provider(AsyncClient(), Wallet(Keypair())))
         self.event_parser = EventParser(program_id, self.program.coder)
+        self._processor = self.print_event_to_console
 
         self.events = list()  # temporary storage for parsed events.
+        self.last_tx: EncodedTransactionWithStatusMeta | None = None
 
-    def save_event(self, tx_signature: Signature, block_number: int, event: Event) -> None:  # TODO replace when decided how to store events.
+    @abstractmethod
+    def _create_lending_account(self, event: Event):
+
+        raise NotImplementedError('Implement me!')
+
+    def save_event(self, event: Event) -> None:  # TODO replace when decided how to store events.
         """"""
-        self.events.append((block_number, str(tx_signature), event))
+        self.events.append(event)
+
+    def print_event_to_console(self, event_record: ParsedTransactions):
+        """
+
+        :param event_record:
+        :return:
+        """
+        print(event_record.__dict__)
+
+    def save_event_to_database(self, event_record: ParsedTransactions):
+        """
+
+        :param event_record:
+        :return:
+        """
+        with get_db_session() as session:
+            session.add(event_record)
+            session.commit()
 
     def decode_marginfi_transaction(self, transaction_with_meta: EncodedTransactionWithStatusMeta, block_number: int = -1):
         """
@@ -77,7 +105,7 @@ class TransactionDecoder:
         log_msgs = transaction_with_meta.meta.log_messages
 
         self.event_parser.parse_logs(
-            log_msgs, lambda x: self.save_event(transaction_with_meta.transaction.signatures[0], block_number, x)
+            log_msgs, lambda x: self.save_event(x)
         )
 
     def decode_transaction(self, transaction_with_meta: EncodedTransactionWithStatusMeta):
@@ -86,6 +114,7 @@ class TransactionDecoder:
         :param transaction_with_meta:
         :return:
         """
+        self.last_tx = transaction_with_meta
         meta = transaction_with_meta.meta
         transaction = transaction_with_meta.transaction
         program_log = meta.log_messages
