@@ -1,34 +1,30 @@
-from typing import Any
-import time
 import os
 import logging
 import json
-import math
 import asyncio
+from decimal import Decimal
 
-from solana.rpc.async_api import AsyncClient
 from orca_whirlpool.constants import ORCA_WHIRLPOOL_PROGRAM_ID
 from orca_whirlpool.context import WhirlpoolContext
 from orca_whirlpool.accounts import AccountFinder, AccountFetcher, Whirlpool, TickArray
 from orca_whirlpool.utils import PriceMath
-
-from solders.keypair import Keypair
-from solders.pubkey import Pubkey
 from orca_whirlpool.utils import PoolUtil
 from orca_whirlpool.internal.utils.pool_util import LiquidityDistribution
 
-from decimal import Decimal
+from solders.keypair import Keypair
+from solders.pubkey import Pubkey
+from solana.rpc.async_api import AsyncClient
 
-from db import AmmLiquidity, get_db_session
+# from db import AmmLiquidity, get_db_session
 from src.protocols.dexes.amms.amm import Amm
 from src.protocols.dexes.amms.utils import (
     get_mint_decimals,
-    PriceLevel, 
-    diff_price_levels
+    PriceLevel,
+    diff_price_levels,
 )
 
 LOG = logging.getLogger(__name__)
-SHIFT_64 = Decimal(2)**64
+SHIFT_64 = Decimal(2) ** 64
 
 AUTHENTICATED_RPC_URL = os.environ.get("AUTHENTICATED_RPC_URL")
 if AUTHENTICATED_RPC_URL is None:
@@ -41,8 +37,11 @@ class OrcaPool:
     Takes care of converting the pool to OB-like data and provides properties
     such as bids and asks
     """
+    # pylint: disable=too-many-instance-attributes
     @classmethod
-    async def from_address(cls, address: Pubkey, connection: AsyncClient, ctx: WhirlpoolContext = None) -> "OrcaPool":
+    async def from_address(
+        cls, address: Pubkey, connection: AsyncClient, ctx: WhirlpoolContext = None
+    ) -> "OrcaPool":
         """
         Creates OrcaPool instance from Market address (as Pubkey) and connection (AsyncClient).
 
@@ -56,7 +55,7 @@ class OrcaPool:
         """
 
         if ctx is None:
-            ctx = WhirlpoolContext(ORCA_WHIRLPOOL_PROGRAM_ID, connection, Keypair())   
+            ctx = WhirlpoolContext(ORCA_WHIRLPOOL_PROGRAM_ID, connection, Keypair())
 
         # Helper classes for getting onchain info
         fetcher = AccountFetcher(connection)
@@ -69,14 +68,16 @@ class OrcaPool:
         decimals_a = await get_mint_decimals(pool.token_mint_a, connection)
         decimals_b = await get_mint_decimals(pool.token_mint_b, connection)
 
-        # Fetch list of TickArrays 
+        # Fetch list of TickArrays
         # stored like that because only 88 ticks fit into single onchain account
-        ticker_arrays = await finder.find_tick_arrays_by_whirlpool(ORCA_WHIRLPOOL_PROGRAM_ID, address)
+        ticker_arrays = await finder.find_tick_arrays_by_whirlpool(
+            ORCA_WHIRLPOOL_PROGRAM_ID, address
+        )
 
         # Calculate individual Liquidity Distributions
         liqdist = PoolUtil.get_liquidity_distribution(pool, ticker_arrays)
 
-        # Construct and return OrcaPoool 
+        # Construct and return OrcaPoool
         return OrcaPool(
             pool,
             address,
@@ -87,22 +88,22 @@ class OrcaPool:
             ticker_arrays,
             liqdist,
             decimals_a,
-            decimals_b
+            decimals_b,
         )
-    
+
     def __init__(
-            self, 
-            pool: Whirlpool,
-            address: Pubkey, 
-            connection: AsyncClient, 
-            ctx: WhirlpoolContext, 
-            finder: AccountFinder,
-            fetcher: AccountFetcher,
-            ticker_arrays: list[TickArray],
-            liquidity_distribution: list[LiquidityDistribution],
-            decimals_a: int,
-            decimals_b: int
-        ):
+        self,
+        pool: Whirlpool,
+        address: Pubkey,
+        connection: AsyncClient,
+        ctx: WhirlpoolContext,
+        finder: AccountFinder,
+        fetcher: AccountFetcher,
+        ticker_arrays: list[TickArray],
+        liquidity_distribution: list[LiquidityDistribution],
+        decimals_a: int,
+        decimals_b: int,
+    ):
         """
         Takes in all the needed parameters and calculates asks and bids.
         """
@@ -120,18 +121,18 @@ class OrcaPool:
         self._decimals_b = decimals_b
 
         # Split liq distributions into the ones below and above current tick
-        self._sorted_liqdist = self.split_liquidity_distribution_into_lower_current_upper(
-            liquidity_distribution,
-            pool.sqrt_price
+        self._sorted_liqdist = (
+            self.split_liquidity_distribution_into_lower_current_upper(
+                liquidity_distribution, pool.sqrt_price
+            )
         )
         self._liqdist_down = self._sorted_liqdist[0]
-        self._liqdist_current = self._sorted_liqdist[1] # Current tick returned as well
+        self._liqdist_current = self._sorted_liqdist[1]  # Current tick returned as well
         self._liqdist_up = self._sorted_liqdist[2]
 
         # Calculate bids, asks
-        self.load_bids()    
+        self.load_bids()
         self.load_asks()
-
 
     @property
     def pool(self) -> Whirlpool:
@@ -143,7 +144,7 @@ class OrcaPool:
         - pool (WhirlPool) : Orca WhirlPool instance.
         """
         return self._pool
-    
+
     @property
     def mints_decimals(self) -> tuple[int, int]:
         """
@@ -163,8 +164,10 @@ class OrcaPool:
         Returns:
         - price (Decimal) : Current pool price in human readable format.
         """
-        return PriceMath.sqrt_price_x64_to_price(self._pool.sqrt_price, self._decimals_a, self._decimals_b)
-    
+        return PriceMath.sqrt_price_x64_to_price(
+            self._pool.sqrt_price, self._decimals_a, self._decimals_b
+        )
+
     @property
     def liquidity_distribution(self) -> list[LiquidityDistribution]:
         """
@@ -176,7 +179,11 @@ class OrcaPool:
         return self._liquidity_distribution
 
     @property
-    def sorted_liquidity_distribution(self) -> tuple[list[LiquidityDistribution], LiquidityDistribution, list[LiquidityDistribution]]:
+    def sorted_liquidity_distribution(
+        self,
+    ) -> tuple[
+        list[LiquidityDistribution], LiquidityDistribution, list[LiquidityDistribution]
+    ]:
         """
         Get liquidity distributions split into the ones that are below current tick, the current tick
         and the ones above current tick.
@@ -187,7 +194,7 @@ class OrcaPool:
         - above: LiquidityDistribtuions above current tick
         """
         return self._sorted_liqdist
-    
+
     @property
     def liquidity_distribution_up_direction(self) -> list[LiquidityDistribution]:
         """
@@ -211,18 +218,18 @@ class OrcaPool:
         - lower liqudity distribtuions
         """
         return self._liqdist_down
-    
+
     @property
     def liquidity_distribution_current(self) -> LiquidityDistribution:
         """
-        Get current liquidity distribution. In other terms the one that 
+        Get current liquidity distribution. In other terms the one that
         encompasses current tick.
 
         Returns:
         - current liquidity distribution
         """
         return self._liqdist_current
-    
+
     @property
     def bids(self) -> list[PriceLevel]:
         """
@@ -245,10 +252,12 @@ class OrcaPool:
 
     @staticmethod
     def split_liquidity_distribution_into_lower_current_upper(
-        liqdist: list[LiquidityDistribution], 
+        liqdist: list[LiquidityDistribution],
         sqrt_price: Decimal,
-        bounds_percentage: Decimal | None = None
-    ) -> tuple[list[LiquidityDistribution], LiquidityDistribution, list[LiquidityDistribution]]:
+        bounds_percentage: Decimal | None = None,
+    ) -> tuple[
+        list[LiquidityDistribution], LiquidityDistribution, list[LiquidityDistribution]
+    ]:
         """
         Splits list of liquidity distributions into ones that are below current price, the one
         encompassing the current price and the ones that are above current price.
@@ -269,7 +278,7 @@ class OrcaPool:
 
         # Set default bounds percentage
         if bounds_percentage is None:
-            bounds_percentage = Decimal('0.1')
+            bounds_percentage = Decimal("0.1")
 
         # Calculat upper and lower bound (keep in mind that price is in sqrt terms)
         upper_bound = sqrt_price * (Decimal(1) + bounds_percentage).sqrt()
@@ -284,13 +293,17 @@ class OrcaPool:
         liqdist_current = []
 
         for liq in liqdist:
-            upper_tick_price = PriceMath.tick_index_to_sqrt_price_x64(liq.tick_upper_index)
-            lower_tick_price = PriceMath.tick_index_to_sqrt_price_x64(liq.tick_lower_index)
+            upper_tick_price = PriceMath.tick_index_to_sqrt_price_x64(
+                liq.tick_upper_index
+            )
+            lower_tick_price = PriceMath.tick_index_to_sqrt_price_x64(
+                liq.tick_lower_index
+            )
 
             if upper_tick_price <= sqrt_price:
                 if upper_tick_price >= lower_bound:
-                # If upper tick of the liquidity distribution is below current current price
-                # and higher than lower bound then append to lower distribution
+                    # If upper tick of the liquidity distribution is below current current price
+                    # and higher than lower bound then append to lower distribution
                     liqdist_down.append(liq)
 
             elif lower_tick_price >= sqrt_price:
@@ -304,20 +317,18 @@ class OrcaPool:
                 # so it's current liqudity distribution
                 liqdist_current.append(liq)
 
-            else:   
-                LOG.error(f'Unmanageable liqdist found: {liq}')
+            else:
+                LOG.error(f"Unmanageable liqdist found: {liq}")
 
         if len(liqdist_current) != 1:
-            LOG.error(f'Found more than one current liqdist: {liqdist_current}')
+            LOG.error(f"Found more than one current liqdist: {liqdist_current}")
 
-        return (
-            liqdist_down,
-            liqdist_current[0],
-            liqdist_up
-        )
+        return (liqdist_down, liqdist_current[0], liqdist_up)
 
     @staticmethod
-    def delta_y_price_move_up(current_price: Decimal, upper_price: Decimal, liquidity: int) -> Decimal:
+    def delta_y_price_move_up(
+        current_price: Decimal, upper_price: Decimal, liquidity: int
+    ) -> Decimal:
         """
         Calculates delta in token y (token A) when price goes up (and user trades quote token for base).
 
@@ -327,13 +338,20 @@ class OrcaPool:
         - liquidity (int): Current liquidity (as defined by Orca/Uniswap)
 
         Returns:
-        - token y amount: Token y that is available on given range. This is the amount that will be returned 
+        - token y amount: Token y that is available on given range. This is the amount that will be returned
                           by the AMM in order to go from current to upper price.
         """
-        return Decimal(liquidity) * SHIFT_64 * (upper_price - current_price) / (current_price * upper_price)
+        return (
+            Decimal(liquidity)
+            * SHIFT_64
+            * (upper_price - current_price)
+            / (current_price * upper_price)
+        )
 
     @staticmethod
-    def delta_x_price_move_down(current_price: Decimal, lower_price: Decimal, liquidity: int) -> Decimal:
+    def delta_x_price_move_down(
+        current_price: Decimal, lower_price: Decimal, liquidity: int
+    ) -> Decimal:
         """
         Calculates delta in token x (token B) when price goes down (and user trades base token for quote).
 
@@ -343,49 +361,50 @@ class OrcaPool:
         - liquidity (int): Current liquidity (as defined by Orca/Uniswap)
 
         Returns:
-        - token x amount: Token x that is available on given range. This is the amount that will be returned 
+        - token x amount: Token x that is available on given range. This is the amount that will be returned
                           by the AMM in order to go from current to lower price.
         """
         return Decimal(liquidity) * (current_price - lower_price) / SHIFT_64
-    
 
     def load_bids(self):
         """
-        Calculates approximated bids from the CLMM data and assignes them to '_bids' attribute 
+        Calculates approximated bids from the CLMM data and assignes them to '_bids' attribute
         (can be accessed via 'bids' property).
         """
 
         price_levels = []
 
         # First calculate bids from current range
-        current_tick = self.pool.tick_current_index 
+        current_tick = self.pool.tick_current_index
 
-        # Both values increased by one since the current tick is already stored and we want 
+        # Both values increased by one since the current tick is already stored and we want
         # to include the upper one (range function isn't inclusive)
-        current_tick_range = range(current_tick + 1, self._liqdist_current.tick_upper_index + 1)
+        current_tick_range = range(
+            current_tick + 1, self._liqdist_current.tick_upper_index + 1
+        )
         current_price = PriceMath.tick_index_to_sqrt_price_x64(current_tick)
 
         # Liquidity on current liqudity distribution
         current_liquidity = self._liqdist_current.liquidity
 
-        # Iterate over the list of ticks where the upper ticks go up to 
+        # Iterate over the list of ticks where the upper ticks go up to
         # the end of current liquidity distribution
         for next_tick in current_tick_range:
             # Current price is kept the same while the upper price is updated
             # during each iteration
             upper_price = PriceMath.tick_index_to_sqrt_price_x64(next_tick)
-            
+
             # Calculate delta in y token for every upper tick
             delta_y = self.delta_y_price_move_up(
-                current_price,
-                upper_price,
-                current_liquidity
+                current_price, upper_price, current_liquidity
             )
 
             # Create new PriceLevel entry
             price_level = PriceLevel(
-                price = PriceMath.tick_index_to_price(next_tick, self._decimals_a, self._decimals_b),
-                amount = delta_y / 10 ** self._decimals_a
+                price=PriceMath.tick_index_to_price(
+                    next_tick, self._decimals_a, self._decimals_b
+                ),
+                amount=delta_y / 10**self._decimals_a,
             )
 
             # Append PriceLevel to list
@@ -398,7 +417,7 @@ class OrcaPool:
 
         # Now iterate over other ranges in upper direction
         for upliq in self._liqdist_up:
-            # Now the current liquidity distribution is always the one that's 
+            # Now the current liquidity distribution is always the one that's
             # next in line (when going up)
             current_tick = upliq.tick_lower_index
             current_price = PriceMath.tick_index_to_sqrt_price_x64(current_tick)
@@ -411,14 +430,14 @@ class OrcaPool:
             for next_tick in current_tick_range:
                 upper_price = PriceMath.tick_index_to_sqrt_price_x64(next_tick)
                 delta_y = self.delta_y_price_move_up(
-                    current_price,
-                    upper_price,
-                    current_liquidity
+                    current_price, upper_price, current_liquidity
                 )
 
                 price_level = PriceLevel(
-                    price = PriceMath.tick_index_to_price(next_tick, self._decimals_a, self._decimals_b),
-                    amount = delta_y / 10 ** self._decimals_a
+                    price=PriceMath.tick_index_to_price(
+                        next_tick, self._decimals_a, self._decimals_b
+                    ),
+                    amount=delta_y / 10**self._decimals_a,
                 )
 
                 _levels.append(price_level)
@@ -429,9 +448,8 @@ class OrcaPool:
         self._bids = price_levels
 
     def load_asks(self):
-
         """
-        Calculates approximated asks from the CLMM data and assignes them to '_asks' attribute 
+        Calculates approximated asks from the CLMM data and assignes them to '_asks' attribute
         (can be accessed via 'asks' property).
         """
 
@@ -440,25 +458,23 @@ class OrcaPool:
         price_levels = []
 
         current_tick = self.pool.tick_current_index
-        current_price = PriceMath.tick_index_to_sqrt_price_x64(current_tick)       
-        current_tick_range = list(range(
-            self._liqdist_current.tick_lower_index, current_tick
-        ))[::-1]
+        current_price = PriceMath.tick_index_to_sqrt_price_x64(current_tick)
+        current_tick_range = list(
+            range(self._liqdist_current.tick_lower_index, current_tick)
+        )[::-1]
         current_liquidity = self._liqdist_current.liquidity
 
         for next_tick in current_tick_range:
             lower_price = PriceMath.tick_index_to_sqrt_price_x64(next_tick)
             delta_x = self.delta_x_price_move_down(
-                current_price,
-                lower_price,
-                current_liquidity
+                current_price, lower_price, current_liquidity
             )
 
             price_level = PriceLevel(
-                price = PriceMath.tick_index_to_price(
+                price=PriceMath.tick_index_to_price(
                     next_tick, self._decimals_a, self._decimals_b
                 ),
-                amount = delta_x  / 10 ** self._decimals_b
+                amount=delta_x / 10**self._decimals_b,
             )
 
             price_levels.append(price_level)
@@ -470,24 +486,22 @@ class OrcaPool:
             current_price = PriceMath.tick_index_to_sqrt_price_x64(current_tick)
             current_liquidity = downliq.liquidity
 
-            current_tick_range = list(range(
-                downliq.tick_lower_index, current_tick
-            ))[::-1]
+            current_tick_range = list(range(downliq.tick_lower_index, current_tick))[
+                ::-1
+            ]
 
             _levels = []
 
             for next_tick in current_tick_range:
                 lower_price = PriceMath.tick_index_to_sqrt_price_x64(next_tick)
                 delta_x = self.delta_x_price_move_down(
-                    current_price,
-                    lower_price,
-                    current_liquidity
+                    current_price, lower_price, current_liquidity
                 )
                 price_level = PriceLevel(
-                    price = PriceMath.tick_index_to_price(
+                    price=PriceMath.tick_index_to_price(
                         next_tick, self._decimals_a, self._decimals_b
                     ),
-                    amount = delta_x  / 10 ** self._decimals_b
+                    amount=delta_x / 10**self._decimals_b,
                 )
 
                 _levels.append(price_level)
@@ -510,13 +524,11 @@ class OrcaAMM(Amm):
         """
         LOG.info("Loading Orca pools")
 
-        with open('src/protocols/pools/orca_pools.json', 'r') as f:
+        with open("src/protocols/pools/orca_pools.json", "r", encoding='utf-8') as f:
             pools_list = json.load(f)
 
         # Get list of addresses
-        adresses = [
-            i['address'] for i in pools_list
-        ]
+        adresses = [i["address"] for i in pools_list]
 
         # Create Coroutine tasks to be gathered
         tasks = [
@@ -524,29 +536,24 @@ class OrcaAMM(Amm):
             for pool in adresses
         ]
 
-        # Gather and return exceptions so that the whole process doesn't 
+        # Gather and return exceptions so that the whole process doesn't
         # fail if there are some errors
         awaited_tasks = await asyncio.gather(*tasks, return_exceptions=True)
 
         # Filter for successfully fetched pools
-        self.pools = [
-            pool for pool in awaited_tasks
-            if isinstance(pool, OrcaPool)
-        ]
+        self.pools = [pool for pool in awaited_tasks if isinstance(pool, OrcaPool)]
 
         if len(tasks) != len(self.pools):
             # This means there were some failures
-            errors = [
-                pool for pool in awaited_tasks
-                if not isinstance(pool, OrcaPool)
-            ]
+            errors = [pool for pool in awaited_tasks if not isinstance(pool, OrcaPool)]
 
             # Log amount of errors
             if errors:
-                LOG.error(f'Was unable to fetch {len(errors)} Orca pools, example: {errors[0]}')
+                LOG.error(
+                    f"Was unable to fetch {len(errors)} Orca pools, example: {errors[0]}"
+                )
 
         LOG.info(f"Fetched {len(self.pools)} Orca pools")
-
 
     def store_pool(self, pool: OrcaPool) -> None:
         """
@@ -565,4 +572,3 @@ class OrcaAMM(Amm):
         #     # Add to session and commit
         #     session.add(liquidity_entry)
         #     session.commit()
-
