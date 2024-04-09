@@ -24,6 +24,15 @@ class MarginfiTransactionParser(TransactionDecoder):
         )
         self._processor(new_lending_account)
 
+    def _change_account_authority(self, event: Event):
+        """"""
+        new_lending_account = MarginfiLendingAccounts(
+            authority=str(event.data.new_account_authority),
+            address=str(event.data.header.marginfi_account),
+            group=str(event.data.header.marginfi_group)
+        )
+        self._processor(new_lending_account)
+
     def _record_deposit(self, event: Event):
         """
 
@@ -275,7 +284,7 @@ class MarginfiTransactionParser(TransactionDecoder):
             self._record_liquidation(event)
 
         if event.name == "MarginfiAccountTransferAccountAuthorityEvent":
-            pass
+            self._change_account_authority(event)
 
     def decode_tx(self, transaction_with_meta: EncodedTransactionWithStatusMeta):
         self.last_tx = transaction_with_meta
@@ -310,4 +319,3 @@ if __name__ == "__main__":
     )
 
     tx_decoder.decode_tx(transaction.value.transaction)
-
