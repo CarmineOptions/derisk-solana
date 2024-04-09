@@ -85,7 +85,7 @@ class TransactionDecoder(ABC):
         :param event_record:
         :return:
         """
-        print(event_record.__dict__)
+        print(event_record)
 
     def save_event_to_database(self, event_record: ParsedTransactions):
         """

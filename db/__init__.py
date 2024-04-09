@@ -93,16 +93,6 @@ class TransactionStatusError(Base):
     tx_signatures_id = Column(Integer, ForeignKey(f'{SCHEMA}.transactions.id'), nullable=False)
 
 
-class LendingAccount(Base):
-    __tablename__ = "lending_accounts"
-    __table_args__ = {"schema": SCHEMA}
-
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    authority = Column(String, nullable=True)
-    address = Column(String, unique=True, nullable=False)
-    group = Column(String, nullable=True)
-
-
 class ParsedTransactions(Base):
     __abstract__ = True
     __tablename__ = "parsed_transactions"
@@ -124,6 +114,14 @@ class ParsedTransactions(Base):
     created_at = Column(BigInteger, nullable=False)
     lending_account_id = Column(Integer, ForeignKey('{}.lending_accounts.id'.format(SCHEMA)), nullable=False)
 
+    def __repr__(self):
+        return f"<ParsedTransactions(\n   id={self.id}, \n   transaction_id='{self.transaction_id}',\n" \
+               f"\n   instruction_name='{self.instruction_name}', \n   event_name='{self.event_name}',\n " \
+               f"\n   position='{self.position}', \n   token='{self.token}'," \
+               f"\n   amount={self.amount}, \n   amount_decimal={self.amount_decimal}, \n   account='{self.account}', " \
+               f"\n   signer='{self.signer}', \n   created_at={self.created_at}," \
+               f"\n   lending_account_id={self.lending_account_id})>"
+
 
 class LendingAccounts(Base):
     __abstract__ = True
@@ -135,6 +133,10 @@ class LendingAccounts(Base):
     address = Column(String, nullable=False)
     group = Column(String, nullable=False)
     created_at = Column(BigInteger, nullable=False)
+
+    def __repr__(self):
+        return f"<LendingAccounts(\n   id={self.id}, \n   authority='{self.authority}', " \
+               f"\n   address='{self.address}', \n   group='{self.group}',\n   created_at={self.created_at})>"
 
 
 class MarginfiParsedTransactions(ParsedTransactions):
