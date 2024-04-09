@@ -1,5 +1,6 @@
 """
 """
+from typing import Callable
 import os
 from pathlib import Path
 import math
@@ -7,7 +8,6 @@ import math
 from anchorpy.program.common import Event
 from solders.signature import Signature
 from solders.transaction_status import EncodedTransactionWithStatusMeta
-from solana.rpc.async_api import AsyncClient, Pubkey
 
 from src.parser.parser import TransactionDecoder
 from db import MarginfiParsedTransactions, MarginfiLendingAccounts
@@ -272,6 +272,9 @@ class MarginfiTransactionParser(TransactionDecoder):
 
         if event.name == "MarginfiAccountTransferAccountAuthorityEvent":
             self._change_account_authority(event)
+
+        else:
+            print('a', event.name)
 
     def decode_tx(self, transaction_with_meta: EncodedTransactionWithStatusMeta):
         self.last_tx = transaction_with_meta

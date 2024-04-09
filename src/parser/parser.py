@@ -87,13 +87,11 @@ class TransactionDecoder(ABC):
         """
         print(event_record)
 
-    def save_event_to_database(self, event_record: ParsedTransactions):
+    def save_event_to_database(self, event_record: ParsedTransactions, timestamp: int):
         """
-
-        :param event_record:
-        :return:
         """
         with get_db_session() as session:
+            event_record.created_at = timestamp
             session.add(event_record)
             session.commit()
 

@@ -3,6 +3,7 @@ Module containing functionality related to Postgres DB used throughout the repo.
 """
 import os
 from enum import Enum
+from xmlrpc.client import Boolean
 
 from sqlalchemy import (
     create_engine,
@@ -110,7 +111,6 @@ class ParsedTransactions(Base):
     signer = Column(String, nullable=False)
 
     created_at = Column(BigInteger, nullable=False)
-    lending_account_id = Column(Integer, ForeignKey('{}.lending_accounts.id'.format(SCHEMA)), nullable=False)
 
     def __repr__(self):
         return f"<ParsedTransactions(\n   id={self.id}, \n   transaction_id='{self.transaction_id}',\n" \
@@ -137,17 +137,55 @@ class LendingAccounts(Base):
                f"\n   address='{self.address}', \n   group='{self.group}',\n   created_at={self.created_at})>"
 
 
+class TransactionsList(Base):
+    __abstract__ = True
+    __tablename__ = 'hist_transaction_list'
+    __table_args__ = {"schema": SCHEMA}
+
+    signature = Column(String, primary_key=True)
+    block_time = Column(BigInteger)
+    is_parsed = Column(Boolean, default=False)
+
+
+class MarginfiTransactionsList(TransactionsList):
+    __tablename__ = 'marginfi_hist_transaction_list'
+
+
+class KaminoTransactionsList(TransactionsList):
+    __tablename__ = 'kamino_hist_transaction_list'
+
+
 class MarginfiParsedTransactions(ParsedTransactions):
     __tablename__ = "marginfi_parsed_transactions"
     lending_account_id = Column(Integer, ForeignKey(f"{SCHEMA}.marginfi_lending_accounts.id"), nullable=False)
 
+    __table_args__ = (
+        Index("ix_marginfi_parsed_transactions_transaction_id", "transaction_id"),
+        Index("ix_marginfi_parsed_transactions_instruction_name", "instruction_name"),
+        Index("ix_marginfi_parsed_transactions_event_name", "event_name"),
+        Index("ix_marginfi_parsed_transactions_account", "account"),
+        Index("ix_marginfi_parsed_transactions_token", "token")
+    )
+
 
 class MarginfiLendingAccounts(LendingAccounts):
     __tablename__ = "marginfi_lending_accounts"
+    __table_args__ = (
+        Index("ix_marginfi_lending_accounts_address", "address"),
+        Index("ix_marginfi_lending_accounts_group", "group"),
+        Index("ix_marginfi_lending_accounts_authority", "authority"),
+    )
 
 
 class KaminoParsedTransactions(ParsedTransactions):
     __tablename__ = "kamino_parsed_transactions"
+    __table_args__ = (
+        Index("ix_kamino_parsed_transactions_transaction_id", "transaction_id"),
+        Index("ix_kamino_parsed_transactions_instruction_name", "instruction_name"),
+        Index("ix_kamino_parsed_transactions_event_name", "event_name"),
+        Index("ix_kamino_parsed_transactions_account", "account"),
+        Index("ix_kamino_parsed_transactions_token", "token")
+    )
 
 
 class KaminoLendingAccounts(LendingAccounts):
