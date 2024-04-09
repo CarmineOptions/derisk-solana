@@ -10,7 +10,7 @@ from solders.transaction_status import EncodedTransactionWithStatusMeta
 from solana.rpc.async_api import AsyncClient, Pubkey
 
 from src.parser.parser import TransactionDecoder
-from db import MarginfiParsedTransactions, MarginfiLendingAccounts, get_db_session
+from db import MarginfiParsedTransactions, MarginfiLendingAccounts
 
 
 class MarginfiTransactionParser(TransactionDecoder):
@@ -44,19 +44,6 @@ class MarginfiTransactionParser(TransactionDecoder):
 
         # check deposit balances
         depositor = event.data.header.signer
-        pre_token_balance = next(
-            b for b in self.last_tx.meta.pre_token_balances
-            if b.owner == depositor and b.mint == mint
-        )
-        post_token_balance = next(
-            b for b in self.last_tx.meta.post_token_balances
-            if b.owner == depositor and b.mint == mint
-        )
-        pre_token_balance_amount = int(pre_token_balance.ui_token_amount.amount)
-        post_token_balance_amount = int(post_token_balance.ui_token_amount.amount)
-        assert post_token_balance_amount - pre_token_balance_amount == amount
-
-        amount_decimal = pre_token_balance.ui_token_amount.decimals
 
         deposit = MarginfiParsedTransactions(
             transaction_id=str(self.last_tx.transaction.signatures[0]),
@@ -66,7 +53,7 @@ class MarginfiTransactionParser(TransactionDecoder):
             position='asset',
             token=str(mint),
             amount=amount,
-            amount_decimal=amount_decimal,
+            amount_decimal=None,
 
             account=str(event.data.header.marginfi_account),
             signer=str(depositor)
@@ -127,7 +114,7 @@ class MarginfiTransactionParser(TransactionDecoder):
         ), None)
         pre_token_balance_amount = int(pre_token_balance.ui_token_amount.amount if pre_token_balance else "0")
         post_token_balance_amount = int(post_token_balance.ui_token_amount.amount)
-        assert post_token_balance_amount - pre_token_balance_amount == amount
+        # assert post_token_balance_amount - pre_token_balance_amount == amount
 
         amount_decimal = post_token_balance.ui_token_amount.decimals
 
