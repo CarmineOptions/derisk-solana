@@ -150,6 +150,10 @@ class KaminoParsedTransactions(ParsedTransactions):
     __tablename__ = "kamino_parsed_transactions"
 
 
+class KaminoLendingAccounts(LendingAccounts):
+    __tablename__ = "kamino_lending_accounts"
+
+
 class CLOBLiqudity(Base):
     __tablename__ = "orderbook_liquidity"
     __table_args__ = (
