@@ -21,7 +21,8 @@ async def get_mint_decimals(mint: Pubkey, client: AsyncClient) -> int:
     if not isinstance(account_info_data, ParsedAccount):
         raise ValueError(f'Unable to parse account: {mint}')
 
-    decimals = account_info_data.parsed['info']['decimals']
+    decimals_parsed: dict = account_info_data.parsed
+    decimals = decimals_parsed['info']['decimals']
 
     if not isinstance(decimals, int):
         raise ValueError(f"Expected decimals to be of type int, got {decimals} of type {type(decimals)}")
