@@ -249,7 +249,7 @@ class MarginfiTransactionParser(TransactionDecoder):
         self._processor(liquidator_received_liability_record)
         self._processor(liquidatee_removed_liability_record)
 
-    def save_event(self, event: Event) -> None:  # TODO replace when decided how to store events.
+    def save_event(self, event: Event) -> None:
         """
         """
         if event.name == "MarginfiAccountCreateEvent":
