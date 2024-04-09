@@ -247,7 +247,7 @@ class OrcaPool:
     def split_liquidity_distribution_into_lower_current_upper(
         liqdist: list[LiquidityDistribution], 
         sqrt_price: Decimal,
-        bounds_percentage: Decimal = None
+        bounds_percentage: Decimal | None = None
     ) -> tuple[list[LiquidityDistribution], LiquidityDistribution, list[LiquidityDistribution]]:
         """
         Splits list of liquidity distributions into ones that are below current price, the one
@@ -272,8 +272,8 @@ class OrcaPool:
             bounds_percentage = Decimal('0.1')
 
         # Calculat upper and lower bound (keep in mind that price is in sqrt terms)
-        upper_bound = sqrt_price * math.sqrt(Decimal(1) + bounds_percentage)
-        lower_bound = sqrt_price * math.sqrt(Decimal(1) - bounds_percentage)
+        upper_bound = sqrt_price * (Decimal(1) + bounds_percentage).sqrt()
+        lower_bound = sqrt_price * (Decimal(1) - bounds_percentage).sqrt()
 
         # Create empty lists for split distributions
         liqdist_up = []
