@@ -15,7 +15,7 @@ from sqlalchemy import (
     Float,
 )
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker, Session
+from sqlalchemy.orm import sessionmaker, Session, relationship
 from sqlalchemy.types import Enum as SQLEnum
 from sqlalchemy import Index
 from sqlalchemy.dialects.postgresql import ARRAY as PG_ARRAY
@@ -91,32 +91,57 @@ class TransactionStatusError(Base):
     tx_signatures_id = Column(Integer, ForeignKey(f'{SCHEMA}.transactions.id'), nullable=False)
 
 
-class TransactionStatusMemo(Base):
-    __tablename__ = "tx_status_memo"
+class LendingAccount(Base):
+    __tablename__ = "lending_accounts"
     __table_args__ = {"schema": SCHEMA}
 
-    id = Column(Integer, primary_key=True)
-    memo_body = Column(String, nullable=False)
-    tx_signatures_id = Column(Integer, ForeignKey(f'{SCHEMA}.transactions.id'), nullable=False)
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    authority = Column(String, nullable=True)
+    address = Column(String, unique=True, nullable=False)
+    group = Column(String, nullable=True)
 
 
 class ParsedTransactions(Base):
+    __abstract__ = True
     __tablename__ = "parsed_transactions"
     __table_args__ = {"schema": SCHEMA}
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    transaction_id = Column(Integer, nullable=False)
+    transaction_id = Column(String, nullable=False)
     instruction_name = Column(String, nullable=False)
     event_name = Column(String, nullable=True)
-    token_address = Column(String, nullable=False)
-    recipient = Column(String, nullable=False)
-    sender = Column(String, nullable=False)
-    amount = Column(Integer, nullable=False)
+
+    position = Column(SQLEnum('asset', 'liability'), nullable=False)
+    token = Column(String, nullable=False)
+    amount = Column(BigInteger, nullable=False)
     amount_decimal = Column(Integer, nullable=False)
+
+    account = Column(String, nullable=False)
+    signer = Column(String, nullable=False)
+
+    created_at = Column(BigInteger, nullable=False)
+    lending_account_id = Column(Integer, ForeignKey('{}.lending_accounts.id'.format(SCHEMA)), nullable=False)
+
+
+class LendingAccounts(Base):
+    __abstract__ = True
+    __tablename__ = "lending_accounts"
+    __table_args__ = {"schema": SCHEMA}
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    authority = Column(String, nullable=False)
+    address = Column(String, nullable=False)
+    group = Column(String, nullable=False)
+    created_at = Column(BigInteger, nullable=False)
 
 
 class MarginfiParsedTransactions(ParsedTransactions):
     __tablename__ = "marginfi_parsed_transactions"
+    lending_account_id = Column(Integer, ForeignKey(f"{SCHEMA}.marginfi_lending_accounts.id"), nullable=False)
+
+
+class MarginfiLendingAccounts(LendingAccounts):
+    __tablename__ = "marginfi_lending_accounts"
 
 
 class KaminoParsedTransactions(ParsedTransactions):
