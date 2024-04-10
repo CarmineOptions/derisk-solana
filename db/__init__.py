@@ -131,16 +131,17 @@ class CLOBLiqudity(Base):
 class AmmLiquidity(Base):
     __tablename__ = 'amm_liquidity'
     __table_args__ = (
-        PrimaryKeyConstraint("dex", "pair", "market_address", "timestamp"),
+        PrimaryKeyConstraint("dex", "token_x_amount", "token_y_amount", "market_address", "timestamp"),
         {"schema": SCHEMA},
     )
 
     timestamp = Column(BigInteger)
     dex = Column(String, nullable=False)
-    pair = Column(String, nullable=False)
     market_address = Column(String)
-    token_x = Column(BigInteger, default=-1)
-    token_y = Column(BigInteger, default=-1)
+    token_x_amount = Column(BigInteger, default=-1)
+    token_y_amount = Column(BigInteger, default=-1)
+    token_x_address = Column(String)
+    token_y_address = Column(String)
     token_x_decimals = Column(Integer, default=-1)
     token_y_decimals = Column(Integer, default=-1)
     additional_info = Column(String)
