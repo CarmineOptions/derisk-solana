@@ -5,7 +5,8 @@ services:
   # Postgres database
   db:
     build:
-      dockerfile: ./Dockerfile.db
+      context: .
+      dockerfile: Dockerfile.db
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
@@ -21,7 +22,8 @@ services:
   # api - reads from db, serves over http
   api:
     build:
-      dockerfile: ./Dockerfile.api
+      context: .
+      dockerfile: Dockerfile.api
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
@@ -34,23 +36,106 @@ services:
       - 3001:3000
 
   # data-fetcher - fetches data and stores them in the database
-  data-fetcher:
+  data-fetcher-signatures-mango:
     build:
-      dockerfile: ./Dockerfile.raw-data-fetching
+      context: .
+      dockerfile: Dockerfile.signature-collector
     environment:
       AUTHENTICATED_RPC_URL: https://<rpc_provider>/<api_token>
-      RATE_LIMIT: 5
+      RATE_LIMIT: 60
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
       POSTGRES_HOST: db
       POSTGRES_DB: postgres
+      PROTOCOL_PUBLIC_KEY: 4MangoMjqJ2firMokCjjGgoK8d4MXcrgL7XJaL3w6fVg
+    depends_on:
+      db:
+        condition: service_healthy
+
+  data-fetcher-signatures-solend:
+    build:
+      context: .
+      dockerfile: Dockerfile.signature-collector
+    environment:
+      AUTHENTICATED_RPC_URL: https://<rpc_provider>/<api_token>
+      RATE_LIMIT: 20
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_HOST: db
+      POSTGRES_DB: postgres
+      PROTOCOL_PUBLIC_KEY: So1endDq2YkqhipRh3WViPa8hdiSpxWy6z3Z6tMCpAo
+    depends_on:
+      db:
+        condition: service_healthy
+
+  data-fetcher-signatures-kamino:
+    build:
+      context: .
+      dockerfile: Dockerfile.signature-collector
+    environment:
+      AUTHENTICATED_RPC_URL: https://<rpc_provider>/<api_token>
+      RATE_LIMIT: 20
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_HOST: db
+      POSTGRES_DB: postgres
+      PROTOCOL_PUBLIC_KEY: KLend2g3cP87fffoy8q1mQqGKjrxjC8boSyAYavgmjD
+    depends_on:
+      db:
+        condition: service_healthy
+
+  data-fetcher-signatures-marginfi:
+    build:
+      context: .
+      dockerfile: Dockerfile.signature-collector
+    environment:
+      AUTHENTICATED_RPC_URL: https://<rpc_provider>/<api_token>
+      RATE_LIMIT: 20
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_HOST: db
+      POSTGRES_DB: postgres
+      PROTOCOL_PUBLIC_KEY: MFv2hWf31Z9kbCa1snEPYctwafyhdvnV7FZnsebVacA
+    depends_on:
+      db:
+        condition: service_healthy
+
+  data-fetcher-current-tx-data:
+    build:
+      context: .
+      dockerfile: Dockerfile.current-transactions-collector
+    environment:
+      AUTHENTICATED_RPC_URL: https://<rpc_provider>/<api_token>
+      RATE_LIMIT: 20
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_HOST: db
+      POSTGRES_DB: postgres
+      PROTOCOL_PUBLIC_KEYS: KLend2g3cP87fffoy8q1mQqGKjrxjC8boSyAYavgmjD,So1endDq2YkqhipRh3WViPa8hdiSpxWy6z3Z6tMCpAo,4MangoMjqJ2firMokCjjGgoK8d4MXcrgL7XJaL3w6fVg,MFv2hWf31Z9kbCa1snEPYctwafyhdvnV7FZnsebVacA
+    depends_on:
+      db:
+        condition: service_healthy
+
+  data-fetcher-hist-tx-data:
+    build:
+      context: .
+      dockerfile: Dockerfile.historical-transactions-collector
+    environment:
+      AUTHENTICATED_RPC_URL: https://<rpc_provider>/<api_token>
+      RATE_LIMIT: 20
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_HOST: db
+      POSTGRES_DB: postgres
+      PROTOCOL_PUBLIC_KEYS: 6LtLpnUFNByNXLyCoK9wA2MykKAmQNZKBdY8s47dehDc,So1endDq2YkqhipRh3WViPa8hdiSpxWy6z3Z6tMCpAo,4MangoMjqJ2firMokCjjGgoK8d4MXcrgL7XJaL3w6fVg
     depends_on:
       db:
         condition: service_healthy
 
   fe:
     build:
-      dockerfile: ./Dockerfile.frontend
+      context: .
+      dockerfile: Dockerfile.frontend
     ports:
       - 8501:8501
 
@@ -100,3 +185,15 @@ services:
       depends_on:
         db:
           condition: service_healthy
+
+  portainer:
+    image: portainer/portainer-ce
+    ports:
+      - "9000:9000"
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock"
+      - portainer_data:/data
+    restart: always
+
+volumes:
+  portainer_data:

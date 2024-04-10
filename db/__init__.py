@@ -2,6 +2,7 @@
 Module containing functionality related to Postgres DB used throughout the repo.
 """
 import os
+from enum import Enum
 
 from sqlalchemy import (
     create_engine,
@@ -10,14 +11,12 @@ from sqlalchemy import (
     String,
     BigInteger,
     ForeignKey,
-    Text,
-    Boolean,
     PrimaryKeyConstraint,
     Float,
 )
-from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session
+from sqlalchemy.types import Enum as SQLEnum
 from sqlalchemy import Index
 from sqlalchemy.dialects.postgresql import ARRAY as PG_ARRAY
 
@@ -39,9 +38,7 @@ if POSTGRES_DB is None:
     raise ValueError("no POSTGRES_DB env var")
 
 CONN_STRING = f"postgresql+psycopg2://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_HOST}/{POSTGRES_DB}"
-
-
-SCHEMA = "public"
+SCHEMA = 'public'
 
 
 def get_db_session() -> Session:
@@ -55,17 +52,22 @@ def get_db_session() -> Session:
     return session()
 
 
+class CollectionStreamTypes(Enum):
+    HISTORICAL = 'historical'
+    CURRENT = 'current'
+    SIGNATURE = 'signature'
+
+
 class TransactionStatusWithSignature(Base):
-    __tablename__ = "tx_signatures"
+    __tablename__ = 'transactions'
 
     id = Column(Integer, primary_key=True)
-    source = Column(String, nullable=False)
+    source = Column(String, ForeignKey(f'{SCHEMA}.protocols.public_key'), nullable=False)
     signature = Column(String, nullable=False)
     slot = Column(BigInteger, nullable=False)
     block_time = Column(BigInteger, nullable=False)
-    tx_raw = Column(
-        String, nullable=True
-    )  # column to store json with transaction's data
+    transaction_data = Column(String, nullable=True)  # column to store json with transaction's data
+    collection_stream = Column(SQLEnum(CollectionStreamTypes, name='collection_stream_types'), nullable=True)
 
     __table_args__ = (
         Index("ix_transactions_slot", "slot"),
@@ -88,9 +90,7 @@ class TransactionStatusError(Base):
 
     id = Column(Integer, primary_key=True)
     error_body = Column(String, nullable=False)
-    tx_signatures_id = Column(
-        Integer, ForeignKey(f"{SCHEMA}.tx_signatures.id"), nullable=False
-    )
+    tx_signatures_id = Column(Integer, ForeignKey(f'{SCHEMA}.transactions.id'), nullable=False)
 
 
 class TransactionStatusMemo(Base):
@@ -99,9 +99,7 @@ class TransactionStatusMemo(Base):
 
     id = Column(Integer, primary_key=True)
     memo_body = Column(String, nullable=False)
-    tx_signatures_id = Column(
-        Integer, ForeignKey(f"{SCHEMA}.tx_signatures.id"), nullable=False
-    )
+    tx_signatures_id = Column(Integer, ForeignKey(f'{SCHEMA}.transactions.id'), nullable=False)
 
 
 class CLOBLiqudity(Base):
@@ -146,3 +144,26 @@ class AmmLiquidity(Base):
     token_x_decimals = Column(Integer, default=-1)
     token_y_decimals = Column(Integer, default=-1)
     additional_info = Column(String)
+
+
+class Protocols(Base):
+    __tablename__ = 'protocols'
+    __table_args__ = {'schema': SCHEMA}
+
+    id = Column(Integer, primary_key=True)
+    public_key = Column(String, unique=True, nullable=False)
+    # watershed block, block that we assign as divider of historical and current data,
+    # to define what collection stream to use for their collection.
+    watershed_block = Column(Integer, nullable=False)
+    last_block_collected = Column(Integer, nullable=True)
+
+
+if __name__ == "__main__":
+    # create the database engine
+    ENGINE = create_engine(CONN_STRING)
+    # create schema
+    connection = ENGINE.raw_connection()
+    cursor = connection.cursor()
+    cursor.execute(f"CREATE SCHEMA IF NOT EXISTS {SCHEMA};")
+
+    Base.metadata.create_all(ENGINE)
