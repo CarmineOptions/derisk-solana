@@ -69,6 +69,8 @@ class CurrentTXCollector(TXFromBlockCollector):
             self.assignment.remove(253584001)  # Unknown bug with block 253584001
         if 255744008 in self.assignment:
             self.assignment.remove(255744008)  # Unknown bug with block 255744008
+        if 256176004 in self.assignment:
+            self.assignment.remove(256176004)  # Unknown bug with block 256176004
 
     def _report_collection(self):
         """
