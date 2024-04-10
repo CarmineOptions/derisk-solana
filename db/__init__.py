@@ -411,8 +411,6 @@ class AmmLiquidity(Base):
     token_y_amount = Column(BigInteger, default=-1)
     token_x_address = Column(String)
     token_y_address = Column(String)
-    token_x_decimals = Column(Integer, default=-1)
-    token_y_decimals = Column(Integer, default=-1)
     additional_info = Column(String)
 
 
