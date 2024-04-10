@@ -6,7 +6,7 @@ CREATE TABLE public.amm_liquidity (
     token_x_amount bigint NOT NULL, 
     token_y_amount bigint NOT NULL,
     token_x_address character varying NOT NULL,
-    token_x_address character varying NOT NULL,
+    token_y_address character varying NOT NULL,
     additional_info character varying NOT NULL
 );
 

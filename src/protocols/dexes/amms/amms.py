@@ -418,8 +418,8 @@ class FluxBeam(Amm):
                 market_address=pool["pool_info"]["address"],
                 token_x_amount=token_x_amount,
                 token_y_amount=token_y_amount,
-                token_x_decimals=token_x_mint,
-                token_y_decimals=token_y_mint,
+                token_x_address=token_x_mint,
+                token_y_address=token_y_mint,
                 additional_info="{}",
             )
 
