@@ -92,7 +92,7 @@ jobs:
         shell: bash
 
       - name: Run pylint
-        if: env.CHANGED_FILES != "No changes in Python files"
+        if: env.CHANGED_FILES != 'No changes in Python files'
         run: |
           source ~/venv-solana/bin/activate
           pylint ${{ env.CHANGED_FILES }}
