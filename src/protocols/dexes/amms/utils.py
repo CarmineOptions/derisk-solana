@@ -97,7 +97,7 @@ def get_amm_delta_y(x1: Decimal, y1: Decimal, target_price: Decimal) -> Decimal:
 
 
 def convert_amm_reserves_to_bids_asks(
-    y_reserves: Decimal, x_reserves: Decimal
+    x_reserves: Decimal, y_reserves: Decimal
 ) -> dict[str, list[PriceLevel]]:
     """
     Converts AMM data (y_reserves, x_reserves) to OB-like data (bids, asks).
