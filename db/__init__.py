@@ -3,7 +3,6 @@ Module containing functionality related to Postgres DB used throughout the repo.
 """
 import os
 from enum import Enum
-from xmlrpc.client import Boolean
 
 from sqlalchemy import (
     create_engine,
@@ -14,9 +13,10 @@ from sqlalchemy import (
     ForeignKey,
     PrimaryKeyConstraint,
     Float,
+    Boolean
 )
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker, Session, relationship
+from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.types import Enum as SQLEnum
 from sqlalchemy import Index
 from sqlalchemy.dialects.postgresql import ARRAY as PG_ARRAY
@@ -107,11 +107,15 @@ class ParsedTransactions(Base):
     position = Column(SQLEnum('asset', 'liability'), nullable=False)
     token = Column(String, nullable=False)
     amount = Column(BigInteger, nullable=False)
-    amount_decimal = Column(Integer, nullable=False)
+    amount_decimal = Column(Integer, nullable=True)
 
+    bank = Column(String, nullable=False)
     account = Column(String, nullable=False)
     signer = Column(String, nullable=False)
 
+    context = Column(String, nullable=True)
+
+    block = Column(BigInteger, nullable=True)
     created_at = Column(BigInteger, nullable=False)
 
     def __repr__(self):
@@ -131,7 +135,7 @@ class LendingAccounts(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     authority = Column(String, nullable=False)
     address = Column(String, nullable=False)
-    group = Column(String, nullable=False)
+    group = Column(String, nullable=True)
     created_at = Column(BigInteger, nullable=False)
 
     def __repr__(self):
@@ -159,7 +163,6 @@ class KaminoTransactionsList(TransactionsList):
 
 class MarginfiParsedTransactions(ParsedTransactions):
     __tablename__ = "marginfi_parsed_transactions"
-    lending_account_id = Column(Integer, ForeignKey(f"{SCHEMA}.marginfi_lending_accounts.id"), nullable=False)
 
     __table_args__ = (
         Index("ix_marginfi_parsed_transactions_transaction_id", "transaction_id"),

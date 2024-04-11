@@ -1,6 +1,5 @@
 """
 """
-from typing import Callable
 import os
 from pathlib import Path
 import math
