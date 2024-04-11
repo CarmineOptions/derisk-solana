@@ -167,7 +167,8 @@ class MarginfiParsedTransactions(ParsedTransactions):
         Index("ix_marginfi_parsed_transactions_instruction_name", "instruction_name"),
         Index("ix_marginfi_parsed_transactions_event_name", "event_name"),
         Index("ix_marginfi_parsed_transactions_account", "account"),
-        Index("ix_marginfi_parsed_transactions_token", "token")
+        Index("ix_marginfi_parsed_transactions_token", "token"),
+        {"schema": SCHEMA},
     )
 
 
@@ -177,6 +178,7 @@ class MarginfiLendingAccounts(LendingAccounts):
         Index("ix_marginfi_lending_accounts_address", "address"),
         Index("ix_marginfi_lending_accounts_group", "group"),
         Index("ix_marginfi_lending_accounts_authority", "authority"),
+        {"schema": SCHEMA}
     )
 
 
@@ -187,7 +189,8 @@ class KaminoParsedTransactions(ParsedTransactions):
         Index("ix_kamino_parsed_transactions_instruction_name", "instruction_name"),
         Index("ix_kamino_parsed_transactions_event_name", "event_name"),
         Index("ix_kamino_parsed_transactions_account", "account"),
-        Index("ix_kamino_parsed_transactions_token", "token")
+        Index("ix_kamino_parsed_transactions_token", "token"),
+        {"schema": SCHEMA},
     )
 
 
