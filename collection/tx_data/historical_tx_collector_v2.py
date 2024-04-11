@@ -29,6 +29,17 @@ LOG = logging.getLogger(__name__)
 BATCH_SIZE = 500
 OFFSET = os.getenv("OFFSET", "0")
 
+class MangoTemp(db.Base):
+    __tablename__ = 'mango_tmp'
+
+    id = Column(Integer, primary_key=True)
+    signature = Column(String, nullable=False)
+    is_collected = Column(Boolean, default=False)
+
+    __table_args__ = (
+        Index("ix_mango_signature", "signature"),
+        {"schema": db.SCHEMA},
+    )
 
 class MfTemp(db.Base):
     __tablename__ = 'mf_tmp'
@@ -50,7 +61,7 @@ class SolTemp(db.Base):
     is_collected = Column(Boolean, default=False)
 
     __table_args__ = (
-        Index("ix_mf_signature", "signature"),
+        Index("ix_sol_signature", "signature"),
         {"schema": db.SCHEMA},
     )
 
@@ -74,9 +85,9 @@ class QuickHistoricalTXCollector(HistoricalTXCollector):
         """
         with db.get_db_session() as session:
             signatures = session.query(
-                SolTemp.signature
+                MangoTemp.signature
             ).filter(
-                SolTemp.is_collected == False
+                MangoTemp.is_collected == False
             ).limit(BATCH_SIZE).all()
 
         self.assignment = [i.signature for i in signatures]
@@ -145,7 +156,7 @@ class QuickHistoricalTXCollector(HistoricalTXCollector):
         """
         """
         with db.get_db_session() as session:
-            session.query(SolTemp).filter(SolTemp.signature.in_(self.assignment)).update(
+            session.query(MangoTemp).filter(MangoTemp.signature.in_(self.assignment)).update(
                 {"is_collected": True}, synchronize_session=False
             )
             session.commit()
