@@ -195,7 +195,7 @@ class MarginfiTransactionParser(TransactionDecoder):
             instruction_name='lending_account_liquidate',
             event_name=event.name,
             position='asset',
-            token=str(asset_token),git
+            token=str(asset_token),
             amount=math.ceil(liquidator_received_assets),
             amount_decimal=amount_decimal_asset_token,
 
