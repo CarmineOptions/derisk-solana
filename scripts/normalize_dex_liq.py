@@ -3,6 +3,7 @@ Script for running AMM liquidity collector.
 """
 
 import logging
+import asyncio
 
 import sys
 sys.path.append(".")
@@ -16,4 +17,4 @@ if __name__ == "__main__":
         level=logging.INFO,
         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     )
-    normalize_dex_data_continuously()
+    asyncio.run(normalize_dex_data_continuously())
