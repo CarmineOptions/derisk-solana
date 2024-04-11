@@ -1,14 +1,23 @@
+import os
 import time
 import logging
 import traceback
 from decimal import Decimal
 
+from solana.rpc.async_api import AsyncClient
+from solders.pubkey import Pubkey
+
 import db
 from src.protocols.dexes.amms.utils import convert_amm_reserves_to_bids_asks
 from src.protocols.dexes.amms.utils import get_tokens_address_to_info_map
+from src.protocols.dexes.amms.utils import get_mint_decimals
 
 LOG = logging.getLogger(__name__)
 NORMALIZE_INTERVAL_SECONDS: int = 5 * 60  # Five minutes
+
+AUTHENTICATED_RPC_URL = os.environ.get("AUTHENTICATED_RPC_URL")
+if AUTHENTICATED_RPC_URL is None:
+    raise ValueError("No AUTHENTICATED_RPC_URL env var")
 
 
 def get_last_entries_per_dex_per_pair() -> list[db.AmmLiquidity]:
@@ -35,10 +44,17 @@ def get_last_entries_per_dex_per_pair() -> list[db.AmmLiquidity]:
             .all()
         )
 
+    if len(entries) == 0:
+        LOG.warning("Fetched zero entries to normalize.")
+
     return entries
 
 
-def common_raw_amm_data_handler(
+async def get_onchain_token_decimals(token_address: Pubkey) -> int:
+    return await get_mint_decimals(token_address, AsyncClient(AUTHENTICATED_RPC_URL))
+
+
+async def common_raw_amm_data_handler(
     amm_entry: db.AmmLiquidity, timestamp: int, tokens: dict[str, dict[str, str | int]]
 ) -> db.DexNormalizedLiquidity:
     """
@@ -52,18 +68,28 @@ def common_raw_amm_data_handler(
     Returns:
     - normalized liquidity: AmmLiquidity converted to DexNormalizedLiquidity
     """
-    # Get tokens decimals
-    token_x_decimals = int(
-        tokens[str(amm_entry.token_x_address)].get("decimals", False)
-    )
-    token_y_decimals = int(
-        tokens[str(amm_entry.token_y_address)].get("decimals", False)
-    )
+    token_x = tokens.get(str(amm_entry.token_x_address))
+    token_y = tokens.get(str(amm_entry.token_y_address))
 
-    if not token_x_decimals or not token_y_decimals:
-        raise ValueError(
-            f"Unable to find decimals for addresses: {amm_entry.token_x_address}, {amm_entry.token_y_address}"
+    if not token_x:
+        LOG.warning(
+            f"Info for token X({amm_entry.token_x_address}) not present in API, getting onchain value."
         )
+        token_x_decimals = await get_onchain_token_decimals(
+            Pubkey.from_string(str(amm_entry.token_x_address))
+        )
+    else:
+        token_x_decimals = int(tokens[str(amm_entry.token_x_address)]["decimals"])
+
+    if not token_y:
+        LOG.warning(
+            f"Info for token Y({amm_entry.token_x_address}) not present in API, getting onchain value."
+        )
+        token_y_decimals = await get_onchain_token_decimals(
+            Pubkey.from_string(str(amm_entry.token_y_address))
+        )
+    else:
+        token_y_decimals = int(tokens[str(amm_entry.token_y_address)]["decimals"])
 
     # Convert token amounts to human readable values
     token_x_amount = Decimal(amm_entry.token_x_amount or 0) / 10**token_x_decimals
@@ -98,6 +124,9 @@ RAW_DEX_DATA_HANDLERS = {
     "LIFINITY": common_raw_amm_data_handler,
     "SABER": common_raw_amm_data_handler,
     "SENTRE": common_raw_amm_data_handler,
+    "BonkSwap": common_raw_amm_data_handler,
+    "DOOAR": common_raw_amm_data_handler,
+    "FluxBeam": common_raw_amm_data_handler,
 }
 
 
@@ -108,12 +137,17 @@ def upload_normalized_liquidity(data: list[db.DexNormalizedLiquidity]):
     Parameters:
     - data: list of DexNormalizedLiquidity entries
     """
+
+    if len(data) == 0:
+        LOG.warning("No normalized entries to upload")
+        return
+
     with db.get_db_session() as sesh:
         sesh.add_all(data)
         sesh.commit()
 
 
-def normalize_amm_liquidity():
+async def normalize_amm_liquidity():
     """
     Fetches latest values of AmmLiquidity, converts them to DexNormalizedLiquidity
     and uploads them to database.
@@ -129,6 +163,7 @@ def normalize_amm_liquidity():
         for entry in entries:
 
             if not (entry.token_y_amount and entry.token_x_amount and entry.dex):
+                LOG.warning(f"Can't handle AmmLiquidity entry: {entry}")
                 continue
 
             handler = RAW_DEX_DATA_HANDLERS.get(entry.dex)
@@ -137,7 +172,8 @@ def normalize_amm_liquidity():
                 LOG.error(f"Unable to find normalization handler for {entry.dex}")
                 continue
 
-            normalized_data.append(handler(entry, timestamp, tokens))
+            normalized_entry = await handler(entry, timestamp, tokens)
+            normalized_data.append(normalized_entry)
 
         upload_normalized_liquidity(normalized_data)
 
@@ -147,7 +183,7 @@ def normalize_amm_liquidity():
         LOG.error(f"An error occurred: {e}\nTraceback:\n{tb_str}")
 
 
-def normalize_dex_data_continuously():
+async def normalize_dex_data_continuously():
     """
     Normalizes dex data continuously, every n-seconds as defined by NORMALIZE_INTERVAL_SECONDS consts.
     """
@@ -155,7 +191,7 @@ def normalize_dex_data_continuously():
     while True:
         time_start = time.time()
 
-        normalize_amm_liquidity()
+        await normalize_amm_liquidity()
 
         execution_time = time.time() - time_start
 
