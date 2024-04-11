@@ -152,7 +152,7 @@ def convert_amm_reserves_to_bids_asks(
 
 def get_tokens_address_to_info_map() -> dict[str, dict[str, str | int]]:
     """
-    Retrieves list of solana tokens obtained via Jupiter api and returns a map 
+    Retrieves list of solana tokens obtained via Jupiter api and returns a map
     where keys are the tokens addresses and values are a dicts containing 'symbol', 'name', 'decimals'
 
     Returns:
@@ -160,23 +160,24 @@ def get_tokens_address_to_info_map() -> dict[str, dict[str, str | int]]:
     """
 
     # List of tokens from Jupiter
-    r = requests.get('https://token.jup.ag/all')
+    r = requests.get("https://token.jup.ag/all", timeout=30)
 
     if r.status_code != 200:
-        raise ValueError(f'Unable to fetch list of tokens: {r.text}')
+        raise ValueError(f"Unable to fetch list of tokens: {r.text}")
 
     return {
-        token['address']: {
-            'symbol': token['symbol'],
-            'name': token['name'],
-            'decimals': token['decimals'],
-        } for token in r.json()
+        token["address"]: {
+            "symbol": token["symbol"],
+            "name": token["name"],
+            "decimals": token["decimals"],
+        }
+        for token in r.json()
     }
 
 
 def get_tokens_symbol_to_info_map() -> dict[str, dict[str, str | int]]:
     """
-    Retrieves list of solana tokens obtained via Jupiter api and returns a map 
+    Retrieves list of solana tokens obtained via Jupiter api and returns a map
     where keys are the tokens symbols and values are a dicts containing 'address', 'name', 'decimals'
 
     Returns:
@@ -184,15 +185,16 @@ def get_tokens_symbol_to_info_map() -> dict[str, dict[str, str | int]]:
     """
 
     # List of tokens from Jupiter
-    r = requests.get('https://token.jup.ag/all')
+    r = requests.get("https://token.jup.ag/all", timeout=30)
 
     if r.status_code != 200:
-        raise ValueError(f'Unable to fetch list of tokens: {r.text}')
+        raise ValueError(f"Unable to fetch list of tokens: {r.text}")
 
     return {
-        token['symbol']: {
-            'address': token['address'],
-            'name': token['name'],
-            'decimals': token['decimals'],
-        } for token in r.json()
+        token["symbol"]: {
+            "address": token["address"],
+            "name": token["name"],
+            "decimals": token["decimals"],
+        }
+        for token in r.json()
     }
