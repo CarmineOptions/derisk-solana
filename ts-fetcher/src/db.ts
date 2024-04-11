@@ -29,12 +29,11 @@ const dbClientConfig = getDBClientConfig();
 export type AmmLiquidityEntry = {
   timestamp: number,
   dex: string;
-  pair: string;
   market_address: string;
-  token_x: number,
-  token_y: number,
-  token_x_decimals: number,
-  token_y_decimals: number,
+  token_x_amount: number,
+  token_y_amount: number,
+  token_x_address: string,
+  token_y_address: string,
   additional_info: string,
 };
 
@@ -44,20 +43,19 @@ export const writeAmmLiquidityEntries = async (signatures: AmmLiquidityEntry[]) 
   try {
     await client.query("BEGIN");
     const insertQuery = `
-      INSERT INTO amm_liquidity(timestamp, dex, pair, market_address, token_x, token_y, token_x_decimals, token_y_decimals, additional_info)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      INSERT INTO amm_liquidity(timestamp, dex, market_address, token_x_amount, token_y_amount, token_x_address, token_y_address, additional_info)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
     `;
 
-    for (const { timestamp, dex, pair, market_address, token_x, token_y, token_x_decimals, token_y_decimals, additional_info } of signatures) {
+    for (const { timestamp, dex, market_address, token_x_amount, token_y_amount, token_x_address, token_y_address, additional_info } of signatures) {
       await client.query(insertQuery, [
         timestamp,
         dex,
-        pair,
         market_address,
-        token_x,
-        token_y,
-        token_x_decimals,
-        token_y_decimals,
+        token_x_amount,
+        token_y_amount,
+        token_x_address,
+        token_y_address,
         additional_info
       ]);
     }
