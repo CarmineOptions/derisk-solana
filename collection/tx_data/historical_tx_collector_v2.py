@@ -13,13 +13,46 @@ from solders.errors import SerdeJSONError
 from solders.signature import Signature
 from solders.transaction_status import EncodedTransactionWithStatusMeta
 
+from sqlalchemy import (
+    Column,
+    Integer,
+    String,
+    Boolean,
+    Index
+)
+
 import db
-from collection.shared.generic_collector import log_performance_time
-from collection.tx_data import HistoricalTXCollector
+from src.collection.shared.generic_collector import log_performance_time
+from src.collection.tx_data.historical_data_collector import HistoricalTXCollector
 
 LOG = logging.getLogger(__name__)
 BATCH_SIZE = 500
 OFFSET = os.getenv("OFFSET", "0")
+
+
+class MfTemp(db.Base):
+    __tablename__ = 'mf_tmp'
+
+    id = Column(Integer, primary_key=True)
+    signature = Column(String, nullable=False)
+    is_collected = Column(Boolean, default=False)
+
+    __table_args__ = (
+        Index("ix_mf_signature", "signature"),
+        {"schema": db.SCHEMA},
+    )
+
+class SolTemp(db.Base):
+    __tablename__ = 'sol_tmp'
+
+    id = Column(Integer, primary_key=True)
+    signature = Column(String, nullable=False)
+    is_collected = Column(Boolean, default=False)
+
+    __table_args__ = (
+        Index("ix_mf_signature", "signature"),
+        {"schema": db.SCHEMA},
+    )
 
 
 class QuickHistoricalTXCollector(HistoricalTXCollector):
@@ -40,10 +73,10 @@ class QuickHistoricalTXCollector(HistoricalTXCollector):
         """
         with db.get_db_session() as session:
             signatures = session.query(
-                db.TransactionStatusWithSignature.signature
+                MfTemp.signature
             ).filter(
-                db.TransactionStatusWithSignature.transaction_data.is_(None)
-            ).offset(int(OFFSET)).limit(BATCH_SIZE).all()
+                MfTemp.is_collected.is_(None)
+            ).limit(BATCH_SIZE).all()
 
         self.assignment = [i.signature for i in signatures]
 
@@ -73,7 +106,7 @@ class QuickHistoricalTXCollector(HistoricalTXCollector):
             )
         except SolanaRpcException as e:
             LOG.error(f"SolanaRpcException while fetching {tx_signature}: {e}")
-            await asyncio.sleep(0.25)
+            await asyncio.sleep(0.2)
             return await self._async_fetch_transaction(tx_signature)
 
         if not transaction.value:
@@ -107,6 +140,14 @@ class QuickHistoricalTXCollector(HistoricalTXCollector):
             session.commit()
         self._report_collection()
 
+    def _report_collection(self) -> None:
+        """
+        """
+        with db.get_db_session() as session:
+            session.query(MfTemp).filter(MfTemp.signature.in_(self.assignment)).update(
+                {"is_collected": True}, synchronize_session=False
+            )
+        LOG.info(f"Data for {len(self.relevant_transactions)} have been stored to the database.")
 
 async def main():
     print('Start collecting old transactions from Solana chain: ...')
