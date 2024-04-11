@@ -19,6 +19,18 @@ CREATE TABLE public.orderbook_liquidity (
     asks float[][] NOT NULL
 );
 
+CREATE TABLE public.dex_normalized_liquidity (
+    -- Contains liquidity from all non-CLOB protocols,
+    -- normalized as bids/asks price levels +- 10% from midprice
+    timestamp bigint NOT NULL,
+    dex character varying NOT NULL, 
+    market_address character varying NOT NULL,
+    token_x_address character varying NOT NULL,
+    token_y_address character varying NOT NULL,
+    bids float[][] NOT NULL,
+    asks float[][] NOT NULL
+);
+
 CREATE TABLE public.tx_signatures (
     id integer NOT NULL,
     source character varying NOT NULL,
@@ -62,6 +74,12 @@ ALTER TABLE
     ONLY public.amm_liquidity
 ADD 
     CONSTRAINT amm_liquidity_pkey 
+    PRIMARY KEY (dex, token_x_address, token_y_address, market_address, timestamp);
+
+ALTER TABLE 
+    ONLY public.dex_normalized_liquidity
+ADD 
+    CONSTRAINT dex_normalized_liquidity_pkey 
     PRIMARY KEY (dex, token_x_address, token_y_address, market_address, timestamp);
 
 ALTER TABLE

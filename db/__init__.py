@@ -144,6 +144,33 @@ class AmmLiquidity(Base):
     token_y_address = Column(String)
     additional_info = Column(String)
 
+class DexNormalizedLiquidity(Base):
+    __tablename__ = 'dex_normalized_liquidity'
+    __table_args__ = (
+        PrimaryKeyConstraint("dex", "token_x_address", "token_y_address", "market_address", "timestamp"),
+        {"schema": SCHEMA},
+    )
+
+    timestamp = Column(BigInteger, nullable=False)
+    dex = Column(String, nullable=False)
+    market_address = Column(String, nullable=False)
+    token_x_address = Column(String, nullable=False)
+    token_y_address = Column(String, nullable=False)
+    bids = Column(PG_ARRAY(Float), nullable=False)
+    asks = Column(PG_ARRAY(Float), nullable=False)
+
+    def __repr__(self):
+        return (
+            "DexNormalizedLiquidity("
+            f"timestamp={self.timestamp},"
+            f"dex={self.dex},"
+            f"pair={self.pair},"
+            f"market_address={self.market_address},"
+            f"bids={self.bids},"
+            f"asks={self.asks})"
+        )
+
+
 
 class Protocols(Base):
     __tablename__ = 'protocols'
