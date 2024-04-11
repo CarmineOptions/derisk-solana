@@ -144,6 +144,20 @@ class AmmLiquidity(Base):
     token_y_address = Column(String)
     additional_info = Column(String)
 
+    def __repr__(self):
+        return (
+            "AmmLiqudity("
+            f"timestamp={self.timestamp},"
+            f"dex={self.dex},"
+            f"market_address={self.market_address},"
+            f"token_x_amount={self.token_x_amount },"
+            f"token_y_amount={self.token_y_amount },"
+            f"token_x_address={self.token_x_address},"
+            f"token_y_address={self.token_y_address},"
+            f"additional_info={self.additional_info},)"
+        )
+
+
 class DexNormalizedLiquidity(Base):
     __tablename__ = 'dex_normalized_liquidity'
     __table_args__ = (
