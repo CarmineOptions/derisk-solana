@@ -57,6 +57,7 @@ class SolTemp(db.Base):
 
 class QuickHistoricalTXCollector(HistoricalTXCollector):
 
+
     @log_performance_time(LOG)
     def _get_assignment(self) -> None:
         """
@@ -73,9 +74,9 @@ class QuickHistoricalTXCollector(HistoricalTXCollector):
         """
         with db.get_db_session() as session:
             signatures = session.query(
-                MfTemp.signature
+                SolTemp.signature
             ).filter(
-                MfTemp.is_collected.is_(None)
+                SolTemp.is_collected == False
             ).limit(BATCH_SIZE).all()
 
         self.assignment = [i.signature for i in signatures]
@@ -83,14 +84,14 @@ class QuickHistoricalTXCollector(HistoricalTXCollector):
     async def _async_get_data(self):
         """
         Concurrently collect transactions from blocks.
-        Collected transactions are stored in `rel_transactions` attribute.
+        Collected transactions are stored in `relevant_transactions` attribute.
         """
-        self.rel_transactions.clear()
+        self.relevant_transactions.clear()
         # Use asyncio.gather to fetch blocks concurrently
         transactions = await asyncio.gather(
             *(self._async_fetch_transaction(tx_sign) for tx_sign in self.assignment)
         )
-        self.rel_transactions = transactions
+        self.relevant_transactions = transactions
 
     async def _async_fetch_transaction(self, tx_signature: str) -> EncodedTransactionWithStatusMeta:
         """
@@ -116,15 +117,15 @@ class QuickHistoricalTXCollector(HistoricalTXCollector):
         return transaction.value.transaction
 
     @log_performance_time(LOG)
-    def _write_tx_data(self) -> None:
+    def _write_data(self) -> None:
         """
         Write raw tx data to database.
         """
         # if relevant transactions were not found in current iteration, do nothing.
-        if not self.rel_transactions:
+        if not self.relevant_transactions:
             return
         with db.get_db_session() as session:
-            for transaction in self.rel_transactions:
+            for transaction in self.relevant_transactions:
                 signature = transaction.transaction.signatures[0]  # type: ignore
                 records = session.query(db.TransactionStatusWithSignature).filter_by(
                     signature=str(signature)
@@ -144,9 +145,10 @@ class QuickHistoricalTXCollector(HistoricalTXCollector):
         """
         """
         with db.get_db_session() as session:
-            session.query(MfTemp).filter(MfTemp.signature.in_(self.assignment)).update(
+            session.query(SolTemp).filter(SolTemp.signature.in_(self.assignment)).update(
                 {"is_collected": True}, synchronize_session=False
             )
+            session.commit()
         LOG.info(f"Data for {len(self.relevant_transactions)} have been stored to the database.")
 
 async def main():
