@@ -7,6 +7,7 @@ import math
 from anchorpy.program.common import Event
 from solders.signature import Signature
 from solders.transaction_status import EncodedTransactionWithStatusMeta
+from construct.core import StreamError
 
 from src.parser.parser import TransactionDecoder
 from db import MarginfiParsedTransactions, MarginfiLendingAccounts
@@ -184,10 +185,9 @@ class MarginfiTransactionParser(TransactionDecoder):
         liquidator_received_liability = event.data.post_balances.liquidator_liability_balance - \
                                      event.data.pre_balances.liquidator_liability_balance
 
-        amount_decimal_asset_token = next(
-            b for b in self.last_tx.meta.post_token_balances if b.mint == asset_token).ui_token_amount.decimals
-        amount_decimal_liability_token = next(
-            b for b in self.last_tx.meta.post_token_balances if b.mint == liability_token).ui_token_amount.decimals
+        post_token_balance = next((b for b in self.last_tx.meta.post_token_balances if b.mint == liability_token), None)
+        amount_decimal_asset_token = post_token_balance.ui_token_amount.decimals if post_token_balance else None
+        amount_decimal_liability_token = post_token_balance.ui_token_amount.decimals if post_token_balance else None
 
         # Assets
         liquidator_received_assets_record = MarginfiParsedTransactions(
@@ -195,7 +195,7 @@ class MarginfiTransactionParser(TransactionDecoder):
             instruction_name='lending_account_liquidate',
             event_name=event.name,
             position='asset',
-            token=str(asset_token),
+            token=str(asset_token),git
             amount=math.ceil(liquidator_received_assets),
             amount_decimal=amount_decimal_asset_token,
 
@@ -207,7 +207,7 @@ class MarginfiTransactionParser(TransactionDecoder):
             transaction_id=str(self.last_tx.transaction.signatures[0]),
             instruction_name='lending_account_liquidate',
             event_name=event.name,
-            position='liability',
+            position='asset',
             token=str(asset_token),
             amount=math.ceil(liquidatee_removed_assets),
             amount_decimal=amount_decimal_asset_token,
@@ -237,7 +237,7 @@ class MarginfiTransactionParser(TransactionDecoder):
             position='liability',
             token=str(liability_token),
             amount=math.ceil(liquidatee_removed_liability),
-            amount_decimal=amount_decimal_asset_token,
+            amount_decimal=amount_decimal_liability_token,
 
             account=str(event.data.liquidatee_marginfi_account),
             signer=str(event.data.liquidatee_marginfi_account_authority)
@@ -272,16 +272,17 @@ class MarginfiTransactionParser(TransactionDecoder):
         if event.name == "MarginfiAccountTransferAccountAuthorityEvent":
             self._change_account_authority(event)
 
-        else:
-            print('a', event.name)
 
     def decode_tx(self, transaction_with_meta: EncodedTransactionWithStatusMeta):
         self.last_tx = transaction_with_meta
         log_msgs = transaction_with_meta.meta.log_messages
 
-        self.event_parser.parse_logs(
-            log_msgs, lambda x: self.save_event(x)
-        )
+        try:
+            self.event_parser.parse_logs(
+                log_msgs, lambda x: self.save_event(x)
+            )
+        except StreamError:
+            print('bananan')
 
 
 if __name__ == "__main__":

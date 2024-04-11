@@ -53,13 +53,13 @@ def process_transactions():
             # Decode the transaction data
             tx_decoder.decode_tx(transaction_data)
             # Collect transactions that have been successfully parsed
-            transactions_to_update.append(transaction.id)
+            transactions_to_update.append(transaction.signature)
 
         # Update the database in a single operation to mark transactions as parsed
         if transactions_to_update:
             with get_db_session() as session:
                 session.query(MarginfiTransactionsList).filter(
-                    MarginfiTransactionsList.id.in_(transactions_to_update)).update({"is_parsed": True},
+                    MarginfiTransactionsList.signature.in_(transactions_to_update)).update({"is_parsed": True},
                                                                                     synchronize_session='fetch')
                 session.commit()
                 LOGGER.info(f"Successfully parsed and updated {len(transactions_to_update)} transactions.")
