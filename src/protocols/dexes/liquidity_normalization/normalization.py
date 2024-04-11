@@ -118,11 +118,20 @@ def normalize_amm_liquidity():
 
         timestamp = int(time.time())
 
-        normalized_data = [
-            RAW_DEX_DATA_HANDLERS[entry.dex](entry, timestamp, tokens)
-            for entry in entries
-            if entry.token_y_amount and entry.token_x_amount and entry.dex
-        ]
+        normalized_data = []
+
+        for entry in entries:
+            
+            if not entry.token_y_amount and entry.token_x_amount and entry.dex:
+                continue
+
+            handler = RAW_DEX_DATA_HANDLERS.get(entry.dex)
+
+            if not handler:
+                LOG.error(f'Unable to find normalization handler for {entry.dex}')
+                continue
+
+            normalized_data.append(handler(entry, timestamp, tokens))           
 
         upload_normalized_liquidity(normalized_data)
 
@@ -134,7 +143,7 @@ def normalize_amm_liquidity():
 
 def normalize_dex_data_continuously():
     """
-    Normalized dex data continuously, every n-seconds as defined by NORMALIZE_INTERVAL_SECONDS consts.
+    Normalizes dex data continuously, every n-seconds as defined by NORMALIZE_INTERVAL_SECONDS consts.
     """
 
     while True:
