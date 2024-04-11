@@ -5,7 +5,7 @@ import logging
 from pathlib import Path
 
 from solders.pubkey import Pubkey
-from solders.rpc.responses import GetTransactionResp
+from solders.transaction_status import EncodedTransactionWithStatusMeta
 
 from db import (
     TransactionStatusWithSignature,
@@ -45,11 +45,12 @@ def process_transactions():
 
                 if tx_data and tx_data.transaction_data:
                     # get transaction from JSON
-                    transaction_data = GetTransactionResp.from_json(tx_data.transaction_data)
+                    transaction_data = EncodedTransactionWithStatusMeta.from_json(tx_data.transaction_data)
 
                     # Decode the transaction data
+                    # Decode the transaction data
                     tx_decoder._processor = lambda x: tx_decoder.save_event_to_database(x, timestamp=transaction.block_time)
-                    tx_decoder.decode_tx(transaction_data.value.transaction)
+                    tx_decoder.decode_tx(transaction_data)
 
                     # Mark the transaction as parsed
                     transaction.is_parsed = True

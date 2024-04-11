@@ -70,12 +70,11 @@ class TransactionDecoder(ABC):
         self.events = list()  # temporary storage for parsed events.
         self.last_tx: EncodedTransactionWithStatusMeta | None = None
 
-    @abstractmethod
     def _create_lending_account(self, event: Event):
 
         raise NotImplementedError('Implement me!')
 
-    def save_event(self, event: Event) -> None:  # TODO replace when decided how to store events.
+    def save_event(self, event: Event) -> None:
         """"""
         self.events.append(event)
 
