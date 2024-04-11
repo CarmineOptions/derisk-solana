@@ -433,8 +433,9 @@ class DexNormalizedLiquidity(Base):
             "DexNormalizedLiquidity("
             f"timestamp={self.timestamp},"
             f"dex={self.dex},"
-            f"pair={self.pair},"
             f"market_address={self.market_address},"
+            f"token_x_address={self.token_x_address},"
+            f"token_y_address={self.token_y_address},"
             f"bids={self.bids},"
             f"asks={self.asks})"
         )
