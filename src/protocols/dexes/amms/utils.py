@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from decimal import Decimal
+import requests
 
 import numpy as np
 
@@ -147,3 +148,51 @@ def convert_amm_reserves_to_bids_asks(
     ]
 
     return {"asks": diff_price_levels(asks), "bids": diff_price_levels(bids)}
+
+
+def get_tokens_address_to_info_map() -> dict[str, dict[str, str | int]]:
+    """
+    Retrieves list of solana tokens obtained via Jupiter api and returns a map 
+    where keys are the tokens addresses and values are a dicts containing 'symbol', 'name', 'decimals'
+
+    Returns:
+    - token_address_to_info_map: Dict mapping token address to 'symbol', 'name', 'decimals'
+    """
+
+    # List of tokens from Jupiter
+    r = requests.get('https://token.jup.ag/all')
+
+    if r.status_code != 200:
+        raise ValueError(f'Unable to fetch list of tokens: {r.text}')
+
+    return {
+        token['address']: {
+            'symbol': token['symbol'],
+            'name': token['name'],
+            'decimals': token['decimals'],
+        } for token in r.json()
+    }
+
+
+def get_tokens_symbol_to_info_map() -> dict[str, dict[str, str | int]]:
+    """
+    Retrieves list of solana tokens obtained via Jupiter api and returns a map 
+    where keys are the tokens symbols and values are a dicts containing 'address', 'name', 'decimals'
+
+    Returns:
+    - token_symbol_to_info_map: Dict mapping token symbol to 'address', 'name', 'decimals'
+    """
+
+    # List of tokens from Jupiter
+    r = requests.get('https://token.jup.ag/all')
+
+    if r.status_code != 200:
+        raise ValueError(f'Unable to fetch list of tokens: {r.text}')
+
+    return {
+        token['symbol']: {
+            'address': token['address'],
+            'name': token['name'],
+            'decimals': token['decimals'],
+        } for token in r.json()
+    }
