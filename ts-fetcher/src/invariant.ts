@@ -121,12 +121,11 @@ async function getInvariantAmmLiquidityEntries(): Promise<AmmLiquidityEntry[]> {
         const entry: AmmLiquidityEntry = {
             timestamp: Math.floor(Date.now() / 1000),
             dex: INVARIANT_IDENTIFIER,
-            pair: pool.pairName,
             market_address: pool.publicKey,
-            token_x: x.toNumber(),
-            token_y: y.toNumber(),
-            token_x_decimals: pool.tokenXdecimals,
-            token_y_decimals: pool.tokenYdecimals,
+            token_x_amount: x.toNumber(),
+            token_y_amount: y.toNumber(),
+            token_x_address: pool.tokenX,
+            token_y_address: pool.tokenY,
             additional_info: '{}',
         };
 

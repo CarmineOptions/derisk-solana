@@ -151,12 +151,11 @@ async function getLifinityAmmLiquidityEntries(): Promise<AmmLiquidityEntry[]> {
     const entry: AmmLiquidityEntry = {
       timestamp: Math.floor(Date.now() / 1000),
       dex: LIFINITY_IDENTIFIER,
-      pair: name,
       market_address: poolInfo.amm,
-      token_x: data.coinBalance.toNumber(),
-      token_y: data.pcBalance.toNumber(),
-      token_x_decimals: poolInfo.poolCoinDecimal,
-      token_y_decimals: poolInfo.poolPcDecimal,
+      token_x_amount: data.coinBalance.toNumber(),
+      token_y_amount: data.pcBalance.toNumber(),
+      token_x_address: poolInfo.poolCoinMint,
+      token_y_address: poolInfo.poolPcMint,
       additional_info: '{}',
     }
 

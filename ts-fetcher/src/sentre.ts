@@ -18,9 +18,9 @@ const sth = new Senswap(
 
 const RELEVANT_MARKETS = {
     "SOL-USDC" : {"publicKey":"CT2QmamF6kBBDVbkg8WkvF5gnq6q8mDranPi21tdGeeL", "tokenXdecimals": 9, "tokenYdecimals": 6},
-    "SNTR-USDC": {"publicKey":"2gtDG2iYam6z4eCjx9yfBD7ayRXQGTDymjqQLiHqr7Z6", "tokenXdecimals": 9, "tokenYdecimals": 6},
-    "C98-USDC" : {"publicKey":"13Jn5xugRGjVorHWakzjvdZBMFwPLQniKHRoE6j4BMCC", "tokenXdecimals": 6, "tokenYdecimals": 6},
-    "ETH-USDC" : {"publicKey":"AzPdQteHNWLvgRtFQX2N9K2U14M7rwub4VjEeKhaSbuh", "tokenXdecimals": 8, "tokenYdecimals": 6}
+    // "SNTR-USDC": {"publicKey":"2gtDG2iYam6z4eCjx9yfBD7ayRXQGTDymjqQLiHqr7Z6", "tokenXdecimals": 9, "tokenYdecimals": 6},
+    // "C98-USDC" : {"publicKey":"13Jn5xugRGjVorHWakzjvdZBMFwPLQniKHRoE6j4BMCC", "tokenXdecimals": 6, "tokenYdecimals": 6},
+    // "ETH-USDC" : {"publicKey":"AzPdQteHNWLvgRtFQX2N9K2U14M7rwub4VjEeKhaSbuh", "tokenXdecimals": 8, "tokenYdecimals": 6}
 }
 
 
@@ -30,19 +30,18 @@ async function getSentreAmmLiquidityEntries(): Promise<AmmLiquidityEntry[]> {
     const pools: AmmLiquidityEntry[] = [];
 
     for (let i = 0; i < relevantMarketsValues.length; i++) {
-        const [name, poolInfo] = relevantMarketsValues[i];
+        const [_, poolInfo] = relevantMarketsValues[i];
         
         let pool = await sth.getPoolData(poolInfo['publicKey']);
 
         const entry: AmmLiquidityEntry = {
             timestamp: Math.floor(Date.now() / 1_000),
             dex: SENTRE_IDENTIFIER,
-            pair: name,
             market_address: poolInfo['publicKey'],
-            token_x: pool.reserves[0].toString(),
-            token_y: pool.reserves[1].toString(),
-            token_x_decimals: poolInfo['tokenXdecimals'],
-            token_y_decimals: poolInfo['tokenYdecimals'],
+            token_x_amount: pool.reserves[0].toString(),
+            token_y_amount: pool.reserves[1].toString(),
+            token_x_address: pool.mints[0].toString(),
+            token_y_address: pool.mints[1].toString(),
             additional_info: JSON.stringify({
                 "tokenXweight": pool.weights[0].toNumber(),
                 "tokenYweight": pool.weights[1].toNumber(),

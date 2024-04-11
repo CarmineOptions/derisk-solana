@@ -99,29 +99,14 @@ class RaydiumAMM(Amm):
         """
         market_address = pool.get("id", "Unknown")
 
-        # get token symbols
-        try:
-            token_x_symbol = next(
-                i for i in self.token_list if i["mint"] == pool["mintA"]
-            ).get("symbol")
-        except StopIteration:
-            token_x_symbol = "Unknown"
-        try:
-            token_y_symbol = next(
-                i for i in self.token_list if i["mint"] == pool["mintB"]
-            ).get("symbol")
-        except StopIteration:
-            token_y_symbol = "Unknown"
-
-        pair = f"{token_x_symbol}-{token_y_symbol}"
-
         # Create a new AmmLiquidity record
         with get_db_session() as session:
             liquidity_entry = AmmLiquidity(
                 timestamp=self.timestamp,
                 dex=self.DEX_NAME,
-                pair=pair,
                 market_address=market_address,
+                token_x_address= pool['mintA'],
+                token_y_address= pool['mintB'],
                 additional_info=json.dumps(pool),
             )
 
@@ -142,6 +127,10 @@ class MeteoraAMM(Amm):
             response = requests.get("https://app.meteora.ag/amm/pools/", timeout=30)
             decoded_content = response.content.decode("utf-8")
             self.pools = json.loads(decoded_content)
+            self.pools = [
+                pool for pool in self.pools
+                if len(pool['pool_token_mints']) == 2
+            ]
             LOG.info(f"Successfully fetched {len(self.pools)} pools")
         except requests.exceptions.Timeout:
             LOG.error("Request to Meteora pool API timed out")
@@ -151,7 +140,6 @@ class MeteoraAMM(Amm):
         """
         Save pool data to database.
         """
-        pair = pool["pool_name"]
         token_x_amount, token_y_amount = pool.get("pool_token_amounts", (None, None))[
             :2
         ]  # TODO: Find out why there are two values
@@ -164,21 +152,21 @@ class MeteoraAMM(Amm):
             token_y_amount
         )
 
+        pool.update({
+            'token_x_decimals': token_x_decimals,
+            'token_y_decimals': token_y_decimals
+        })
+
         # Create the AmmLiquidity object
         with get_db_session() as session:
             liquidity_entry = AmmLiquidity(
                 timestamp=self.timestamp,
                 dex=self.DEX_NAME,
-                pair=pair,
                 market_address=pool.get("pool_address"),
-                token_x=check_bigint(token_x) if token_x is not None else -1,
-                token_y=check_bigint(token_y) if token_y is not None else -1,
-                token_x_decimals=(
-                    token_x_decimals if token_x_decimals is not None else -1
-                ),
-                token_y_decimals=(
-                    token_y_decimals if token_y_decimals is not None else -1
-                ),
+                token_x_amount=check_bigint(token_x) if token_x is not None else -1,
+                token_y_amount=check_bigint(token_y) if token_y is not None else -1,
+                token_x_address = pool['pool_token_mints'][0],
+                token_y_address = pool['pool_token_mints'][1],
                 additional_info=json.dumps(pool),
             )
 
@@ -241,12 +229,11 @@ class BonkAMM(Amm):
             entry = AmmLiquidity(
                 timestamp=self.timestamp,
                 dex=self.DEX_NAME,
-                pair=ticker,
                 market_address=str(self.POOLS_INFO[ticker]["market_address"]),
-                token_x=pool_info.token_x_reserve.v,
-                token_y=pool_info.token_y_reserve.v,
-                token_x_decimals=int(self.POOLS_INFO[ticker]["token_x_decimals"]),
-                token_y_decimals=int(self.POOLS_INFO[ticker]["token_y_decimals"]),
+                token_x_amount=pool_info.token_x_reserve.v,
+                token_y_amount=pool_info.token_y_reserve.v,
+                token_x_address=str(pool_info.token_x),
+                token_y_address=str(pool_info.token_y),
                 additional_info="{}",
             )
 
@@ -307,8 +294,8 @@ class DooarAMM(Amm):
             token_x_amount = token_x_parsed["info"]["tokenAmount"]["amount"]
             token_y_amount = token_y_parsed["info"]["tokenAmount"]["amount"]
 
-            token_x_decimals = token_x_parsed["info"]["tokenAmount"]["decimals"]
-            token_y_decimals = token_y_parsed["info"]["tokenAmount"]["decimals"]
+            token_x_mint = token_x_parsed["info"]["mint"]
+            token_y_mint = token_y_parsed["info"]["mint"]
 
             self.pools.append(
                 (
@@ -316,26 +303,25 @@ class DooarAMM(Amm):
                     {
                         "token_x_amount": token_x_amount,
                         "token_y_amount": token_y_amount,
-                        "token_x_decimals": token_x_decimals,
-                        "token_y_decimals": token_y_decimals,
+                        "token_x_mint": token_x_mint,
+                        "token_y_mint": token_y_mint,
                     },
                 )
             )
 
     def store_pool(self, pool: tuple[str, dict[str, Any]]):
 
-        ticker, pool_info = pool
+        _, pool_info = pool
 
         with get_db_session() as session:
             entry = AmmLiquidity(
                 timestamp=self.timestamp,
                 dex=self.DEX_NAME,
-                pair=ticker,
                 market_address="",
-                token_x=pool_info["token_x_amount"],
-                token_y=pool_info["token_y_amount"],
-                token_x_decimals=pool_info["token_x_decimals"],
-                token_y_decimals=pool_info["token_y_decimals"],
+                token_x_amount=pool_info["token_x_amount"],
+                token_y_amount=pool_info["token_y_amount"],
+                token_x_address=pool_info["token_x_mint"],
+                token_y_address=pool_info["token_y_mint"],
                 additional_info="{}",
             )
 
@@ -422,19 +408,18 @@ class FluxBeam(Amm):
         token_x_amount = token_x_parsed["info"]["tokenAmount"]["amount"]
         token_y_amount = token_y_parsed["info"]["tokenAmount"]["amount"]
 
-        token_x_decimals = token_x_parsed["info"]["tokenAmount"]["decimals"]
-        token_y_decimals = token_y_parsed["info"]["tokenAmount"]["decimals"]
+        token_x_mint = token_x_parsed["info"]["mint"]
+        token_y_mint = token_y_parsed["info"]["mint"]
 
         with get_db_session() as session:
             entry = AmmLiquidity(
                 timestamp=self.timestamp,
                 dex=self.DEX_NAME,
-                pair=pool["pool_info"]["ticker"],
                 market_address=pool["pool_info"]["address"],
-                token_x=token_x_amount,
-                token_y=token_y_amount,
-                token_x_decimals=token_x_decimals,
-                token_y_decimals=token_y_decimals,
+                token_x_amount=token_x_amount,
+                token_y_amount=token_y_amount,
+                token_x_address=token_x_mint,
+                token_y_address=token_y_mint,
                 additional_info="{}",
             )
 
