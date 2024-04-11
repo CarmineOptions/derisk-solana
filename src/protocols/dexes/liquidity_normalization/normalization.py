@@ -53,8 +53,12 @@ def common_raw_amm_data_handler(
     - normalized liquidity: AmmLiquidity converted to DexNormalizedLiquidity
     """
     # Get tokens decimals
-    token_x_decimals = int(tokens[str(amm_entry.token_x_address)].get("decimals", False))
-    token_y_decimals = int(tokens[str(amm_entry.token_y_address)].get("decimals", False))
+    token_x_decimals = int(
+        tokens[str(amm_entry.token_x_address)].get("decimals", False)
+    )
+    token_y_decimals = int(
+        tokens[str(amm_entry.token_y_address)].get("decimals", False)
+    )
 
     if not token_x_decimals or not token_y_decimals:
         raise ValueError(
@@ -66,7 +70,9 @@ def common_raw_amm_data_handler(
     token_y_amount = Decimal(amm_entry.token_y_amount or 0) / 10**token_y_decimals
 
     if token_x_amount * token_y_amount == 0:
-        raise ValueError(f'One of the token amounts is zero: x is {token_x_amount}, y is {token_y_amount}')
+        raise ValueError(
+            f"One of the token amounts is zero: x is {token_x_amount}, y is {token_y_amount}"
+        )
 
     # Convert amm reserves to OB-like data
     amm_bids_asks = convert_amm_reserves_to_bids_asks(token_x_amount, token_y_amount)
@@ -121,17 +127,17 @@ def normalize_amm_liquidity():
         normalized_data = []
 
         for entry in entries:
-            
-            if not entry.token_y_amount and entry.token_x_amount and entry.dex:
+
+            if not (entry.token_y_amount and entry.token_x_amount and entry.dex):
                 continue
 
             handler = RAW_DEX_DATA_HANDLERS.get(entry.dex)
 
             if not handler:
-                LOG.error(f'Unable to find normalization handler for {entry.dex}')
+                LOG.error(f"Unable to find normalization handler for {entry.dex}")
                 continue
 
-            normalized_data.append(handler(entry, timestamp, tokens))           
+            normalized_data.append(handler(entry, timestamp, tokens))
 
         upload_normalized_liquidity(normalized_data)
 
