@@ -400,7 +400,7 @@ class CLOBLiqudity(Base):
 class AmmLiquidity(Base):
     __tablename__ = 'amm_liquidity'
     __table_args__ = (
-        PrimaryKeyConstraint("dex", "token_x_amount", "token_y_amount", "market_address", "timestamp"),
+        PrimaryKeyConstraint("dex", "token_x_address", "token_y_address", "market_address", "timestamp"),
         {"schema": SCHEMA},
     )
 
