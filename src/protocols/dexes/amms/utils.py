@@ -114,14 +114,14 @@ def convert_amm_reserves_to_bids_asks(
 
     Returns:
     - dict : Dict with two keys ('bids' and 'asks') containing available liquidity at
-            given price levels (+-10% of current price).
+            given price levels (+-95% of current price).
     """
 
     # Price
     current_price = y_reserves / x_reserves
 
     # Generate list of price changes -+10%
-    percentage_changes = np.linspace(0.001, 0.1, 100)
+    percentage_changes = np.linspace(0.001, 0.95, 950)
     price_percentage_changes_up = 1 + percentage_changes
     price_percentage_changes_down = 1 - percentage_changes
 
