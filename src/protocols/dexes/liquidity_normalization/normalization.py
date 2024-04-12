@@ -56,7 +56,7 @@ async def get_onchain_token_decimals(token_address: Pubkey) -> int:
 
 async def common_raw_amm_data_handler(
     amm_entry: db.AmmLiquidity, timestamp: int, tokens: dict[str, dict[str, str | int]]
-) -> db.DexNormalizedLiquidity:
+) -> db.DexNormalizedLiquidity | None:
     """
     Converts raw amm data from AmmLiquidity to DexNormalizedLiquidity.
 
@@ -96,9 +96,10 @@ async def common_raw_amm_data_handler(
     token_y_amount = Decimal(amm_entry.token_y_amount or 0) / 10**token_y_decimals
 
     if token_x_amount * token_y_amount == 0:
-        raise ValueError(
-            f"One of the token amounts is zero: x is {token_x_amount}, y is {token_y_amount}"
+        LOG.warning(
+            f"One of the token amounts is zero: x({amm_entry.token_x_address}) is {token_x_amount}, y({amm_entry.token_y_address}) is {token_y_amount}"
         )
+        return None
 
     # Convert amm reserves to OB-like data
     amm_bids_asks = convert_amm_reserves_to_bids_asks(token_x_amount, token_y_amount)
@@ -173,6 +174,11 @@ async def normalize_amm_liquidity():
                 continue
 
             normalized_entry = await handler(entry, timestamp, tokens)
+
+            if not normalized_entry:
+                LOG.error(f'Received None entry when normalizing.')
+                continue
+
             normalized_data.append(normalized_entry)
 
         upload_normalized_liquidity(normalized_data)
