@@ -97,7 +97,8 @@ async def common_raw_amm_data_handler(
 
     if token_x_amount * token_y_amount == 0:
         LOG.warning(
-            f"One of the token amounts is zero: x({amm_entry.token_x_address}) is {token_x_amount}, y({amm_entry.token_y_address}) is {token_y_amount}"
+            f"One of the token amounts is zero: x({amm_entry.token_x_address}) is {token_x_amount}, "
+            f"y({amm_entry.token_y_address}) is {token_y_amount}"
         )
         return None
 
@@ -176,7 +177,7 @@ async def normalize_amm_liquidity():
             normalized_entry = await handler(entry, timestamp, tokens)
 
             if not normalized_entry:
-                LOG.error(f'Received None entry when normalizing.')
+                LOG.error("Received None entry when normalizing.")
                 continue
 
             normalized_data.append(normalized_entry)
