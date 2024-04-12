@@ -18,9 +18,9 @@ const sth = new Senswap(
 
 const RELEVANT_MARKETS = {
     "SOL-USDC" : {"publicKey":"CT2QmamF6kBBDVbkg8WkvF5gnq6q8mDranPi21tdGeeL", "tokenXdecimals": 9, "tokenYdecimals": 6},
-    // "SNTR-USDC": {"publicKey":"2gtDG2iYam6z4eCjx9yfBD7ayRXQGTDymjqQLiHqr7Z6", "tokenXdecimals": 9, "tokenYdecimals": 6},
-    // "C98-USDC" : {"publicKey":"13Jn5xugRGjVorHWakzjvdZBMFwPLQniKHRoE6j4BMCC", "tokenXdecimals": 6, "tokenYdecimals": 6},
-    // "ETH-USDC" : {"publicKey":"AzPdQteHNWLvgRtFQX2N9K2U14M7rwub4VjEeKhaSbuh", "tokenXdecimals": 8, "tokenYdecimals": 6}
+    "SNTR-USDC": {"publicKey":"2gtDG2iYam6z4eCjx9yfBD7ayRXQGTDymjqQLiHqr7Z6", "tokenXdecimals": 9, "tokenYdecimals": 6},
+    "C98-USDC" : {"publicKey":"13Jn5xugRGjVorHWakzjvdZBMFwPLQniKHRoE6j4BMCC", "tokenXdecimals": 6, "tokenYdecimals": 6},
+    "ETH-USDC" : {"publicKey":"AzPdQteHNWLvgRtFQX2N9K2U14M7rwub4VjEeKhaSbuh", "tokenXdecimals": 8, "tokenYdecimals": 6}
 }
 
 
