@@ -21,7 +21,7 @@ CREATE TABLE public.orderbook_liquidity (
 
 CREATE TABLE public.dex_normalized_liquidity (
     -- Contains liquidity from all non-CLOB protocols,
-    -- normalized as bids/asks price levels +- 10% from midprice
+    -- normalized as bids/asks price levels +-95% from midprice
     timestamp bigint NOT NULL,
     dex character varying NOT NULL, 
     market_address character varying NOT NULL,

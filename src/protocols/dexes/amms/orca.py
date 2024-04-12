@@ -268,7 +268,7 @@ class OrcaPool:
         - bounds_percentage: Percentage that determines bounds around the current price for
                             which to filter the LiqDists. For example, if it's 10% then only the
                             distributions that are within +-10% of the current price are considered.
-                            Optional, 0.1 (10%) by default.
+                            Optional, 0.95 (95%) by default.
 
         Returns:
         - lower: Liquidity distributions below current price
@@ -278,7 +278,7 @@ class OrcaPool:
 
         # Set default bounds percentage
         if bounds_percentage is None:
-            bounds_percentage = Decimal("0.1")
+            bounds_percentage = Decimal("0.95")
 
         # Calculat upper and lower bound (keep in mind that price is in sqrt terms)
         upper_bound = sqrt_price * (Decimal(1) + bounds_percentage).sqrt()
