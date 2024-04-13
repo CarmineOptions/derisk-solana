@@ -121,8 +121,7 @@ class ParsedTransactions(Base):
                f"\n   instruction_name='{self.instruction_name}', \n   event_name='{self.event_name}',\n " \
                f"\n   position='{self.position}', \n   token='{self.token}'," \
                f"\n   amount={self.amount}, \n   amount_decimal={self.amount_decimal}, \n   account='{self.account}', " \
-               f"\n   signer='{self.signer}', \n   created_at={self.created_at}," \
-               f"\n   lending_account_id={self.lending_account_id})>"
+               f"\n   signer='{self.signer}', \n   created_at={self.created_at}"
 
 
 class LendingAccounts(Base):
@@ -184,6 +183,9 @@ class MarginfiLendingAccounts(LendingAccounts):
 
 class KaminoParsedTransactions(ParsedTransactions):
     __tablename__ = "kamino_parsed_transactions"
+    source = Column(String, nullable=True)
+    destination = Column(String, nullable=True)
+    obligation = Column(String, nullable=True)
     __table_args__ = (
         Index("ix_kamino_parsed_transactions_transaction_id", "transaction_id"),
         Index("ix_kamino_parsed_transactions_instruction_name", "instruction_name"),
@@ -192,6 +194,14 @@ class KaminoParsedTransactions(ParsedTransactions):
         Index("ix_kamino_parsed_transactions_token", "token"),
         {"schema": SCHEMA},
     )
+
+    def __repr__(self):
+        return f"<ParsedTransactions(\n   id={self.id}, \n   transaction_id='{self.transaction_id}'," \
+               f"\n   instruction_name='{self.instruction_name}', \n   event_name='{self.event_name}'," \
+               f"\n   position='{self.position}', \n   token='{self.token}'," \
+               f"\n   source='{self.source}', \n   destination='{self.destination}'," \
+               f"\n   amount={self.amount}, \n   amount_decimal={self.amount_decimal}, \n   account='{self.account}', " \
+               f"\n   signer='{self.signer}', \n   created_at={self.created_at}, \n   obligation={self.obligation}"
 
 
 class KaminoLendingAccounts(LendingAccounts):

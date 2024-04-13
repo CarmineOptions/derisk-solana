@@ -1,16 +1,17 @@
 """
+Kamino transaction parser.
 """
-from base58 import b58decode
-from pathlib import Path
-from typing import Any, List, Tuple
 import os
 import re
+from pathlib import Path
+from typing import Any, List, Tuple
 
+from base58 import b58decode
 from solders.signature import Signature
 from solders.transaction_status import EncodedTransactionWithStatusMeta, UiPartiallyDecodedInstruction
 from construct.core import StreamError
 
-from src.parser.parser import TransactionDecoder
+from src.parser.parser import TransactionDecoder, UnknownInstruction
 from db import KaminoParsedTransactions, KaminoLendingAccounts
 
 
@@ -67,7 +68,7 @@ class KaminoTransactionParser(TransactionDecoder):
 
             # If the instruction name matches any known instruction from the program, handle the event
             if instruction_name in [i.idl_ix.name for i in self.program.instruction.values()]:
-                self.save_kamino_event(parsed_instruction, instruction_name, instruction_index)
+                self.save_kamino_instruction(parsed_instruction, instruction_name, instruction_index)
 
     def decode_tx(self, transaction_with_meta: EncodedTransactionWithStatusMeta) -> None:
         """
@@ -101,80 +102,80 @@ class KaminoTransactionParser(TransactionDecoder):
                 paired_accounts[account.name] = known_accounts[i]
         return paired_accounts
 
-    def save_kamino_event(
+    def save_kamino_instruction(  # pylint: disable=too-many-statements, too-many-branches
             self,
             instruction: UiPartiallyDecodedInstruction,
             instruction_name: str,
             instruction_idx: int
     ) -> None:
         """
+        Process Kamino instructions based on instruction name
         """
         metadata = next(i for i in self.program.instruction.values() if i.idl_ix.name == instruction_name)
 
         if instruction_name == 'initUserMetadata':  # create account
             self._create_account(instruction, metadata)
-
-        # refresh banks
-        elif instruction_name == 'refreshObligation':
-            pass
-            # self._refresh_obligation(instruction, metadata)
-        elif instruction_name == 'refreshReserve':
-            pass
-            # self._refresh_reserve(instruction, metadata)
-
-        elif instruction_name == 'depositReserveLiquidity':
-            self._deposit_reserve_liquidity(instruction, metadata)
-        elif instruction_name == 'redeemReserveCollateral':
-
-            self._redeem_reserve_collateral(instruction, metadata)
         elif instruction_name == 'initObligation':  # initializes a borrowing obligation
             self._init_obligation(instruction, metadata, instruction_idx)
-        elif instruction_name == 'liquidateObligationAndRedeemReserveCollateral':
-            print('here')
-            self._liquidate_obligation_and_redeem_reserve_collateral(instruction, metadata, instruction_idx)
-
         elif instruction_name == 'initObligationFarmsForReserve':
-            self._init_obligation_farms_for_reserve(instruction, metadata)
+            self._init_obligation_farms_for_reserve(instruction, metadata, instruction_idx)
+
+        # refresh banks TODO do we need it?
+        elif instruction_name == 'refreshObligation':
+            self._refresh_obligation()
+        elif instruction_name == 'refreshReserve':
+            self._refresh_reserve()
         elif instruction_name == 'refreshObligationFarmsForReserve':
-            pass
-            # self._refresh_obligation_farms_for_reserve(instruction, metadata)
-        elif instruction_name == 'depositObligationCollateral':
+            self._refresh_obligation_farms_for_reserve()
+        elif instruction_name == 'requestElevationGroup':
+            self._request_elevation_group()
+
+        elif instruction_name == 'depositObligationCollateral':  # TODO never happened
             self._deposit_obligation_collateral(instruction, metadata)
-        elif instruction_name == 'withdrawObligationCollateral':
+        elif instruction_name == 'withdrawObligationCollateral':  # TODO never happened
             self._withdraw_obligation_collateral(instruction, metadata)
+        elif instruction_name == 'depositReserveLiquidity':  # TODO never happened
+            self._deposit_reserve_liquidity(instruction, metadata, instruction_idx)
+        elif instruction_name == 'redeemReserveCollateral':  # TODO never happened
+            self._redeem_reserve_collateral(instruction, metadata, instruction_idx)
+
         elif instruction_name == 'borrowObligationLiquidity':
-            self._borrow_obligation_liquidity(instruction, metadata)
+            self._borrow_obligation_liquidity(instruction, metadata, instruction_idx)
+
         elif instruction_name == 'repayObligationLiquidity':
-            self._repay_obligation_liquidity(instruction, metadata)
+            self._repay_obligation_liquidity(instruction, metadata, instruction_idx)
 
         elif instruction_name == 'depositReserveLiquidityAndObligationCollateral':
             self._deposit_reserve_liquidity_and_obligation_collateral(instruction, metadata, instruction_idx)
+
         elif instruction_name == 'withdrawObligationCollateralAndRedeemReserveCollateral':
             self._withdraw_obligation_collateral_and_redeem_reserve_collateral(instruction, metadata, instruction_idx)
 
-        elif instruction_name == 'redeemFees':
-            self._redeem_fees(instruction, metadata)
-        elif instruction_name == 'flashRepayReserveLiquidity':
-            self._flash_repay_reserve_liquidity(instruction, metadata)
-        elif instruction_name == 'flashBorrowReserveLiquidity':
-            self._flash_borrow_reserve_liquidity(instruction, metadata)
-        elif instruction_name == 'socializeLoss':
-            self._socialize_loss(instruction, metadata)
-        elif instruction_name == 'requestElevationGroup':
-            self._request_elevation_group(instruction, metadata)
-        elif instruction_name == 'initReferrerTokenState':
-            self._init_referrer_token_state(instruction, metadata)
+        elif instruction_name == 'liquidateObligationAndRedeemReserveCollateral':
+            self._liquidate_obligation_and_redeem_reserve_collateral(instruction, metadata, instruction_idx)
 
-        elif instruction_name == 'withdrawReferrerFees':
-            self._withdraw_referrer_fees(instruction, metadata)
-        elif instruction_name == 'withdrawProtocolFee':
-            self._withdraw_protocol_fee(instruction, metadata)
-        elif instruction_name == 'initReferrerStateAndShortUrl':
-            self._init_referrer_state_and_short_url(instruction, metadata)
-        elif instruction_name == 'deleteReferrerStateAndShortUrl':
-            self._delete_referrer_state_and_short_url(instruction, metadata)
-        elif instruction_name == 'updateUserMetadataOwner':
+        elif instruction_name == 'flashRepayReserveLiquidity':
+            self._flash_repay_reserve_liquidity(instruction, metadata, instruction_idx)
+
+        elif instruction_name == 'flashBorrowReserveLiquidity':
+            self._flash_borrow_reserve_liquidity(instruction, metadata, instruction_idx)
+
+        elif instruction_name == 'redeemFees':  # TODO no transactions found
+            self._redeem_fees(instruction, metadata)
+        elif instruction_name == 'socializeLoss':  # TODO no transactions found
+            self._socialize_loss(instruction, metadata)
+        elif instruction_name == 'initReferrerTokenState':  # TODO no transactions found
+            self._init_referrer_token_state(instruction, metadata)
+        elif instruction_name == 'updateUserMetadataOwner':  # TODO no transactions found
             self._update_user_metadata_owner(instruction, metadata)
+        elif instruction_name == 'withdrawReferrerFees':  # TODO no transactions found
+            self._withdraw_referrer_fees(instruction, metadata)
+        elif instruction_name == 'withdrawProtocolFee':  # TODO no transactions found
+            self._withdraw_protocol_fee(instruction, metadata)
+        elif instruction_name == 'initReferrerStateAndShortUrl':  # TODO no transactions found
+            self._init_referrer_state_and_short_url(instruction, metadata)
+        elif instruction_name == 'deleteReferrerStateAndShortUrl':  # TODO no transactions found
+            self._delete_referrer_state_and_short_url(instruction, metadata)
 
         elif instruction_name == 'initLendingMarket':
             pass
@@ -195,20 +196,45 @@ class KaminoTransactionParser(TransactionDecoder):
         """"""
         accounts = self.get_accounts_from_instruction(instruction.accounts, metadata.idl_ix)
         new_lending_account = KaminoLendingAccounts(
-            authority=str(accounts['feePayer']),  # KB3a7pPLPmsG7Ub2gFnWT8P5k6sG2RAnJG14rDEwPH5,
-            address=str(accounts['owner']),  # 3VRc3v3w7GJYRrdwNnfpFeh9YqeBZUVeWwe9BJ2hrhhE
+            authority=str(accounts['feePayer']),
+            address=str(accounts['owner']),
             group=None
         )
 
         self._processor(new_lending_account)
 
-    def _refresh_reserve(self, instruction: UiPartiallyDecodedInstruction, metadata):
+    def _refresh_reserve(self):
+        pass
+
+    def _refresh_obligation_farms_for_reserve(self):
+        pass
+
+    def _refresh_obligation(self):
+        pass
+
+    def _request_elevation_group(self):
+        pass
+
+    def _deposit_obligation_collateral(self, instruction: UiPartiallyDecodedInstruction, metadata):
         raise NotImplementedError('Implement me!')
 
-    def _deposit_reserve_liquidity(self, instruction: UiPartiallyDecodedInstruction, metadata):
+    def _withdraw_obligation_collateral(self, instruction: UiPartiallyDecodedInstruction, metadata):
         raise NotImplementedError('Implement me!')
 
-    def _redeem_reserve_collateral(self, instruction: UiPartiallyDecodedInstruction, metadata):
+    def _deposit_reserve_liquidity(
+            self,
+            instruction: UiPartiallyDecodedInstruction,
+            metadata: Any,
+            instruction_idx: int
+    ):
+        raise NotImplementedError('Implement me!')
+
+    def _redeem_reserve_collateral(
+            self,
+            instruction: UiPartiallyDecodedInstruction,
+            metadata: Any,
+            instruction_idx: int
+    ):
         raise NotImplementedError('Implement me!')
 
     def _init_obligation(
@@ -220,39 +246,137 @@ class KaminoTransactionParser(TransactionDecoder):
         # Extract relevant account addresses from the instruction using metadata definitions
         accounts = self.get_accounts_from_instruction(instruction.accounts, metadata.idl_ix)
         # Locate inner instructions related to the primary instruction by index
-        inner_instructions = next(i for i in self.last_tx.meta.inner_instructions if i.index == instruction_idx)
+        inner_instructions = next((i for i in self.last_tx.meta.inner_instructions if i.index == instruction_idx), None)
+        # failed instructions do not have inner instructions.
+        if not inner_instructions:
+            return
         # Create account record from inner instruction.
         for i in inner_instructions.instructions:
             info = i.parsed['info']
             if i.parsed['type'] == "createAccount":
                 new_obligation = KaminoLendingAccounts(
-                    authority=str(info['source']),  # KB3a7pPLPmsG7Ub2gFnWT8P5k6sG2RAnJG14rDEwPH5,
-                    address=str(info['newAccount']),  # 3VRc3v3w7GJYRrdwNnfpFeh9YqeBZUVeWwe9BJ2hrhhE
+                    authority=str(info['source']),
+                    address=str(info['newAccount']),
                     group=str(accounts['lendingMarket'])
                 )
                 self._processor(new_obligation)
+            else:
+                raise UnknownInstruction(i)
+
+    def _init_obligation_farms_for_reserve(
+            self,
+            instruction: UiPartiallyDecodedInstruction,
+            metadata: Any,
+            instruction_idx: int
+    ):
+        # Extract relevant account addresses from the instruction using metadata definitions
+        accounts = self.get_accounts_from_instruction(instruction.accounts, metadata.idl_ix)
+        # Locate inner instructions related to the primary instruction by index
+        inner_instructions = next((i for i in self.last_tx.meta.inner_instructions if i.index == instruction_idx), None)
+        # failed instructions do not have inner instructions.
+        if not inner_instructions:
+            return
+        # Create account record from inner instruction.
+        for i in inner_instructions.instructions:
+            # skip irrelevant transactions
+            if isinstance(i, UiPartiallyDecodedInstruction):
+                continue
+            info = i.parsed['info']
+            if i.parsed['type'] == "createAccount":
+                new_obligation_farm = KaminoLendingAccounts(
+                    authority=str(info['source']),
+                    address=str(info['newAccount']),
+                    group=str(accounts['farmsProgram'])
+                )
+                self._processor(new_obligation_farm)
+            else:
+                raise UnknownInstruction(i)
+
+    def _borrow_obligation_liquidity(
+            self,
+            instruction: UiPartiallyDecodedInstruction,
+            metadata: Any,
+            instruction_idx: int
+    ):
+        # Extract relevant account addresses from the instruction using metadata definitions
+        accounts = self.get_accounts_from_instruction(instruction.accounts, metadata.idl_ix)
+        # Locate inner instructions related to the primary instruction by index
+        inner_instructions = next((i for i in self.last_tx.meta.inner_instructions if i.index == instruction_idx), None)
+        # failed instructions do not have inner instructions.
+        if not inner_instructions:
+            return
+
+        # Process each inner instruction based on its type and relevant account roles
+        for i in inner_instructions.instructions:
+            info = i.parsed['info']
+            if i.parsed['type'] == 'transfer':
+                if info['authority'] == str(accounts['lendingMarketAuthority']) \
+                        and info['source'] == str(accounts['reserveSourceLiquidity']) \
+                        and info['destination'] == str(accounts['userDestinationLiquidity']):
+                    repay_liquidity = KaminoParsedTransactions(
+                        transaction_id=str(self.last_tx.transaction.signatures[0]),
+                        instruction_name='borrow_obligation_liquidity',
+                        event_name='transfer-reserveSourceLiquidity-userDestinationLiquidity',
+
+                        token=None,
+                        amount=int(info['amount']),
+                        source=str(info['source']),
+                        destination=str(info['destination']),
 
 
-    def _init_obligation_farms_for_reserve(self, instruction: UiPartiallyDecodedInstruction, metadata):
-        raise NotImplementedError('Implement me!')
+                        account=str(accounts['owner']),
+                        signer=str(info['authority']),
+                        bank=str(accounts['lendingMarket']),
+                        obligation=str(accounts['obligation'])
+                    )
+                    self._processor(repay_liquidity)
+                else:
+                    raise UnknownInstruction(i)
+            else:
+                raise UnknownInstruction(i)
 
-    def _refresh_obligation_farms_for_reserve(self, instruction: UiPartiallyDecodedInstruction, metadata):
-        raise NotImplementedError('Implement me!')
+    def _repay_obligation_liquidity(
+            self,
+            instruction: UiPartiallyDecodedInstruction,
+            metadata: Any,
+            instruction_idx: int
+    ):
+        # Extract relevant account addresses from the instruction using metadata definitions
+        accounts = self.get_accounts_from_instruction(instruction.accounts, metadata.idl_ix)
+        # Locate inner instructions related to the primary instruction by index
+        inner_instructions = next((i for i in self.last_tx.meta.inner_instructions if i.index == instruction_idx), None)
+        # failed instructions do not have inner instructions.
+        if not inner_instructions:
+            return
 
-    def _refresh_obligation(self, instruction: UiPartiallyDecodedInstruction, metadata):
-        raise NotImplementedError('Implement me!')
+        # Process each inner instruction based on its type and relevant account roles
+        for i in inner_instructions.instructions:
+            info = i.parsed['info']
+            if i.parsed['type'] == 'transfer':
+                if info['authority'] == str(accounts['owner']) \
+                        and info['source'] == str(accounts['userSourceLiquidity']) \
+                        and info['destination'] == str(accounts['reserveDestinationLiquidity']):
+                    repay_liquidity = KaminoParsedTransactions(
+                        transaction_id=str(self.last_tx.transaction.signatures[0]),
+                        instruction_name='repay_obligation_liquidity',
+                        event_name='transfer-userSourceLiquidity-reserveDestinationLiquidity',
 
-    def _deposit_obligation_collateral(self, instruction: UiPartiallyDecodedInstruction, metadata):
-        raise NotImplementedError('Implement me!')
+                        token=None,
+                        amount=int(info['amount']),
+                        source=str(info['source']),
+                        destination=str(info['destination']),
 
-    def _withdraw_obligation_collateral(self, instruction: UiPartiallyDecodedInstruction, metadata):
-        raise NotImplementedError('Implement me!')
 
-    def _borrow_obligation_liquidity(self, instruction: UiPartiallyDecodedInstruction, metadata):
-        raise NotImplementedError('Implement me!')
-
-    def _repay_obligation_liquidity(self, instruction: UiPartiallyDecodedInstruction, metadata):
-        raise NotImplementedError('Implement me!')
+                        account=str(accounts['owner']),
+                        signer=str(info['authority']),
+                        bank=str(accounts['lendingMarket']),
+                        obligation=str(accounts['obligation'])
+                    )
+                    self._processor(repay_liquidity)
+                else:
+                    raise UnknownInstruction(i)
+            else:
+                raise UnknownInstruction(i)
 
     def _deposit_reserve_liquidity_and_obligation_collateral(
             self,
@@ -263,8 +387,10 @@ class KaminoTransactionParser(TransactionDecoder):
         # Extract relevant account addresses from the instruction using metadata definitions
         accounts = self.get_accounts_from_instruction(instruction.accounts, metadata.idl_ix)
         # Locate inner instructions related to the primary instruction by index
-        inner_instructions = next(i for i in self.last_tx.meta.inner_instructions if i.index == instruction_idx)
-
+        inner_instructions = next((i for i in self.last_tx.meta.inner_instructions if i.index == instruction_idx), None)
+        # failed instructions do not have inner instructions.
+        if not inner_instructions:
+            return
         for i in inner_instructions.instructions:
             info = i.parsed['info']
             if i.parsed['type'] == 'transfer':
@@ -289,7 +415,7 @@ class KaminoTransactionParser(TransactionDecoder):
                     )
                     self._processor(deposit_reserve)
                 # deposit collateral
-                if info['authority'] == str(accounts['owner']) \
+                elif info['authority'] == str(accounts['owner']) \
                         and info['source'] == str(accounts['userDestinationCollateral']) \
                         and info['destination'] == str(accounts['reserveDestinationDepositCollateral']):
                     deposit_collateral = KaminoParsedTransactions(
@@ -309,7 +435,10 @@ class KaminoTransactionParser(TransactionDecoder):
                     )
                     self._processor(deposit_collateral)
 
-            if i.parsed['type'] == 'mintTo':
+                else:
+                    raise UnknownInstruction(i)
+
+            elif i.parsed['type'] == 'mintTo':
                 if info['mintAuthority'] == str(accounts['lendingMarketAuthority']) \
                         and info['account'] == str(accounts['userDestinationCollateral']) \
                         and info['mint'] == str(accounts['reserveCollateralMint']):
@@ -329,6 +458,29 @@ class KaminoTransactionParser(TransactionDecoder):
                     )
                     self._processor(mint_collateral)
 
+                elif info['mintAuthority'] == str(accounts['lendingMarketAuthority']) \
+                        and info['account'] == str(accounts['reserveDestinationDepositCollateral']) \
+                        and info['mint'] == str(accounts['reserveCollateralMint']):
+                    mint_collateral = KaminoParsedTransactions(
+                        transaction_id=str(self.last_tx.transaction.signatures[0]),
+                        instruction_name='deposit_reserve_liquidity_and_obligation_collateral',
+                        event_name='mintTo-reserveDestinationDepositCollateral',
+
+                        token=info['mint'],
+                        amount=int(info['amount']),
+                        destination=str(info['account']),
+
+                        account=str(accounts['owner']),
+                        signer=str(accounts['lendingMarketAuthority']),
+                        bank=str(accounts['lendingMarket']),
+                        obligation=str(accounts['obligation'])
+                    )
+                    self._processor(mint_collateral)
+                else:
+                    raise UnknownInstruction(i)
+            else:
+                raise UnknownInstruction(i)
+
     def _withdraw_obligation_collateral_and_redeem_reserve_collateral(
             self,
             instruction: UiPartiallyDecodedInstruction,
@@ -338,7 +490,10 @@ class KaminoTransactionParser(TransactionDecoder):
         # Extract relevant account addresses from the instruction using metadata definitions
         accounts = self.get_accounts_from_instruction(instruction.accounts, metadata.idl_ix)
         # Locate inner instructions related to the primary instruction by index
-        inner_instructions = next(i for i in self.last_tx.meta.inner_instructions if i.index == instruction_idx)
+        inner_instructions = next((i for i in self.last_tx.meta.inner_instructions if i.index == instruction_idx), None)
+        # failed instructions do not have inner instructions.
+        if not inner_instructions:
+            return
 
         for i in inner_instructions.instructions:
             info = i.parsed['info']
@@ -364,7 +519,7 @@ class KaminoTransactionParser(TransactionDecoder):
                     )
                     self._processor(deposit_reserve)
                 # redeem collateral
-                if info['authority'] == str(accounts['lendingMarketAuthority']) \
+                elif info['authority'] == str(accounts['lendingMarketAuthority']) \
                         and info['source'] == str(accounts['reserveLiquiditySupply']) \
                         and info['destination'] == str(accounts['userDestinationLiquidity']):
                     redeem_collateral = KaminoParsedTransactions(
@@ -383,8 +538,10 @@ class KaminoTransactionParser(TransactionDecoder):
                         obligation=str(accounts['obligation'])
                     )
                     self._processor(redeem_collateral)
+                else:
+                    raise UnknownInstruction(i)
 
-            if i.parsed['type'] == 'burn':
+            elif i.parsed['type'] == 'burn':
                 if info['authority'] == str(accounts['owner']) \
                         and info['account'] == str(accounts['userDestinationCollateral']) \
                         and info['mint'] == str(accounts['reserveCollateralMint']):
@@ -403,6 +560,29 @@ class KaminoTransactionParser(TransactionDecoder):
                         obligation=str(accounts['obligation'])
                     )
                     self._processor(burn_collateral)
+
+                elif info['authority'] == str(accounts['lendingMarketAuthority']) \
+                        and info['account'] == str(accounts['reserveSourceCollateral']) \
+                        and info['mint'] == str(accounts['reserveCollateralMint']):
+                    burn_collateral = KaminoParsedTransactions(
+                        transaction_id=str(self.last_tx.transaction.signatures[0]),
+                        instruction_name='withdraw_obligation_collateral_and_redeem_reserve_collateral',
+                        event_name='burn-reserveSourceCollateral',
+
+                        token=info['mint'],
+                        amount=int(info['amount']),
+                        source=info['account'],
+
+                        account=str(accounts['owner']),
+                        signer=info['authority'],
+                        bank=str(accounts['lendingMarket']),
+                        obligation=str(accounts['obligation'])
+                    )
+                    self._processor(burn_collateral)
+                else:
+                    raise UnknownInstruction(i)
+            else:
+                raise UnknownInstruction(i)
 
     def _liquidate_obligation_and_redeem_reserve_collateral(
             self,
@@ -424,8 +604,10 @@ class KaminoTransactionParser(TransactionDecoder):
         # Extract relevant account addresses from the instruction using metadata definitions
         accounts = self.get_accounts_from_instruction(instruction.accounts, metadata.idl_ix)
         # Locate inner instructions related to the primary instruction by index
-        inner_instructions = next(i for i in self.last_tx.meta.inner_instructions if i.index == instruction_idx)
-
+        inner_instructions = next((i for i in self.last_tx.meta.inner_instructions if i.index == instruction_idx), None)
+        # failed instructions do not have inner instructions.
+        if not inner_instructions:
+            return
         # Extract key accounts involved in the transaction
         liquidatee = str(accounts['obligation'])  # obligation
         liquidator = str(accounts['liquidator'])  # liquidator
@@ -450,6 +632,8 @@ class KaminoTransactionParser(TransactionDecoder):
                         obligation=str(accounts['obligation'])
                     )
                     self._processor(burn_collateral)
+                else:
+                    raise UnknownInstruction(i)
 
             elif i.parsed['type'] == 'transfer':
 
@@ -473,7 +657,7 @@ class KaminoTransactionParser(TransactionDecoder):
                     )
                     self._processor(repay)
 
-                if info['authority'] == str(accounts['lendingMarketAuthority']) \
+                elif info['authority'] == str(accounts['lendingMarketAuthority']) \
                         and info['source'] == str(accounts['withdrawReserveCollateralSupply']) \
                         and info['destination'] == str(accounts['userDestinationCollateral']):
                     collateral_withdraw = KaminoParsedTransactions(
@@ -494,7 +678,7 @@ class KaminoTransactionParser(TransactionDecoder):
                     self._processor(collateral_withdraw)
 
                 # move removed collateral + fee
-                if info['authority'] == str(accounts['lendingMarketAuthority']) \
+                elif info['authority'] == str(accounts['lendingMarketAuthority']) \
                         and info['source'] == str(accounts['withdrawReserveLiquiditySupply']) \
                         and info['destination'] == str(accounts['userDestinationLiquidity']):
                     received_collateral_and_fee = KaminoParsedTransactions(
@@ -514,7 +698,7 @@ class KaminoTransactionParser(TransactionDecoder):
                     )
                     self._processor(received_collateral_and_fee)
                 # move liquidators fee
-                if info['authority'] == liquidator \
+                elif info['authority'] == liquidator \
                         and info['source'] == str(accounts['userDestinationLiquidity']) \
                         and info['destination'] == str(accounts['withdrawReserveLiquidityFeeReceiver']):
                     move_fee = KaminoParsedTransactions(
@@ -533,20 +717,97 @@ class KaminoTransactionParser(TransactionDecoder):
                         obligation=str(accounts['obligation'])
                     )
                     self._processor(move_fee)
+                else:
+                    raise UnknownInstruction(i)
+            else:
+                raise UnknownInstruction(i)
+
+    def _flash_repay_reserve_liquidity(
+            self,
+            instruction: UiPartiallyDecodedInstruction,
+            metadata: Any,
+            instruction_idx: int
+    ):
+        # Extract relevant account addresses from the instruction using metadata definitions
+        accounts = self.get_accounts_from_instruction(instruction.accounts, metadata.idl_ix)
+        # Locate inner instructions related to the primary instruction by index
+        inner_instructions = next((i for i in self.last_tx.meta.inner_instructions if i.index == instruction_idx), None)
+        # failed instructions do not have inner instructions.
+        if not inner_instructions:
+            return
+
+        # Process each inner instruction based on its type and relevant account roles
+        for i in inner_instructions.instructions:
+            info = i.parsed['info']
+            if i.parsed['type'] == 'transfer':
+                if info['authority'] == str(accounts['userTransferAuthority']) \
+                        and info['source'] == str(accounts['userSourceLiquidity']) \
+                        and info['destination'] == str(accounts['reserveDestinationLiquidity']):
+                    repay_liquidity = KaminoParsedTransactions(
+                        transaction_id=str(self.last_tx.transaction.signatures[0]),
+                        instruction_name='flash_repay_reserve_liquidity',
+                        event_name='transfer-userSourceLiquidity-reserveDestinationLiquidity',
+
+                        token=None,
+                        amount=int(info['amount']),
+                        source=str(info['source']),
+                        destination=str(info['destination']),
+
+                        account=str(accounts['reserve']),
+                        signer=str(info['authority']),
+                        bank=str(accounts['lendingMarket'])
+                    )
+                    self._processor(repay_liquidity)
+                else:
+                    raise UnknownInstruction(i)
+            else:
+                raise UnknownInstruction(i)
+
+    def _flash_borrow_reserve_liquidity(
+            self,
+            instruction: UiPartiallyDecodedInstruction,
+            metadata: Any,
+            instruction_idx: int
+    ):
+        # Extract relevant account addresses from the instruction using metadata definitions
+        accounts = self.get_accounts_from_instruction(instruction.accounts, metadata.idl_ix)
+        # Locate inner instructions related to the primary instruction by index
+        inner_instructions = next((i for i in self.last_tx.meta.inner_instructions if i.index == instruction_idx), None)
+        # failed instructions do not have inner instructions.
+        if not inner_instructions:
+            return
+
+        # Process each inner instruction based on its type and relevant account roles
+        for i in inner_instructions.instructions:
+            info = i.parsed['info']
+            if i.parsed['type'] == 'transfer':
+                if info['authority'] == str(accounts['lendingMarketAuthority']) \
+                        and info['source'] == str(accounts['reserveSourceLiquidity']) \
+                        and info['destination'] == str(accounts['userDestinationLiquidity']):
+                    borrow_liquidity = KaminoParsedTransactions(
+                        transaction_id=str(self.last_tx.transaction.signatures[0]),
+                        instruction_name='flash_borrow_reserve_liquidity',
+                        event_name='transfer-reserveSourceLiquidity-userDestinationLiquidity',
+
+                        token=None,
+                        amount=int(info['amount']),
+                        source=str(info['source']),
+                        destination=str(info['destination']),
+
+                        account=str(accounts['reserve']),
+                        signer=str(info['authority']),
+                        bank=str(accounts['lendingMarket'])
+                    )
+                    self._processor(borrow_liquidity)
+                else:
+                    raise UnknownInstruction(i)
+            else:
+                raise UnknownInstruction(i)
 
     def _redeem_fees(self, instruction: UiPartiallyDecodedInstruction, metadata):
         raise NotImplementedError('Implement me!')
 
-    def _flash_repay_reserve_liquidity(self, instruction: UiPartiallyDecodedInstruction, metadata):
-        raise NotImplementedError('Implement me!')
-
-    def _flash_borrow_reserve_liquidity(self, instruction: UiPartiallyDecodedInstruction, metadata):
-        raise NotImplementedError('Implement me!')
-
     def _socialize_loss(self, instruction: UiPartiallyDecodedInstruction, metadata):
-        raise NotImplementedError('Implement me!')
-
-    def _request_elevation_group(self, instruction: UiPartiallyDecodedInstruction, metadata):
         raise NotImplementedError('Implement me!')
 
     def _init_referrer_token_state(self, instruction: UiPartiallyDecodedInstruction, metadata):
@@ -591,7 +852,8 @@ if __name__ == "__main__":
             # "5WRh1c3i77AR1hWckayWvd1uoJhybqmer3srwJeHQbgpJr332X23THwz3ea5TxeedYhkdeh4zUAvCiEP3j43w1Pb",
             # "5CULYy1GS9qV8ioHr6UoQgNTEHZRR8ovD1Dm482GuN84wdv2jVaqGeX4MoFEJjt5BVPVamRpucX8BH3RkeQJxxGU"
             # 'KSyQcxRgE6pcYrGto1sANfRPTrwtJ6m7S8xjrdUG4wwKLXYNnxSfFxy1a3yqxR6aMtr6GAKs41bJRfaHSxQkx7j'
-            "2KtPTFrK3YSPEyefyjoFktCfDWByUqBoVmaWjAi3w7Jo3Xt3cD9GBkC75Bmqk5JisBUNtKwQjeVYHeQENxM1fS8x"
+            # "5RDTyfcw1Z5wkwPs7p5atnYbNAjqUqpTfNNdDGFR8xdgHKGtNhe1PctNfTFLUjTspwpiGDJAUgQaQMLJvD4Vv7SP"
+            '5hirYUZUd43y4pZkGbMBekPLL4sad6b1f2bnFLak6YkWQq9xtswqAQmHkyH3mxkFp8jCpu28hJgsXTCvZqPFm8t'
         ),
         'jsonParsed',
         max_supported_transaction_version=0
