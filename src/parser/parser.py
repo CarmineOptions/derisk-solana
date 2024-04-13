@@ -53,6 +53,11 @@ PROGRAM_LOG_START_INDEX = len(PROGRAM_LOG)
 PROGRAM_DATA_START_INDEX = len(PROGRAM_DATA)
 
 
+class UnknownInstruction(Exception):
+    def __init__(self, unknown_instruction):
+        super().__init__(f"Unknown instruction = {unknown_instruction}")
+
+
 class TransactionDecoder(ABC):
 
     def __init__(self, path_to_idl: Path, program_id: Pubkey):
@@ -143,6 +148,7 @@ class TransactionDecoder(ABC):
 
         logs_parsed = dict()
         for log in program_log:
+            print(log)
             log_start = log.split(":")[0]
             splitted = log_start.split(" ")
 
