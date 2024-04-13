@@ -37,7 +37,7 @@ if POSTGRES_DB is None:
     raise ValueError("no POSTGRES_DB env var")
 
 CONN_STRING = f"postgresql+psycopg2://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_HOST}/{POSTGRES_DB}"
-SCHEMA = 'public'
+SCHEMA = 'lenders'
 
 
 def get_db_session() -> Session:
@@ -98,24 +98,24 @@ class ParsedTransactions(Base):
     __table_args__ = {"schema": SCHEMA}
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    transaction_id = Column(String, nullable=False)
-    instruction_name = Column(String, nullable=False)
+    transaction_id = Column(String, nullable=True)
+    instruction_name = Column(String, nullable=True)
     event_name = Column(String, nullable=True)
     event_number = Column(String, nullable=True)
 
-    position = Column(SQLEnum('asset', 'liability'), nullable=False)
-    token = Column(String, nullable=False)
-    amount = Column(BigInteger, nullable=False)
+    position = Column(SQLEnum('asset', 'liability', name='sqlenum', schema=SCHEMA), nullable=True)
+    token = Column(String, nullable=True)
+    amount = Column(BigInteger, nullable=True)
     amount_decimal = Column(Integer, nullable=True)
 
-    bank = Column(String, nullable=False)
-    account = Column(String, nullable=False)
-    signer = Column(String, nullable=False)
+    bank = Column(String, nullable=True)
+    account = Column(String, nullable=True)
+    signer = Column(String, nullable=True)
 
     context = Column(String, nullable=True)
 
     block = Column(BigInteger, nullable=True)
-    created_at = Column(BigInteger, nullable=False)
+    created_at = Column(BigInteger, nullable=True)
 
     def __repr__(self):
         return f"<ParsedTransactions(\n   id={self.id}, \n   transaction_id='{self.transaction_id}',\n" \
@@ -131,9 +131,10 @@ class LendingAccounts(Base):
     __table_args__ = {"schema": SCHEMA}
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    authority = Column(String, nullable=False)
-    address = Column(String, nullable=False)
+    authority = Column(String, nullable=True)
+    address = Column(String, nullable=True)
     group = Column(String, nullable=True)
+    block = Column(BigInteger, nullable=True)
     created_at = Column(BigInteger, nullable=False)
 
     def __repr__(self):
