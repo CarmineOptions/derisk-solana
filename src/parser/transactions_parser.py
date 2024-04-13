@@ -29,7 +29,7 @@ def process_transactions(parser: Type[TransactionDecoder], signature_list_table:
             LOGGER.info(f"Fetched {len(transactions)} transactions for processing.")
 
             for transaction in transactions:
-                tx_data = session.query(TransactionStatusWithSignature.transaction_data).filter(
+                tx_data = session.query(TransactionStatusWithSignature.transaction_data, TransactionStatusWithSignature.slot).filter(
                     TransactionStatusWithSignature.signature == transaction.signature
                 ).first()
                 if tx_data and tx_data.transaction_data:

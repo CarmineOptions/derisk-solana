@@ -9,12 +9,14 @@ import re
 
 from base58 import b58decode
 from construct.core import StreamError
+from solders.pubkey import Pubkey
 from solders.signature import Signature
 from solders.transaction_status import EncodedTransactionWithStatusMeta, UiPartiallyDecodedInstruction
 
 from db import KaminoParsedTransactions, KaminoLendingAccounts
 from src.parser.parser import TransactionDecoder, UnknownInstruction
-
+from src.protocols.addresses import KAMINO_ADDRESS
+from src.protocols.idl_paths import KAMINO_IDL_PATH
 
 LOGGER = logging.getLogger(__name__)
 
@@ -28,6 +30,13 @@ def camel_to_snake(name):
 
 
 class KaminoTransactionParser(TransactionDecoder):
+
+    def __init__(
+        self,
+        path_to_idl: Path = Path(KAMINO_IDL_PATH),
+        program_id: Pubkey = Pubkey.from_string(KAMINO_ADDRESS)
+    ):
+        super().__init__(path_to_idl, program_id)
 
     def _get_kamino_instructions(self, transaction_with_meta: EncodedTransactionWithStatusMeta) -> List[Tuple[str, Any]]:
         """Parse instructions from the transaction that match the known program ID."""
