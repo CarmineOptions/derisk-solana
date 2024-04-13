@@ -183,6 +183,7 @@ class MarginfiLendingAccounts(LendingAccounts):
 
 class KaminoParsedTransactions(ParsedTransactions):
     __tablename__ = "kamino_parsed_transactions"
+    event_number = Column(String, nullable=True)
     source = Column(String, nullable=True)
     destination = Column(String, nullable=True)
     obligation = Column(String, nullable=True)
@@ -197,7 +198,8 @@ class KaminoParsedTransactions(ParsedTransactions):
 
     def __repr__(self):
         return f"<ParsedTransactions(\n   id={self.id}, \n   transaction_id='{self.transaction_id}'," \
-               f"\n   instruction_name='{self.instruction_name}', \n   event_name='{self.event_name}'," \
+               f"\n   instruction_name='{self.instruction_name}', \n   event_name='{self.event_name}', " \
+               f"\n   event_num = {self.event_number}" \
                f"\n   position='{self.position}', \n   token='{self.token}'," \
                f"\n   source='{self.source}', \n   destination='{self.destination}'," \
                f"\n   amount={self.amount}, \n   amount_decimal={self.amount_decimal}, \n   account='{self.account}', " \

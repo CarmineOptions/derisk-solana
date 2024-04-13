@@ -25,7 +25,7 @@ def camel_to_snake(name):
 
 class KaminoTransactionParser(TransactionDecoder):
 
-    def get_kamino_instructions(self, transaction_with_meta: EncodedTransactionWithStatusMeta) -> List[Tuple[str, Any]]:
+    def _get_kamino_instructions(self, transaction_with_meta: EncodedTransactionWithStatusMeta) -> List[Tuple[str, Any]]:
         """Parse instructions from the transaction that match the known program ID."""
         # Initialize a list to store parsed instructions
         parsed_instructions: List[Tuple[str, Any]] = []
@@ -46,7 +46,7 @@ class KaminoTransactionParser(TransactionDecoder):
                     pass
         return parsed_instructions
 
-    def handle_log(self, msg, parsed_instructions):
+    def _handle_log(self, msg, parsed_instructions):
         if msg.startswith("Program log: Instruction:"):
             # Extract and format the instruction name from the log message
             instruction_name = msg.split(' ')[3]
@@ -68,7 +68,7 @@ class KaminoTransactionParser(TransactionDecoder):
 
             # If the instruction name matches any known instruction from the program, handle the event
             if instruction_name in [i.idl_ix.name for i in self.program.instruction.values()]:
-                self.save_kamino_instruction(parsed_instruction, instruction_name, instruction_index)
+                self._save_kamino_instruction(parsed_instruction, instruction_name, instruction_index)
 
     def decode_tx(self, transaction_with_meta: EncodedTransactionWithStatusMeta) -> None:
         """
@@ -84,17 +84,17 @@ class KaminoTransactionParser(TransactionDecoder):
         # Storing the transaction for potential later use
         self.last_tx = transaction_with_meta
         # Get Kamino transactions
-        parsed_instructions = self.get_kamino_instructions(transaction_with_meta)
+        parsed_instructions = self._get_kamino_instructions(transaction_with_meta)
 
         # Get log messages from transaction metadata
         log_msgs = transaction_with_meta.meta.log_messages
 
         # Process each log message related to program instructions
         for msg in log_msgs:
-            self.handle_log(msg, parsed_instructions)
+            self._handle_log(msg, parsed_instructions)
 
     @staticmethod
-    def get_accounts_from_instruction(known_accounts, instruction):
+    def _get_accounts_from_instruction(known_accounts, instruction):
         # Pairing the accounts from the instruction with their names based on their order
         paired_accounts = {}
         for i, account in enumerate(instruction.accounts):
@@ -102,7 +102,7 @@ class KaminoTransactionParser(TransactionDecoder):
                 paired_accounts[account.name] = known_accounts[i]
         return paired_accounts
 
-    def save_kamino_instruction(  # pylint: disable=too-many-statements, too-many-branches
+    def _save_kamino_instruction(  # pylint: disable=too-many-statements, too-many-branches
             self,
             instruction: UiPartiallyDecodedInstruction,
             instruction_name: str,
@@ -194,7 +194,7 @@ class KaminoTransactionParser(TransactionDecoder):
 
     def _create_account(self, instruction: UiPartiallyDecodedInstruction, metadata):
         """"""
-        accounts = self.get_accounts_from_instruction(instruction.accounts, metadata.idl_ix)
+        accounts = self._get_accounts_from_instruction(instruction.accounts, metadata.idl_ix)
         new_lending_account = KaminoLendingAccounts(
             authority=str(accounts['feePayer']),
             address=str(accounts['owner']),
@@ -244,7 +244,7 @@ class KaminoTransactionParser(TransactionDecoder):
             instruction_idx: int
     ):
         # Extract relevant account addresses from the instruction using metadata definitions
-        accounts = self.get_accounts_from_instruction(instruction.accounts, metadata.idl_ix)
+        accounts = self._get_accounts_from_instruction(instruction.accounts, metadata.idl_ix)
         # Locate inner instructions related to the primary instruction by index
         inner_instructions = next((i for i in self.last_tx.meta.inner_instructions if i.index == instruction_idx), None)
         # failed instructions do not have inner instructions.
@@ -270,7 +270,7 @@ class KaminoTransactionParser(TransactionDecoder):
             instruction_idx: int
     ):
         # Extract relevant account addresses from the instruction using metadata definitions
-        accounts = self.get_accounts_from_instruction(instruction.accounts, metadata.idl_ix)
+        accounts = self._get_accounts_from_instruction(instruction.accounts, metadata.idl_ix)
         # Locate inner instructions related to the primary instruction by index
         inner_instructions = next((i for i in self.last_tx.meta.inner_instructions if i.index == instruction_idx), None)
         # failed instructions do not have inner instructions.
@@ -299,7 +299,7 @@ class KaminoTransactionParser(TransactionDecoder):
             instruction_idx: int
     ):
         # Extract relevant account addresses from the instruction using metadata definitions
-        accounts = self.get_accounts_from_instruction(instruction.accounts, metadata.idl_ix)
+        accounts = self._get_accounts_from_instruction(instruction.accounts, metadata.idl_ix)
         # Locate inner instructions related to the primary instruction by index
         inner_instructions = next((i for i in self.last_tx.meta.inner_instructions if i.index == instruction_idx), None)
         # failed instructions do not have inner instructions.
@@ -317,6 +317,7 @@ class KaminoTransactionParser(TransactionDecoder):
                         transaction_id=str(self.last_tx.transaction.signatures[0]),
                         instruction_name='borrow_obligation_liquidity',
                         event_name='transfer-reserveSourceLiquidity-userDestinationLiquidity',
+                        event_number=instruction_idx,
 
                         token=None,
                         amount=int(info['amount']),
@@ -342,7 +343,7 @@ class KaminoTransactionParser(TransactionDecoder):
             instruction_idx: int
     ):
         # Extract relevant account addresses from the instruction using metadata definitions
-        accounts = self.get_accounts_from_instruction(instruction.accounts, metadata.idl_ix)
+        accounts = self._get_accounts_from_instruction(instruction.accounts, metadata.idl_ix)
         # Locate inner instructions related to the primary instruction by index
         inner_instructions = next((i for i in self.last_tx.meta.inner_instructions if i.index == instruction_idx), None)
         # failed instructions do not have inner instructions.
@@ -360,6 +361,7 @@ class KaminoTransactionParser(TransactionDecoder):
                         transaction_id=str(self.last_tx.transaction.signatures[0]),
                         instruction_name='repay_obligation_liquidity',
                         event_name='transfer-userSourceLiquidity-reserveDestinationLiquidity',
+                        event_number=instruction_idx,
 
                         token=None,
                         amount=int(info['amount']),
@@ -385,7 +387,7 @@ class KaminoTransactionParser(TransactionDecoder):
             instruction_idx: int
     ):
         # Extract relevant account addresses from the instruction using metadata definitions
-        accounts = self.get_accounts_from_instruction(instruction.accounts, metadata.idl_ix)
+        accounts = self._get_accounts_from_instruction(instruction.accounts, metadata.idl_ix)
         # Locate inner instructions related to the primary instruction by index
         inner_instructions = next((i for i in self.last_tx.meta.inner_instructions if i.index == instruction_idx), None)
         # failed instructions do not have inner instructions.
@@ -402,6 +404,7 @@ class KaminoTransactionParser(TransactionDecoder):
                         transaction_id=str(self.last_tx.transaction.signatures[0]),
                         instruction_name='deposit_reserve_liquidity_and_obligation_collateral',
                         event_name='transfer-userSourceLiquidity-reserveLiquiditySupply',
+                        event_number=instruction_idx,
 
                         token=None,
                         amount=int(info['amount']),
@@ -422,6 +425,7 @@ class KaminoTransactionParser(TransactionDecoder):
                         transaction_id=str(self.last_tx.transaction.signatures[0]),
                         instruction_name='deposit_reserve_liquidity_and_obligation_collateral',
                         event_name='transfer-userDestinationCollateral-reserveDestinationDepositCollateral',
+                        event_number=instruction_idx,
 
                         token=None,
                         amount=int(info['amount']),
@@ -446,6 +450,7 @@ class KaminoTransactionParser(TransactionDecoder):
                         transaction_id=str(self.last_tx.transaction.signatures[0]),
                         instruction_name='deposit_reserve_liquidity_and_obligation_collateral',
                         event_name='mintTo-userDestinationCollateral',
+                        event_number=instruction_idx,
 
                         token=info['mint'],
                         amount=int(info['amount']),
@@ -465,6 +470,7 @@ class KaminoTransactionParser(TransactionDecoder):
                         transaction_id=str(self.last_tx.transaction.signatures[0]),
                         instruction_name='deposit_reserve_liquidity_and_obligation_collateral',
                         event_name='mintTo-reserveDestinationDepositCollateral',
+                        event_number=instruction_idx,
 
                         token=info['mint'],
                         amount=int(info['amount']),
@@ -488,7 +494,7 @@ class KaminoTransactionParser(TransactionDecoder):
             instruction_idx: int
     ):
         # Extract relevant account addresses from the instruction using metadata definitions
-        accounts = self.get_accounts_from_instruction(instruction.accounts, metadata.idl_ix)
+        accounts = self._get_accounts_from_instruction(instruction.accounts, metadata.idl_ix)
         # Locate inner instructions related to the primary instruction by index
         inner_instructions = next((i for i in self.last_tx.meta.inner_instructions if i.index == instruction_idx), None)
         # failed instructions do not have inner instructions.
@@ -506,6 +512,7 @@ class KaminoTransactionParser(TransactionDecoder):
                         transaction_id=str(self.last_tx.transaction.signatures[0]),
                         instruction_name='withdraw_obligation_collateral_and_redeem_reserve_collateral',
                         event_name='transfer-reserveSourceCollateral-userDestinationCollateral',
+                        event_number=instruction_idx,
 
                         token=None,
                         amount=int(info['amount']),
@@ -526,6 +533,7 @@ class KaminoTransactionParser(TransactionDecoder):
                         transaction_id=str(self.last_tx.transaction.signatures[0]),
                         instruction_name='withdraw_obligation_collateral_and_redeem_reserve_collateral',
                         event_name='transfer-reserveLiquiditySupply-userDestinationLiquidity',
+                        event_number=instruction_idx,
 
                         token=None,
                         amount=int(info['amount']),
@@ -549,6 +557,7 @@ class KaminoTransactionParser(TransactionDecoder):
                         transaction_id=str(self.last_tx.transaction.signatures[0]),
                         instruction_name='withdraw_obligation_collateral_and_redeem_reserve_collateral',
                         event_name='burn-userDestinationCollateral',
+                        event_number=instruction_idx,
 
                         token=info['mint'],
                         amount=int(info['amount']),
@@ -568,6 +577,7 @@ class KaminoTransactionParser(TransactionDecoder):
                         transaction_id=str(self.last_tx.transaction.signatures[0]),
                         instruction_name='withdraw_obligation_collateral_and_redeem_reserve_collateral',
                         event_name='burn-reserveSourceCollateral',
+                        event_number=instruction_idx,
 
                         token=info['mint'],
                         amount=int(info['amount']),
@@ -602,7 +612,7 @@ class KaminoTransactionParser(TransactionDecoder):
         collateral, transferring assets, and managing fees associated with the liquidation events.
         """
         # Extract relevant account addresses from the instruction using metadata definitions
-        accounts = self.get_accounts_from_instruction(instruction.accounts, metadata.idl_ix)
+        accounts = self._get_accounts_from_instruction(instruction.accounts, metadata.idl_ix)
         # Locate inner instructions related to the primary instruction by index
         inner_instructions = next((i for i in self.last_tx.meta.inner_instructions if i.index == instruction_idx), None)
         # failed instructions do not have inner instructions.
@@ -621,6 +631,7 @@ class KaminoTransactionParser(TransactionDecoder):
                         transaction_id=str(self.last_tx.transaction.signatures[0]),
                         instruction_name='liquidate_obligation_and_redeem_reserve_collateral',
                         event_name='burn-userDestinationCollateral',
+                        event_number=instruction_idx,
 
                         token=info['mint'],
                         amount=int(info['amount']),
@@ -644,6 +655,7 @@ class KaminoTransactionParser(TransactionDecoder):
                         transaction_id=str(self.last_tx.transaction.signatures[0]),
                         instruction_name='liquidate_obligation_and_redeem_reserve_collateral',
                         event_name='transfer-userSourceLiquidity-repayReserveLiquiditySupply',
+                        event_number=instruction_idx,
 
                         token=None,
                         amount=int(info['amount']),
@@ -664,6 +676,7 @@ class KaminoTransactionParser(TransactionDecoder):
                         transaction_id=str(self.last_tx.transaction.signatures[0]),
                         instruction_name='liquidate_obligation_and_redeem_reserve_collateral',
                         event_name='transfer-withdrawReserveCollateralSupply-userDestinationCollateral',
+                        event_number=instruction_idx,
 
                         token=None,
                         amount=int(info['amount']),
@@ -685,6 +698,7 @@ class KaminoTransactionParser(TransactionDecoder):
                         transaction_id=str(self.last_tx.transaction.signatures[0]),
                         instruction_name='liquidate_obligation_and_redeem_reserve_collateral',
                         event_name='transfer-withdrawReserveLiquiditySupply-userDestinationLiquidity',
+                        event_number=instruction_idx,
 
                         token=None,
                         amount=int(info['amount']),
@@ -705,6 +719,7 @@ class KaminoTransactionParser(TransactionDecoder):
                         transaction_id=str(self.last_tx.transaction.signatures[0]),
                         instruction_name='liquidate_obligation_and_redeem_reserve_collateral',
                         event_name='transfer-userDestinationLiquidity-withdrawReserveLiquidityFeeReceiver',
+                        event_number=instruction_idx,
 
                         token=None,
                         amount=int(info['amount']),
@@ -729,7 +744,7 @@ class KaminoTransactionParser(TransactionDecoder):
             instruction_idx: int
     ):
         # Extract relevant account addresses from the instruction using metadata definitions
-        accounts = self.get_accounts_from_instruction(instruction.accounts, metadata.idl_ix)
+        accounts = self._get_accounts_from_instruction(instruction.accounts, metadata.idl_ix)
         # Locate inner instructions related to the primary instruction by index
         inner_instructions = next((i for i in self.last_tx.meta.inner_instructions if i.index == instruction_idx), None)
         # failed instructions do not have inner instructions.
@@ -747,6 +762,7 @@ class KaminoTransactionParser(TransactionDecoder):
                         transaction_id=str(self.last_tx.transaction.signatures[0]),
                         instruction_name='flash_repay_reserve_liquidity',
                         event_name='transfer-userSourceLiquidity-reserveDestinationLiquidity',
+                        event_number=instruction_idx,
 
                         token=None,
                         amount=int(info['amount']),
@@ -770,7 +786,7 @@ class KaminoTransactionParser(TransactionDecoder):
             instruction_idx: int
     ):
         # Extract relevant account addresses from the instruction using metadata definitions
-        accounts = self.get_accounts_from_instruction(instruction.accounts, metadata.idl_ix)
+        accounts = self._get_accounts_from_instruction(instruction.accounts, metadata.idl_ix)
         # Locate inner instructions related to the primary instruction by index
         inner_instructions = next((i for i in self.last_tx.meta.inner_instructions if i.index == instruction_idx), None)
         # failed instructions do not have inner instructions.
@@ -788,6 +804,7 @@ class KaminoTransactionParser(TransactionDecoder):
                         transaction_id=str(self.last_tx.transaction.signatures[0]),
                         instruction_name='flash_borrow_reserve_liquidity',
                         event_name='transfer-reserveSourceLiquidity-userDestinationLiquidity',
+                        event_number=instruction_idx,
 
                         token=None,
                         amount=int(info['amount']),
