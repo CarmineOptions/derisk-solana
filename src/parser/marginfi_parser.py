@@ -1,19 +1,34 @@
 """
+Module contains transaction parser for Marginfi lending protocol.
 """
-import os
 from pathlib import Path
 import math
+import os
+import logging
 
 from anchorpy.program.common import Event
+from construct.core import StreamError
+from solders.pubkey import Pubkey
 from solders.signature import Signature
 from solders.transaction_status import EncodedTransactionWithStatusMeta
-from construct.core import StreamError
 
-from src.parser.parser import TransactionDecoder
 from db import MarginfiParsedTransactions, MarginfiLendingAccounts
+from src.parser.parser import TransactionDecoder
+from src.protocols.addresses import MARGINFI_ADDRESS
+from src.protocols.idl_paths import MARGINFI_IDL_PATH
+
+
+LOGGER = logging.getLogger(__name__)
 
 
 class MarginfiTransactionParser(TransactionDecoder):
+
+    def __init__(
+            self,
+            path_to_idl: Path = Path(MARGINFI_IDL_PATH),
+            program_id: Pubkey = Pubkey.from_string(MARGINFI_ADDRESS)
+    ):
+        super().__init__(path_to_idl, program_id)
 
     def _create_lending_account(self, event: Event):
         """"""
@@ -76,7 +91,7 @@ class MarginfiTransactionParser(TransactionDecoder):
             b for b in self.last_tx.meta.post_token_balances
             if b.mint == mint
         ), None)
-        amount_decimal = post_token_balance.ui_token_amount.decimals
+        amount_decimal = post_token_balance.ui_token_amount.decimals if post_token_balance else None
         payment = MarginfiParsedTransactions(
             transaction_id=str(self.last_tx.transaction.signatures[0]),
             instruction_name='lending_account_repay',
@@ -104,19 +119,12 @@ class MarginfiTransactionParser(TransactionDecoder):
 
         # check deposit balances
         borrower = event.data.header.signer
-        pre_token_balance = next((
-            b for b in self.last_tx.meta.pre_token_balances
-            if b.owner == borrower and b.mint == mint
-        ), None)
+        # attempt to obtain decimal for mint amount
         post_token_balance = next((
             b for b in self.last_tx.meta.post_token_balances
             if b.owner == borrower and b.mint == mint
         ), None)
-        pre_token_balance_amount = int(pre_token_balance.ui_token_amount.amount if pre_token_balance else "0")
-        post_token_balance_amount = int(post_token_balance.ui_token_amount.amount)
-        # assert post_token_balance_amount - pre_token_balance_amount == amount
-
-        amount_decimal = post_token_balance.ui_token_amount.decimals
+        amount_decimal = post_token_balance.ui_token_amount.decimals if post_token_balance else None
 
         loan = MarginfiParsedTransactions(
             transaction_id=str(self.last_tx.transaction.signatures[0]),
@@ -149,7 +157,7 @@ class MarginfiTransactionParser(TransactionDecoder):
             if b.mint == mint
         ), None)
 
-        amount_decimal = post_token_balance.ui_token_amount.decimals
+        amount_decimal = post_token_balance.ui_token_amount.decimals if post_token_balance else None
         withdrawal = MarginfiParsedTransactions(
             transaction_id=str(self.last_tx.transaction.signatures[0]),
             instruction_name='lending_account_withdraw',
@@ -250,6 +258,7 @@ class MarginfiTransactionParser(TransactionDecoder):
 
     def save_event(self, event: Event) -> None:
         """
+        Save event based on its name.
         """
         if event.name == "MarginfiAccountCreateEvent":
             self._create_lending_account(event)
@@ -272,33 +281,35 @@ class MarginfiTransactionParser(TransactionDecoder):
         if event.name == "MarginfiAccountTransferAccountAuthorityEvent":
             self._change_account_authority(event)
 
+    def parse_transaction(self, transaction_with_meta: EncodedTransactionWithStatusMeta):
+        """
+        Parse marginfi transaction instructions and correlates with log messages.
 
-    def decode_tx(self, transaction_with_meta: EncodedTransactionWithStatusMeta):
+        Args:
+            transaction_with_meta (EncodedTransactionWithStatusMeta): The transaction data with metadata.
+
+        This method processes a given transaction, attempting to parse its instructions if they
+        are encoded and match a known program ID. It also associates these instructions with
+        corresponding log messages, and handles specific events accordingly.
+        """
         self.last_tx = transaction_with_meta
         log_msgs = transaction_with_meta.meta.log_messages
 
         try:
             self.event_parser.parse_logs(
-                log_msgs, lambda x: self.save_event(x)
+                log_msgs, self.save_event
             )
         except StreamError:
-            print('bananan')
+            LOGGER.warning(f"Stream error at transaction = `{self.last_tx.transaction.signatures[0]}`")
 
 
 if __name__ == "__main__":
-    from solana.rpc.api import Pubkey, Client
+    from solana.rpc.api import Client
 
-    tx_decoder = MarginfiTransactionParser(
-        Path('src/protocols/idls/marginfi_idl.json'),
-        Pubkey.from_string("MFv2hWf31Z9kbCa1snEPYctwafyhdvnV7FZnsebVacA")
-    )
+    tx_decoder = MarginfiTransactionParser()
 
-    token = os.getenv("RPC_URL")
-
-    ppk = "MFv2hWf31Z9kbCa1snEPYctwafyhdvnV7FZnsebVacA"
-
-    solana_client = Client(
-        "https://docs-demo.solana-mainnet.quiknode.pro/")  # RPC url - now it's just some demo i found on internet
+    rpc_url = os.getenv("RPC_URL")
+    solana_client = Client(rpc_url)  # RPC url - now it's just some demo i found on internet
 
     transaction = solana_client.get_transaction(
         Signature.from_string(
@@ -307,5 +318,4 @@ if __name__ == "__main__":
         'jsonParsed',
         max_supported_transaction_version=0
     )
-
-    tx_decoder.decode_tx(transaction.value.transaction)
+    tx_decoder.parse_transaction(transaction.value.transaction)
