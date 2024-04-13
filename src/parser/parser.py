@@ -22,7 +22,7 @@ from dataclasses import is_dataclass, asdict
 
 import collections.abc
 
-from db import get_db_session, ParsedTransactions
+from db import get_db_session, ParsedTransactions, Session
 
 
 def is_namedtuple(obj):
@@ -75,8 +75,11 @@ class TransactionDecoder(ABC):
         self.events = list()  # temporary storage for parsed events.
         self.last_tx: EncodedTransactionWithStatusMeta | None = None
 
-    def _create_lending_account(self, event: Event):
+    @abstractmethod
+    def parse_transaction(self, transaction_with_meta: EncodedTransactionWithStatusMeta):
+        raise NotImplementedError('Implement me!')
 
+    def _create_lending_account(self, event: Event):
         raise NotImplementedError('Implement me!')
 
     def save_event(self, event: Event) -> None:
@@ -91,13 +94,19 @@ class TransactionDecoder(ABC):
         """
         print(event_record)
 
-    def save_event_to_database(self, event_record: ParsedTransactions, timestamp: int):
+    def save_event_to_database(
+            self,
+            event_record: ParsedTransactions,
+            timestamp: int,
+            block_number: int,
+            session: Session
+    ):
         """
+        Assign timestamp and block number to event. Add record to db session.
         """
-        with get_db_session() as session:
-            event_record.created_at = timestamp
-            session.add(event_record)
-            session.commit()
+        event_record.created_at = timestamp
+        event_record.block = block_number
+        session.add(event_record)
 
     def decode_marginfi_transaction(self, transaction_with_meta: EncodedTransactionWithStatusMeta, block_number: int = -1):
         """

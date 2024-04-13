@@ -101,6 +101,7 @@ class ParsedTransactions(Base):
     transaction_id = Column(String, nullable=False)
     instruction_name = Column(String, nullable=False)
     event_name = Column(String, nullable=True)
+    event_number = Column(String, nullable=True)
 
     position = Column(SQLEnum('asset', 'liability'), nullable=False)
     token = Column(String, nullable=False)
@@ -140,24 +141,6 @@ class LendingAccounts(Base):
                f"\n   address='{self.address}', \n   group='{self.group}',\n   created_at={self.created_at})>"
 
 
-class TransactionsList(Base):
-    __abstract__ = True
-    __tablename__ = 'hist_transaction_list'
-    __table_args__ = {"schema": SCHEMA}
-
-    signature = Column(String, primary_key=True)
-    block_time = Column(BigInteger)
-    is_parsed = Column(Boolean, default=False)
-
-
-class MarginfiTransactionsList(TransactionsList):
-    __tablename__ = 'marginfi_hist_transaction_list'
-
-
-class KaminoTransactionsList(TransactionsList):
-    __tablename__ = 'kamino_hist_transaction_list'
-
-
 class MarginfiParsedTransactions(ParsedTransactions):
     __tablename__ = "marginfi_parsed_transactions"
 
@@ -183,7 +166,6 @@ class MarginfiLendingAccounts(LendingAccounts):
 
 class KaminoParsedTransactions(ParsedTransactions):
     __tablename__ = "kamino_parsed_transactions"
-    event_number = Column(String, nullable=True)
     source = Column(String, nullable=True)
     destination = Column(String, nullable=True)
     obligation = Column(String, nullable=True)
@@ -208,7 +190,38 @@ class KaminoParsedTransactions(ParsedTransactions):
 
 class KaminoLendingAccounts(LendingAccounts):
     __tablename__ = "kamino_lending_accounts"
+    __table_args__ = (
+        Index("ix_kamino_lending_accounts_address", "address"),
+        Index("ix_kamino_lending_accounts_group", "group"),
+        Index("ix_kamino_lending_accounts_authority", "authority"),
+        {"schema": SCHEMA}
+    )
 
+
+class TransactionsList(Base):
+    __abstract__ = True
+    __tablename__ = 'hist_transaction_list'
+    __table_args__ = {"schema": SCHEMA}
+
+    signature = Column(String, primary_key=True)
+    block_time = Column(BigInteger)
+    is_parsed = Column(Boolean, default=False)
+
+
+class MarginfiTransactionsList(TransactionsList):
+    __tablename__ = 'marginfi_hist_transaction_list'
+    __table_args__ = (
+        Index('idx_marginfi_transaction_list_signature', 'signature'),
+        {"schema": SCHEMA},
+    )
+
+
+class KaminoTransactionsList(TransactionsList):
+    __tablename__ = 'kamino_hist_transaction_list'
+    __table_args__ = (
+        Index('idx_kamino_transaction_list_signature', 'signature'),
+        {"schema": SCHEMA},
+    )
 
 class CLOBLiqudity(Base):
     __tablename__ = "orderbook_liquidity"

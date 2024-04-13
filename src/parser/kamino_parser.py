@@ -1,18 +1,22 @@
 """
 Kamino transaction parser.
 """
-import os
-import re
 from pathlib import Path
 from typing import Any, List, Tuple
+import logging
+import os
+import re
 
 from base58 import b58decode
+from construct.core import StreamError
 from solders.signature import Signature
 from solders.transaction_status import EncodedTransactionWithStatusMeta, UiPartiallyDecodedInstruction
-from construct.core import StreamError
 
-from src.parser.parser import TransactionDecoder, UnknownInstruction
 from db import KaminoParsedTransactions, KaminoLendingAccounts
+from src.parser.parser import TransactionDecoder, UnknownInstruction
+
+
+LOGGER = logging.getLogger(__name__)
 
 
 def camel_to_snake(name):
@@ -70,7 +74,7 @@ class KaminoTransactionParser(TransactionDecoder):
             if instruction_name in [i.idl_ix.name for i in self.program.instruction.values()]:
                 self._save_kamino_instruction(parsed_instruction, instruction_name, instruction_index)
 
-    def decode_tx(self, transaction_with_meta: EncodedTransactionWithStatusMeta) -> None:
+    def parse_transaction(self, transaction_with_meta: EncodedTransactionWithStatusMeta) -> None:
         """
         Decodes transaction instructions and correlates with log messages.
 
@@ -876,4 +880,4 @@ if __name__ == "__main__":
         max_supported_transaction_version=0
     )
 
-    tx_decoder.decode_tx(transaction.value.transaction)
+    tx_decoder.parse_transaction(transaction.value.transaction)
