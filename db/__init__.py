@@ -13,7 +13,9 @@ from sqlalchemy import (
     ForeignKey,
     PrimaryKeyConstraint,
     Float,
+    Numeric,
 )
+
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.types import Enum as SQLEnum
@@ -185,6 +187,34 @@ class DexNormalizedLiquidity(Base):
             f"asks={self.asks})"
         )
 
+class TokenLendingSupplies(Base):
+    __tablename__ = 'dex_normalized_liquidity'
+    __table_args__ = (
+        PrimaryKeyConstraint("timestamp", "protocol_id", 'vault'),
+        {"schema": SCHEMA},
+    )
+
+    timestamp = Column(BigInteger, nullable = False)
+    protocol_id = Column(String, nullable = False)
+    market = Column(String)
+    vault = Column(String, nullable = False)
+    underlying_mint_address = Column(String, nullable = False)
+    deposits_total = Column(Numeric, nullable = False)
+    lent_total = Column(Numeric, nullable = False)
+    available_to_borrow = Column(Numeric, nullable = False)
+
+    def __repr__(self):
+        return (
+            "TokenLendingSupplies("
+            f"timestamp={self.timestamp},"
+            f"protocol_id={self.protocol_id},"
+            f"market={self.market},"
+            f"vault={self.vault},"
+            f"underlying_mint_address={self.underlying_mint_address},"
+            f"deposits_total={self.deposits_total},"
+            f"lent_total={self.lent_total},"
+            f"available_to_borrow={self.available_to_borrow})"
+        )
 
 
 class Protocols(Base):
