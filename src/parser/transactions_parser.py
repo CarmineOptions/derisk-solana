@@ -42,7 +42,7 @@ def process_transactions(parser: Type[TransactionDecoder], signature_list_table:
                     transaction_data = EncodedTransactionWithStatusMeta.from_json(tx_data_json)
                     # Set up the decoder processor function
                     tx_decoder._processor = lambda x, block_time=transaction.block_time, block_number=slot_number, sess=session:\
-                        tx_decoder.save_event_to_database(x, timestmp=block_time, block_number=block_number, session=sess)  # pylint: disable=protected-access
+                        tx_decoder.save_event_to_database(x, timestamp=block_time, block_number=block_number, session=sess)  # pylint: disable=protected-access
                     # Decode the transaction data
                     tx_decoder.parse_transaction(transaction_data)
                     # Collect transactions that have been successfully parsed
@@ -52,10 +52,11 @@ def process_transactions(parser: Type[TransactionDecoder], signature_list_table:
                 except Exception as e:
                     LOGGER.error(
                         "While parsing transaction = `%s` \n an error occurred: %s",
-                        str(transaction.signatures),
+                        str(transaction.signature),
                         str(e),
                         exc_info=True
                     )
+                    transactions_to_update.append(transaction.signature)
             session.commit()
 
         # Update the database in a single operation to mark transactions as parsed
