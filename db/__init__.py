@@ -145,12 +145,14 @@ class LendingAccounts(Base):
     authority = Column(String, nullable=True)
     address = Column(String, nullable=True)
     group = Column(String, nullable=True)
+    action = Column(String, nullable=True)
     block = Column(BigInteger, nullable=True)
     created_at = Column(BigInteger, nullable=False)
 
     def __repr__(self):
         return f"<LendingAccounts(\n   id={self.id}, \n   authority='{self.authority}', " \
-               f"\n   address='{self.address}', \n   group='{self.group}',\n   created_at={self.created_at})>"
+               f"\n   address='{self.address}', \n   group='{self.group}',\n   action='{self.action}'," \
+               f"\n   created_at={self.created_at})>"
 
 
 class MarginfiParsedTransactions(ParsedTransactions):
@@ -206,6 +208,40 @@ class KaminoLendingAccounts(LendingAccounts):
         Index("ix_kamino_lending_accounts_address", "address"),
         Index("ix_kamino_lending_accounts_group", "group"),
         Index("ix_kamino_lending_accounts_authority", "authority"),
+        {"schema": SCHEMA}
+    )
+
+
+class MangoParsedTransactions(ParsedTransactions):
+    __tablename__ = "mango_parsed_transactions"
+    source = Column(String, nullable=True)
+    destination = Column(String, nullable=True)
+    obligation = Column(String, nullable=True)
+    __table_args__ = (
+        Index("ix_mango_parsed_transactions_transaction_id", "transaction_id"),
+        Index("ix_mango_parsed_transactions_instruction_name", "instruction_name"),
+        Index("ix_mango_parsed_transactions_event_name", "event_name"),
+        Index("ix_mango_parsed_transactions_account", "account"),
+        Index("ix_mango_parsed_transactions_token", "token"),
+        {"schema": SCHEMA},
+    )
+
+    def __repr__(self):
+        return f"<ParsedMangoTransactions(\n   id={self.id}, \n   transaction_id='{self.transaction_id}'," \
+               f"\n   instruction_name='{self.instruction_name}', \n   event_name='{self.event_name}', " \
+               f"\n   event_num = {self.event_number}" \
+               f"\n   position='{self.position}', \n   token='{self.token}'," \
+               f"\n   source='{self.source}', \n   destination='{self.destination}'," \
+               f"\n   amount={self.amount}, \n   amount_decimal={self.amount_decimal}, \n   account='{self.account}', " \
+               f"\n   signer='{self.signer}', \n   created_at={self.created_at}, \n   obligation={self.obligation}"
+
+
+class MangoLendingAccounts(LendingAccounts):
+    __tablename__ = "mango_lending_accounts"
+    __table_args__ = (
+        Index("ix_mango_lending_accounts_address", "address"),
+        Index("ix_mango_lending_accounts_group", "group"),
+        Index("ix_mango_lending_accounts_authority", "authority"),
         {"schema": SCHEMA}
     )
 
