@@ -232,13 +232,14 @@ def get_token_balance(transaction_with_meta:  EncodedTransactionWithStatusMeta):
 
     balances = list()
     paired_balances = match_token_balances(meta.pre_token_balances, meta.post_token_balances)
+    # print(paired_balances)
     for pre, post in paired_balances:
         owner = post.owner if post else pre.owner
         mint = post.mint if post else pre.mint
-        program_id = post.program_id if post else post.program_id
+        program_id = post.program_id if post else pre.program_id
 
         initial_balance = int(pre.ui_token_amount.amount) if pre else 0
-        final_balance = int(post.ui_token_amount.amount)
+        final_balance = int(post.ui_token_amount.amount) if post else 0
         balances.append(f"Owner: {owner}, mint: {mint}, "
                         f"balance: {initial_balance:,} -> {final_balance:,}, "
                         f"change = {final_balance - initial_balance:,},  Program: {program_id}")
