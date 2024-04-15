@@ -78,7 +78,7 @@ class MangoTransactionParser(TransactionDecoder):
                     pass
         return parsed_instructions
 
-    def _handle_log(self, msg, parsed_instructions):
+    def _handle_log(self, msg):
         if msg.startswith("Program data:"):
             self.event_parser.parse_logs(
                 ['Program 4MangoMjqJ2firMokCjjGgoK8d4MXcrgL7XJaL3w6fVg invoke [1]', msg],
@@ -97,6 +97,7 @@ class MangoTransactionParser(TransactionDecoder):
             'DepositLog',
             'FillLog',
             'FillLogV2',
+            'FillLogV3',
             'TokenLiqWithTokenLog',
             'TokenLiqWithTokenLogV2',
             'TokenCollateralFeeLog',
@@ -134,18 +135,18 @@ class MangoTransactionParser(TransactionDecoder):
         corresponding log messages, and handles specific events accordingly.
         """
         # Storing the transaction for potential later use
-        self.last_tx = transaction_with_meta
-        self.error = transaction_with_meta.meta.err.index if transaction_with_meta.meta.err else None
-        self.event_counter = 0
-        # Get Kamino transactions
-        parsed_instructions = self._get_mango_instructions(transaction_with_meta)
+        # self.last_tx = transaction_with_meta
+        # self.error = transaction_with_meta.meta.err.index if transaction_with_meta.meta.err else None
+        # self.event_counter = 0
+        # # Get Kamino transactions
+        # parsed_instructions = self._get_mango_instructions(transaction_with_meta)
 
         # Get log messages from transaction metadata
         log_msgs = transaction_with_meta.meta.log_messages
         # self.event_parser.parse_logs(log_msgs, self.save_event)
         # Process each log message related to program instructions
         for msg in log_msgs:
-            self._handle_log(msg, parsed_instructions)
+            self._handle_log(msg)
 
     @staticmethod
     def _get_accounts_from_instruction(known_accounts, instruction):
