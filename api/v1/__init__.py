@@ -1,6 +1,7 @@
 from flask import Blueprint, jsonify, request, abort
-from sqlalchemy.sql import text
+import sqlalchemy
 
+from api.liquidity import get_cached_liquidity, get_pair_key
 from api.utils import parse_int
 from db import get_db_session
 
@@ -12,10 +13,10 @@ MAX_BLOCK_AMOUNT = 50
 
 @v1.route("/readiness", methods=["GET"])
 def readiness():
-    return "api is ready"
+    return "API is ready!"
 
 
-@v1.route("/get-transactions", methods=["GET"])
+@v1.route("/transactions", methods=["GET"])
 def get_transactions():
     start_block_number = parse_int(request.args.get("start_block_number"))
     end_block_number = parse_int(request.args.get("end_block_number"))
@@ -42,7 +43,7 @@ def get_transactions():
         session = get_db_session()
         query = "SELECT * FROM tx_signatures WHERE slot >= :start AND slot <= :end"
         result = session.execute(
-            text(query), {"start": start_block_number, "end": end_block_number}
+            sqlalchemy.text(query), {"start": start_block_number, "end": end_block_number}
         )
         session.close()
         keys = result.keys()
@@ -61,8 +62,7 @@ def get_transactions():
             description="failed getting data",
         )
 
-# TODO: better endpoint path
-@v1.route("/get-lender-parsed-transactions", methods=["GET"])
+@v1.route("/parsed-transactions", methods=["GET"])
 def get_lender_parsed_transactions():
     default_limit = 10
     max_limit = 100
@@ -102,7 +102,7 @@ def get_lender_parsed_transactions():
         FROM {protocol_table}, MaxValue
         WHERE block BETWEEN max_block - {limit} AND max_block;
         """
-        result = session.execute(text(query))
+        result = session.execute(sqlalchemy.text(query))
         session.close()
         keys = result.keys()
         data = list(
@@ -119,3 +119,33 @@ def get_lender_parsed_transactions():
             500,
             description="failed getting data",
         )
+
+
+@v1.route("/liquidity", methods=["GET"])
+def get_liquidity():
+    token_x_address = request.args.get("token_x")
+    token_y_address = request.args.get("token_y")
+
+    if token_x_address is None:
+        abort(
+            400,
+            description="Missing token_x",
+        )
+
+    if token_y_address is None:
+        abort(
+            400,
+            description="Missing token_y",
+        )
+
+    key = get_pair_key(token_x_address, token_y_address)
+
+    result = get_cached_liquidity().get(key)
+
+    if result is None:
+        abort(
+            400,
+            description=f"No data for the pair {token_x_address}, {token_y_address}",
+        )
+
+    return result
