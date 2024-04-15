@@ -48,46 +48,46 @@ def get_transactions():
         keys = result.keys()
         data = list(
             map(
-                lambda arr: {key: value for key, value in zip(keys, arr)},
+                lambda arr: dict(zip(keys, arr)),
                 result,
             )
         )
         return jsonify(data)
 
-    except Exception as e:
+    except ValueError as e:
         print("Failed:", e)
         abort(
             500,
             description="failed getting data",
         )
 
-
+# TODO: better endpoint path
 @v1.route("/get-lender-parsed-transactions", methods=["GET"])
 def get_lender_parsed_transactions():
-    DEFAULT_LIMIT = 10
-    MAX_LIMIT = 100
-    PROTOCOLS = ["marginfi", "mango", "kamino"]
-    DEFAULT_PROTOCOL = "marginfi"
+    default_limit = 10
+    max_limit = 100
+    protocols = ["marginfi", "mango", "kamino"]
+    default_protocol = "marginfi"
 
     limit = parse_int(request.args.get("limit"))
     protocol = request.args.get("protocol")
 
     if protocol is None:
-        protocol = DEFAULT_PROTOCOL
+        protocol = default_protocol
 
-    if protocol not in PROTOCOLS:
+    if protocol not in protocols:
         abort(
             400,
-            description=f'Bad protocol. Allowed protocols are {PROTOCOLS}',
+            description=f"Bad protocol. Allowed protocols are {protocols}",
         )
 
     if limit is None:
-        limit = DEFAULT_LIMIT
+        limit = default_limit
 
-    if limit > MAX_LIMIT:
+    if limit > max_limit:
         abort(
             400,
-            description=f'Bad limit. Maximum limit is {MAX_LIMIT}',
+            description=f"Bad limit. Maximum limit is {max_limit}",
         )
 
     try:
@@ -107,16 +107,15 @@ def get_lender_parsed_transactions():
         keys = result.keys()
         data = list(
             map(
-                lambda arr: {key: value for key, value in zip(keys, arr)},
+                lambda arr: dict(zip(keys, arr)),
                 result,
             )
         )
         return data
 
-    except Exception as e:
+    except ValueError as e:
         print("Failed:", e)
         abort(
             500,
             description="failed getting data",
         )
-
