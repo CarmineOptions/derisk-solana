@@ -9,10 +9,10 @@ import re
 
 from anchorpy.program.common import Event
 from base58 import b58decode
-from construct.core import StreamError
 from solders.pubkey import Pubkey
 from solders.signature import Signature
 from solders.transaction_status import EncodedTransactionWithStatusMeta, UiPartiallyDecodedInstruction
+import construct.core
 
 from db import MangoParsedTransactions, MangoLendingAccounts
 from src.parser.parser import TransactionDecoder, UnknownInstruction
@@ -20,6 +20,21 @@ from src.protocols.addresses import MANGO_ADDRESS
 from src.protocols.idl_paths import MANGO_IDL_PATH
 
 LOGGER = logging.getLogger(__name__)
+
+
+def stream_read_muted(stream, length, path):
+    if length < 0:
+        raise construct.core.StreamError("length must be non-negative, found %s" % length, path=path)
+    try:
+        data = stream.read(length)
+    except Exception:
+        raise construct.core.StreamError("stream.read() failed, requested %s bytes" % (length,), path=path)
+    # if len(data) != length:
+    #     raise construct.core.StreamError("stream read less than specified amount, expected %d, found %d" % (length, len(data)), path=path)
+    return data
+
+
+construct.core.stream_read = stream_read_muted
 
 
 def camel_to_snake(name):
@@ -55,7 +70,7 @@ class MangoTransactionParser(TransactionDecoder):
                     parsed_instruction = self.program.coder.instruction.parse(msg_bytes)
                     # Store the parsed instruction name along with the instruction object
                     parsed_instructions.append((parsed_instruction.name, instruction))
-                except StreamError:
+                except construct.core.StreamError:
                     # If parsing fails, simply ignore and continue
                     # Here we assume that relevant instructions do not fail.
                     pass
@@ -97,6 +112,7 @@ class MangoTransactionParser(TransactionDecoder):
         """
         Save event based on its name.
         """
+        print(event)
         if event.name == "TokenLiqWithTokenLogV2":
             self._liquidation(event)
 
@@ -310,7 +326,7 @@ if __name__ == "__main__":
     transaction = solana_client.get_transaction(
         Signature.from_string(
             # '3QBx7uhgy4PBGWY93qpKgxv9WDS2BS7aWXNgDwHq4tgUXmNvvd6sUQUGzpoJCqwVx5w9MzPL3rzqX2yiwW9R75kD'  # liq
-            '29DRukEKm8NMVM6QNKUm6Q2wvtR8mZ8LCdtXNUVeivwvyu3XSemdco9p6n1rp4WhFQgrnCiDLAw3275Vuk4a655U'
+            '5eyirbMFetEsLVddRjTJhdVP6BYpWL4fLEZvbFEL6FMXpExu7Ntq2YnYfDgjwKvzZhp5USmirT8TQ6xJsUSLVcYZ'
         ),
         'jsonParsed',
         max_supported_transaction_version=0
