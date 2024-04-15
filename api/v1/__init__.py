@@ -1,6 +1,8 @@
 from flask import Blueprint, jsonify, request, abort
-from sqlalchemy.sql import text
+import sqlalchemy
 
+from api.liquidity import get_cached_liquidity, get_pair_key
+from api.utils import parse_int
 from db import get_db_session
 
 v1 = Blueprint("v1", __name__)
@@ -11,17 +13,11 @@ MAX_BLOCK_AMOUNT = 50
 
 @v1.route("/readiness", methods=["GET"])
 def readiness():
-    return "api is ready"
+    return "API is ready!"
 
 
-@v1.route("/get-transactions", methods=["GET"])
+@v1.route("/transactions", methods=["GET"])
 def get_transactions():
-    def parse_int(value):
-        try:
-            return int(value)
-        except (TypeError, ValueError):
-            return None
-
     start_block_number = parse_int(request.args.get("start_block_number"))
     end_block_number = parse_int(request.args.get("end_block_number"))
 
@@ -47,21 +43,109 @@ def get_transactions():
         session = get_db_session()
         query = "SELECT * FROM tx_signatures WHERE slot >= :start AND slot <= :end"
         result = session.execute(
-            text(query), {"start": start_block_number, "end": end_block_number}
+            sqlalchemy.text(query), {"start": start_block_number, "end": end_block_number}
         )
         session.close()
         keys = result.keys()
         data = list(
             map(
-                lambda arr: {key: value for key, value in zip(keys, arr)},
+                lambda arr: dict(zip(keys, arr)),
                 result,
             )
         )
         return jsonify(data)
 
-    except Exception as e:
+    except ValueError as e:
         print("Failed:", e)
         abort(
             500,
             description="failed getting data",
         )
+
+@v1.route("/parsed-transactions", methods=["GET"])
+def get_lender_parsed_transactions():
+    default_limit = 10
+    max_limit = 100
+    protocols = ["marginfi", "mango", "kamino"]
+    default_protocol = "marginfi"
+
+    limit = parse_int(request.args.get("limit"))
+    protocol = request.args.get("protocol")
+
+    if protocol is None:
+        protocol = default_protocol
+
+    if protocol not in protocols:
+        abort(
+            400,
+            description=f"Bad protocol. Allowed protocols are {protocols}",
+        )
+
+    if limit is None:
+        limit = default_limit
+
+    if limit > max_limit:
+        abort(
+            400,
+            description=f"Bad limit. Maximum limit is {max_limit}",
+        )
+
+    try:
+        session = get_db_session()
+        protocol_table = f"lenders.{protocol}_parsed_transactions"
+        query = f"""
+        WITH MaxValue AS (
+            SELECT MAX(block) AS max_block
+            FROM {protocol_table}
+        )
+        SELECT *
+        FROM {protocol_table}, MaxValue
+        WHERE block BETWEEN max_block - {limit} AND max_block;
+        """
+        result = session.execute(sqlalchemy.text(query))
+        session.close()
+        keys = result.keys()
+        data = list(
+            map(
+                lambda arr: dict(zip(keys, arr)),
+                result,
+            )
+        )
+        return data
+
+    except ValueError as e:
+        print("Failed:", e)
+        abort(
+            500,
+            description="failed getting data",
+        )
+
+
+@v1.route("/liquidity", methods=["GET"])
+def get_liquidity():
+    token_x_address = request.args.get("token_x")
+    token_y_address = request.args.get("token_y")
+
+    if token_x_address is None:
+        abort(
+            400,
+            description="Missing token_x",
+        )
+
+    if token_y_address is None:
+        abort(
+            400,
+            description="Missing token_y",
+        )
+
+    key = get_pair_key(token_x_address, token_y_address)
+
+    result = get_cached_liquidity().get(key)
+
+    if result is None:
+        abort(
+            400,
+            description=f"No data for the pair {token_x_address}, {token_y_address}",
+        )
+
+    return result
