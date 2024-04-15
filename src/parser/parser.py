@@ -74,6 +74,7 @@ class TransactionDecoder(ABC):
 
         self.events = list()  # temporary storage for parsed events.
         self.last_tx: EncodedTransactionWithStatusMeta | None = None
+        self.error: int = None  # error index for failed transactions
 
     @abstractmethod
     def parse_transaction(self, transaction_with_meta: EncodedTransactionWithStatusMeta):
