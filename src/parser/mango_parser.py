@@ -3,6 +3,7 @@ Kamino transaction parser.
 """
 from pathlib import Path
 from typing import Any, List, Tuple
+import inspect
 import logging
 import os
 import re
@@ -22,6 +23,7 @@ from src.protocols.idl_paths import MANGO_IDL_PATH
 LOGGER = logging.getLogger(__name__)
 
 
+# moke function to avoid StreamError while parsing mango event `UpdateIndexLog`
 def stream_read_muted(stream, length, path):
     if length < 0:
         raise construct.core.StreamError("length must be non-negative, found %s" % length, path=path)
@@ -77,31 +79,6 @@ class MangoTransactionParser(TransactionDecoder):
         return parsed_instructions
 
     def _handle_log(self, msg, parsed_instructions):
-        if msg.startswith("Program log: Instruction:"):
-            # Extract and format the instruction name from the log message
-            instruction_name = msg.split(' ')[3]
-            instruction_name = instruction_name[0].lower() + instruction_name[1:]
-
-            # Find the relevant parsed instruction by name
-            instruction = next(
-                (pi for pi in parsed_instructions if pi[0] == camel_to_snake(instruction_name)),
-                None
-            )
-            # If no matching instruction is found, continue to the next message
-            if not instruction:
-                return
-            # Remove the matched instruction from the list, so the same instruction is not used twice.
-            parsed_instructions.remove(instruction)
-            parsed_instruction = instruction[1]
-            # Find the index of the instruction in the original transaction
-            instruction_index = self.last_tx.transaction.message.instructions.index(parsed_instruction)
-            # Don't save failed instructions
-            if self.error and instruction_index == self.error:
-                return
-            # If the instruction name matches any known instruction from the program, handle the event
-            if instruction_name in [i.idl_ix.name for i in self.program.instruction.values()]:
-                self._save_mango_instruction(parsed_instruction, instruction_name, instruction_index)
-            return
         if msg.startswith("Program data:"):
             self.event_parser.parse_logs(
                 ['Program 4MangoMjqJ2firMokCjjGgoK8d4MXcrgL7XJaL3w6fVg invoke [1]', msg],
@@ -110,11 +87,40 @@ class MangoTransactionParser(TransactionDecoder):
 
     def save_event(self, event: Event) -> None:
         """
-        Save event based on its name.
+        Save event.
         """
-        print(event)
-        if event.name == "TokenLiqWithTokenLogV2":
-            self._liquidation(event)
+        if event.name in [
+            'FlashLoanLog',
+            'FlashLoanLogV2',
+            'FlashLoanLogV3',
+            'WithdrawLog',
+            'DepositLog',
+            'FillLog',
+            'FillLogV2',
+            'TokenLiqWithTokenLog',
+            'TokenLiqWithTokenLogV2',
+            'TokenCollateralFeeLog',
+            'ForceWithdrawLog',
+            'WithdrawLoanOriginationFeeLog',
+            'WithdrawLoanLog',
+            'TokenLiqBankruptcyLog',
+            'PerpLiqBankruptcyLog',
+            'TokenBalanceLog',
+            'UpdateRateLog',
+            'UpdateRateLogV2',
+            'DeactivateTokenPositionLog',
+            'DeactivatePerpPositionLog',
+            'UpdateIndexLog'
+        ]:
+            flat_event = self._flatten_event_data(event.data)
+            mango_event = MangoParsedTransactions(
+                transaction_id=str(self.last_tx.transaction.signatures[0]),
+                event_name=event.name,
+                event_number=self.event_counter,
+                **{camel_to_snake(k): v for k, v in flat_event.items()}
+            )
+            self._processor(mango_event)
+            self.event_counter += 1
 
     def parse_transaction(self, transaction_with_meta: EncodedTransactionWithStatusMeta) -> None:
         """
@@ -316,6 +322,31 @@ class MangoTransactionParser(TransactionDecoder):
             group=group
         )
 
+    @staticmethod
+    def _flatten_event_data(obj) -> dict:
+        attributes = {}
+        # Get all attributes of the object, including inherited ones
+        for attr in dir(obj):
+            if not attr.startswith("__") and not attr.startswith("_"):
+                attribute = getattr(obj, attr)
+                if type(attribute).__name__ == 'ListContainer':
+                    fields_in_list = {}
+                    for idx, value in enumerate(attribute):
+                        fields_in_list[idx] = value.__dict__
+                    fields_flat = {
+                            f"{key}_{i+1}": value
+                            for i, v in fields_in_list.items()
+                            for key, value in v.items()
+                        }
+                    attributes.update(fields_flat)
+                    continue
+                # Add attribute to dictionary if it's not a method
+                if not inspect.ismethod(attribute) and attr not in [
+                    'flash_loan_type', 'loan_origination_fee_instruction'
+                ]:
+                    attributes[attr] = attribute if not isinstance(attribute, Pubkey) else str(attribute)
+        return attributes
+
 
 if __name__ == "__main__":
     from solana.rpc.api import Client
@@ -326,7 +357,7 @@ if __name__ == "__main__":
     transaction = solana_client.get_transaction(
         Signature.from_string(
             # '3QBx7uhgy4PBGWY93qpKgxv9WDS2BS7aWXNgDwHq4tgUXmNvvd6sUQUGzpoJCqwVx5w9MzPL3rzqX2yiwW9R75kD'  # liq
-            '5eyirbMFetEsLVddRjTJhdVP6BYpWL4fLEZvbFEL6FMXpExu7Ntq2YnYfDgjwKvzZhp5USmirT8TQ6xJsUSLVcYZ'
+            '5NjfT9JHTJfguseYvLxZ3dUykEmEybjgq4TwFNm6QfpCutuZ2e4j7X2QHreUa3pfM3x32DFGdZuVG5ATWRKzeVTN'
         ),
         'jsonParsed',
         max_supported_transaction_version=0

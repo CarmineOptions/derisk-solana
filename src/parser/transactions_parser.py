@@ -1,6 +1,7 @@
 """
 Module dedicated to transaction parser for Kamino protocol.
 """
+import os
 from typing import Type
 import logging
 
@@ -17,6 +18,9 @@ LOGGER = logging.getLogger(__name__)
 
 BATCH_SIZE = 1000
 
+START_INDEX = os.getenv('START_INDEX', None)
+END_INDEX = os.getenv('END_INDEX', None)
+
 
 def process_transactions(parser: Type[TransactionDecoder], signature_list_table: Type[TransactionsList]):
     LOGGER.info('Initiate transactions parsing...')
@@ -25,10 +29,22 @@ def process_transactions(parser: Type[TransactionDecoder], signature_list_table:
     while True:
         transactions_to_update = []
         transactions_data = []
+        processed_indices = []
 
         # Minimize the DB session scope to only fetching necessary data
         with get_db_session() as session:
-            transactions = session.query(signature_list_table).filter_by(is_parsed=False).limit(BATCH_SIZE).all()
+            if not (START_INDEX and END_INDEX):
+                transactions = session.query(signature_list_table).filter_by(is_parsed=False).limit(BATCH_SIZE).all()
+            else:
+                LOGGER.info(f"Processing transactions {START_INDEX} - {END_INDEX}")
+                transactions = (
+                    session.query(signature_list_table)
+                    .filter_by(is_parsed=False)
+                    .filter(signature_list_table.id >= START_INDEX)
+                    .filter(signature_list_table.id <= END_INDEX)
+                    .limit(BATCH_SIZE)
+                    .all()
+                )
             LOGGER.info(f"Fetched {len(transactions)} transactions for processing.")
 
             for transaction in transactions:
@@ -62,14 +78,14 @@ def process_transactions(parser: Type[TransactionDecoder], signature_list_table:
                         str(e),
                         exc_info=True
                     )
-                    transactions_to_update.append(transaction.signature)
+                    transactions_to_update.append(transaction.id)
             session.commit()
 
         # Update the database in a single operation to mark transactions as parsed
         if transactions_to_update:
             with get_db_session() as session:
                 session.query(signature_list_table).filter(
-                    signature_list_table.signature.in_(transactions_to_update)
+                    signature_list_table.id.in_(transactions_to_update)
                 ).update({"is_parsed": True}, synchronize_session=False)
                 session.commit()
                 LOGGER.info(f"Successfully parsed and updated {len(transactions_to_update)} "

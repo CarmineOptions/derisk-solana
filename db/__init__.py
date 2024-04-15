@@ -214,34 +214,117 @@ class KaminoLendingAccounts(LendingAccounts):
 
 class MangoParsedTransactions(ParsedTransactions):
     __tablename__ = "mango_parsed_transactions"
-    source = Column(String, nullable=True)
-    destination = Column(String, nullable=True)
-    group = Column(String, nullable=True)
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    transaction_id = Column(String, nullable=True)
+    event_name = Column(String, nullable=True)
+    event_number = Column(String, nullable=True)
+
+    mango_group = Column(String)
+    mango_account = Column(String)
+    token_index = Column(Integer)
+    indexed_position = Column(BigInteger)
+    deposit_index = Column(BigInteger)
+    borrow_index = Column(BigInteger)
+    flash_loan_type = Column(String)
+    quantity = Column(BigInteger)
+    price = Column(BigInteger)
+    signer = Column(String)
+    market_index = Column(Integer)
+    taker_side = Column(Integer)
+    maker_slot = Column(Integer)
+    maker_out = Column(Boolean)
+    timestamp = Column(BigInteger)
+    seq_num = Column(BigInteger)
+    maker = Column(String)
+    maker_order_id = Column(BigInteger)
+    maker_fee = Column(Float)
+    maker_timestamp = Column(BigInteger)
+    taker = Column(String)
+    taker_order_id = Column(BigInteger)
+    taker_client_order_id = Column(BigInteger)
+    taker_fee = Column(Float)
+    to_token_account = Column(String)
+    rate0 = Column(BigInteger)
+    rate1 = Column(BigInteger)
+    util0 = Column(BigInteger)
+    util1 = Column(BigInteger)
+    max_rate = Column(BigInteger)
+    curve_scaling = Column(Float)
+    target_utilization = Column(Float)
+    liqee = Column(String)
+    liqor = Column(String)
+    asset_token_index = Column(Integer)
+    liab_token_index = Column(Integer)
+    asset_transfer = Column(BigInteger)
+    asset_transfer_from_from_liqee = Column(BigInteger)
+    asset_transfer_to_liqor = Column(BigInteger)
+    asset_liquidation_fee = Column(BigInteger)
+    liab_transfer = Column(BigInteger)
+    asset_price = Column(BigInteger)
+    liab_price = Column(BigInteger)
+    insurance_token_index = Column(Integer)
+    insurance_transfer = Column(BigInteger)
+    socialized_loss = Column(BigInteger)
+    starting_liab_deposit_index = Column(BigInteger)
+    ending_liab_deposit_index = Column(BigInteger)
+    cumulative_deposit_interest = Column(Float)
+    cumulative_borrow_interest = Column(Float)
+    cumulative_long_funding = Column(Float)
+    cumulative_short_funding = Column(Float)
+    maker_volume = Column(BigInteger)
+    taker_volume = Column(BigInteger)
+    perp_spot_transfers = Column(BigInteger)
+    perp_market_index = Column(Integer)
+    starting_long_funding = Column(BigInteger)
+    starting_short_funding = Column(BigInteger)
+    ending_long_funding = Column(BigInteger)
+    ending_short_funding = Column(BigInteger)
+    asset_usage_fraction = Column(BigInteger)
+    fee = Column(BigInteger)
+    bankruptcy = Column(Boolean)
+    loan_amount = Column(BigInteger)
+    loan_origination_fee = Column(BigInteger)
+    index = Column(Integer)
+    token_index_1 = Column(Integer)
+    change_amount_1 = Column(BigInteger)
+    loan_1 = Column(BigInteger)
+    loan_origination_fee_1 = Column(BigInteger)
+    deposit_index_1 = Column(Integer)
+    borrow_index_1 = Column(Integer)
+    price_1 = Column(BigInteger)
+    swap_fee_1 = Column(BigInteger)
+    deposit_fee_1 = Column(BigInteger)
+    approved_amount_1 = Column(BigInteger)
+    token_index_2 = Column(Integer)
+    change_amount_2 = Column(BigInteger)
+    loan_2 = Column(BigInteger)
+    loan_origination_fee_2 = Column(BigInteger)
+    deposit_index_2 = Column(Integer)
+    borrow_index_2 = Column(Integer)
+    price_2 = Column(BigInteger)
+    swap_fee_2 = Column(BigInteger)
+    deposit_fee_2 = Column(BigInteger)
+    approved_amount_2 = Column(BigInteger)
+    avg_utilization = Column(BigInteger)
+    stable_price = Column(BigInteger)
+    collected_fees = Column(BigInteger)
+    loan_fee_rate = Column(BigInteger)
+    total_borrows = Column(BigInteger)
+    total_deposit = Column(BigInteger)
+    borrow_rate = Column(BigInteger)
+    deposit_rate = Column(BigInteger)
+    # Ensure all fields are converted to snake_case as above
     __table_args__ = (
-        Index("ix_mango_parsed_transactions_transaction_id", "transaction_id"),
-        Index("ix_mango_parsed_transactions_instruction_name", "instruction_name"),
-        Index("ix_mango_parsed_transactions_event_name", "event_name"),
-        Index("ix_mango_parsed_transactions_account", "account"),
-        Index("ix_mango_parsed_transactions_token", "token"),
         {"schema": SCHEMA},
     )
 
     def __repr__(self):
-        return f"""MangoParsedTransactions(
-            transaction_id={self.transaction_id},
-            instruction_name={self.instruction_name},
-            event_name={self.event_name},
-            event_number={self.event_number},
-            token={self.token},
-            amount={self.amount},
-            amount_decimal={self.amount_decimal},
-            source={self.source},
-            destination={self.destination},
-            account={self.account},
-            signer={self.signer},
-            bank={self.bank},
-            group={self.group}
-        )"""
+        class_name = self.__class__.__name__
+        attributes = vars(self)
+        # Filter out attributes that are None
+        attr_str = "\n".join(f"{key}: {value!r}" for key, value in attributes.items() if value is not None)
+        return f"MangoParsedEvent(\n{attr_str}\n)"
 
 
 class MangoLendingAccounts(LendingAccounts):
@@ -280,8 +363,13 @@ class KaminoTransactionsList(TransactionsList):
     )
 
 
-class MangoTransactionsList(TransactionsList):
+class MangoTransactionsList(Base):
     __tablename__ = 'mango_hist_transaction_list'
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    signature = Column(String)
+    block_time = Column(BigInteger)
+    is_parsed = Column(Boolean, default=False)
+
     __table_args__ = (
         Index('idx_mango_transaction_list_signature', 'signature'),
         {"schema": SCHEMA},
