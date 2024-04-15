@@ -243,6 +243,7 @@ class MangoParsedTransactions(ParsedTransactions):
     taker = Column(String)
     taker_order_id = Column(BigInteger)
     taker_client_order_id = Column(BigInteger)
+    maker_client_order_id = Column(BigInteger)
     taker_fee = Column(Float)
     to_token_account = Column(String)
     rate0 = Column(BigInteger)
@@ -314,6 +315,9 @@ class MangoParsedTransactions(ParsedTransactions):
     total_deposit = Column(BigInteger)
     borrow_rate = Column(BigInteger)
     deposit_rate = Column(BigInteger)
+    maker_closed_pnl = Column(Float)
+    taker_closed_pnl = Column(Float)
+
     # Ensure all fields are converted to snake_case as above
     __table_args__ = (
         {"schema": SCHEMA},
