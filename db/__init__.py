@@ -216,7 +216,7 @@ class MangoParsedTransactions(ParsedTransactions):
     __tablename__ = "mango_parsed_transactions"
     source = Column(String, nullable=True)
     destination = Column(String, nullable=True)
-    obligation = Column(String, nullable=True)
+    group = Column(String, nullable=True)
     __table_args__ = (
         Index("ix_mango_parsed_transactions_transaction_id", "transaction_id"),
         Index("ix_mango_parsed_transactions_instruction_name", "instruction_name"),
@@ -227,13 +227,21 @@ class MangoParsedTransactions(ParsedTransactions):
     )
 
     def __repr__(self):
-        return f"<ParsedMangoTransactions(\n   id={self.id}, \n   transaction_id='{self.transaction_id}'," \
-               f"\n   instruction_name='{self.instruction_name}', \n   event_name='{self.event_name}', " \
-               f"\n   event_num = {self.event_number}" \
-               f"\n   position='{self.position}', \n   token='{self.token}'," \
-               f"\n   source='{self.source}', \n   destination='{self.destination}'," \
-               f"\n   amount={self.amount}, \n   amount_decimal={self.amount_decimal}, \n   account='{self.account}', " \
-               f"\n   signer='{self.signer}', \n   created_at={self.created_at}, \n   obligation={self.obligation}"
+        return f"""MangoParsedTransactions(
+            transaction_id={self.transaction_id},
+            instruction_name={self.instruction_name},
+            event_name={self.event_name},
+            event_number={self.event_number},
+            token={self.token},
+            amount={self.amount},
+            amount_decimal={self.amount_decimal},
+            source={self.source},
+            destination={self.destination},
+            account={self.account},
+            signer={self.signer},
+            bank={self.bank},
+            group={self.group}
+        )"""
 
 
 class MangoLendingAccounts(LendingAccounts):
@@ -270,6 +278,15 @@ class KaminoTransactionsList(TransactionsList):
         Index('idx_kamino_transaction_list_signature', 'signature'),
         {"schema": SCHEMA},
     )
+
+
+class MangoTransactionsList(TransactionsList):
+    __tablename__ = 'mango_hist_transaction_list'
+    __table_args__ = (
+        Index('idx_mango_transaction_list_signature', 'signature'),
+        {"schema": SCHEMA},
+    )
+
 
 class CLOBLiqudity(Base):
     __tablename__ = "orderbook_liquidity"
