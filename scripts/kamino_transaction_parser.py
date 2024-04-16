@@ -4,7 +4,8 @@ Script for parsing Marginfi lending transactions.
 import logging
 
 from db import KaminoTransactionsList
-from src.parser import KaminoTransactionParser, process_transactions
+from src.parser import KaminoTransactionParser
+from src.parser.transactions_parser import process_transactions
 
 
 if __name__ == '__main__':

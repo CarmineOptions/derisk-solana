@@ -4,7 +4,8 @@ Script for parsing Marginfi lending transactions.
 import logging
 
 from db import MarginfiTransactionsList
-from src.parser import MarginfiTransactionParser, process_transactions
+from src.parser import MarginfiTransactionParser
+from src.parser.transactions_parser import process_transactions
 
 LOGGER = logging.getLogger(__name__)
 

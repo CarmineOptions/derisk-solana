@@ -94,6 +94,15 @@ class TransactionStatusError(Base):
     tx_signatures_id = Column(Integer, ForeignKey(f'{SCHEMA}.transactions.id'), nullable=False)
 
 
+class TransactionStatusMemo(Base):
+    __tablename__ = "tx_status_memo"
+    __table_args__ = {"schema": SCHEMA}
+
+    id = Column(Integer, primary_key=True)
+    memo_body = Column(String, nullable=False)
+    tx_signatures_id = Column(Integer, ForeignKey(f'{SCHEMA}.transactions.id'), nullable=False)
+
+
 class ParsedTransactions(Base):
     __abstract__ = True
     __tablename__ = "parsed_transactions"
