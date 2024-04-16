@@ -16,6 +16,7 @@ on Solana chain for lending protocols.
     If being restarted - start from the latest block saved. The last current block number is collected from db.
 """
 import logging
+import os
 
 import db
 from src.collection.tx_data.collector import TXFromBlockCollector
@@ -23,10 +24,13 @@ from src.collection.tx_data.collector import TXFromBlockCollector
 
 LOGGER = logging.getLogger(__name__)
 
-BATCH_SIZE = 30
+BATCH_SIZE = 100
 
+START_BLOCK = os.getenv('START_BLOCK', None)
+END_BLOCK = os.getenv('END_BLOCK', None)
 
 class CurrentTXCollector(TXFromBlockCollector):
+    last_block = None
 
     @property
     def collection_stream(self) -> db.CollectionStreamTypes:
@@ -39,26 +43,27 @@ class CurrentTXCollector(TXFromBlockCollector):
         """
         Retrieves the earliest last collected block number among protocols.
         """
-        with db.get_db_session() as session:
-            # Query the database for protocols with the given public keys
-            protocols = session.query(db.Protocols).filter(db.Protocols.public_key.in_(
-                self.protocol_public_keys if self.protocol_public_keys else []
-            ))
-
-        last_collected_block = None  # Initialize last_collected_block
-
-        for protocol in protocols:
-            # Use last_block_collected if it's not None, otherwise fallback to watershed_block
-            block = protocol.last_block_collected if protocol.last_block_collected is not None \
-                else protocol.watershed_block
-
-            # Update last_collected_block if it's None or if a smaller block number is found
-            if last_collected_block is None or block < last_collected_block:
-                last_collected_block = block
-        last_block_on_chain = self._get_latest_finalized_block_on_chain()
-
+        # with db.get_db_session() as session:
+        #     # Query the database for protocols with the given public keys
+        #     protocols = session.query(db.Protocols).filter(db.Protocols.public_key.in_(
+        #         self.protocol_public_keys if self.protocol_public_keys else []
+        #     ))
+        #
+        # last_collected_block = None  # Initialize last_collected_block
+        #
+        # for protocol in protocols:
+        #     # Use last_block_collected if it's not None, otherwise fallback to watershed_block
+        #     block = protocol.last_block_collected if protocol.last_block_collected is not None \
+        #         else protocol.watershed_block
+        #
+        #     # Update last_collected_block if it's None or if a smaller block number is found
+        #     if last_collected_block is None or block < last_collected_block:
+        #         last_collected_block = block
+        # last_block_on_chain = self._get_latest_finalized_block_on_chain()
+        start = self.last_block if self.last_block else int(START_BLOCK)
+        end = self.last_block + int(BATCH_SIZE) if self.last_block else int(START_BLOCK) + BATCH_SIZE
         self.assignment = list(  # pylint: disable=attribute-defined-outside-init
-            range(last_collected_block, min(last_collected_block + BATCH_SIZE, last_block_on_chain))  # type: ignore
+            range(start, end)  # type: ignore
         )
 
         if 253152004 in self.assignment:
@@ -75,13 +80,14 @@ class CurrentTXCollector(TXFromBlockCollector):
         Updates `last_collected_block` for each protocol.
         :return:
         """
-        with db.get_db_session() as session:
-            protocols = session.query(db.Protocols).filter(db.Protocols.public_key.in_(
-                self.protocol_public_keys if self.protocol_public_keys else []
-            ))
-
-            for protocol in protocols:
-                protocol.last_block_collected = max(self.assignment) if self.assignment else None
-
-            session.commit()
-        LOGGER.info(f"Assignment completed: {self.assignment}")
+        # with db.get_db_session() as session:
+        #     protocols = session.query(db.Protocols).filter(db.Protocols.public_key.in_(
+        #         self.protocol_public_keys if self.protocol_public_keys else []
+        #     ))
+        #
+        #     for protocol in protocols:
+        #         protocol.last_block_collected = max(self.assignment) if self.assignment else None
+        #
+        #     session.commit()
+        self.last_block = self.assignment[-1] + 1
+        LOGGER.info(f"Assignment completed (last block = {self.last_block}: {self.assignment}")

@@ -119,7 +119,7 @@ class TXFromBlockCollector(GenericSolanaConnector):
             )
         except SolanaRpcException as e:
             LOG.error(f"SolanaRpcException while fetching {block_number}: {e}")
-            await asyncio.sleep(0.5)
+            await asyncio.sleep(0.25)
             return await self._async_fetch_block(block_number)
         except RPCException as e:
             LOG.error(f"RpcException while fetching {block_number}: {e}")
