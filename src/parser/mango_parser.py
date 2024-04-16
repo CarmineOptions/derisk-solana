@@ -136,13 +136,6 @@ class MangoTransactionParser(TransactionDecoder):
         are encoded and match a known program ID. It also associates these instructions with
         corresponding log messages, and handles specific events accordingly.
         """
-        # Storing the transaction for potential later use
-        # self.last_tx = transaction_with_meta
-        # self.error = transaction_with_meta.meta.err.index if transaction_with_meta.meta.err else None
-        # self.event_counter = 0
-        # # Get Kamino transactions
-        # parsed_instructions = self._get_mango_instructions(transaction_with_meta)
-
         # Get log messages from transaction metadata
         log_msgs = transaction_with_meta.meta.log_messages
         # self.event_parser.parse_logs(log_msgs, self.save_event)

@@ -29,7 +29,6 @@ def process_transactions(parser: Type[TransactionDecoder], signature_list_table:
     while True:
         transactions_to_update = []
         transactions_data = []
-        processed_indices = []
 
         # Minimize the DB session scope to only fetching necessary data
         with get_db_session() as session:
@@ -42,6 +41,7 @@ def process_transactions(parser: Type[TransactionDecoder], signature_list_table:
                     .filter_by(is_parsed=False)
                     .filter(signature_list_table.id >= START_INDEX)
                     .filter(signature_list_table.id <= END_INDEX)
+                    .order_by(signature_list_table.id)
                     .limit(BATCH_SIZE)
                     .all()
                 )
@@ -56,11 +56,18 @@ def process_transactions(parser: Type[TransactionDecoder], signature_list_table:
                 ).first()
                 if tx_data and tx_data.transaction_data:
                     transactions_data.append((transaction, tx_data.transaction_data, tx_data.slot))
+                else:
+                    transactions_data.append((transaction, None, None))
 
         # Parse transactions
         with get_db_session() as session:
             for transaction, tx_data_json, slot_number in transactions_data:
                 try:
+                    if not tx_data_json:
+                        LOGGER.warning(f" NO data for transaction: {transaction.signature}")
+                        transactions_to_update.append(transaction.id)
+                        continue
+
                     transaction_data = EncodedTransactionWithStatusMeta.from_json(tx_data_json)
                     # Set up the decoder processor function
                     tx_decoder._processor = lambda x, time=transaction.block_time, block_number=slot_number, sess=session:\
@@ -68,7 +75,7 @@ def process_transactions(parser: Type[TransactionDecoder], signature_list_table:
                     # Decode the transaction data
                     tx_decoder.parse_transaction(transaction_data)
                     # Collect transactions that have been successfully parsed
-                    transactions_to_update.append(transaction.signature)
+                    transactions_to_update.append(transaction.id)
                 except KeyboardInterrupt as exc:
                     raise KeyboardInterrupt from exc
                 except Exception as e:  # pylint: disable=broad-exception-caught
