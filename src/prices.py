@@ -24,7 +24,7 @@ def get_prices_for_tokens(tokens: list[str]) -> dict[str, float | None]:
   Returns:
 		dict[str, float | None]: dict of id/address used as input as keys and prices in USDC as values
   """
-  token_price_map = {}
+  token_price_map: dict[str, float | None] = {}
 
   if len(tokens) == 0:
     return token_price_map
