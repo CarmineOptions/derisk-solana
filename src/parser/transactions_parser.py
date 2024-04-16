@@ -1,3 +1,6 @@
+"""
+Module dedicated to transaction parser for Kamino protocol.
+"""
 from typing import Type
 import logging
 
@@ -29,7 +32,10 @@ def process_transactions(parser: Type[TransactionDecoder], signature_list_table:
             LOGGER.info(f"Fetched {len(transactions)} transactions for processing.")
 
             for transaction in transactions:
-                tx_data = session.query(TransactionStatusWithSignature.transaction_data, TransactionStatusWithSignature.slot).filter(
+                tx_data = session.query(
+                    TransactionStatusWithSignature.transaction_data,
+                    TransactionStatusWithSignature.slot
+                ).filter(
                     TransactionStatusWithSignature.signature == transaction.signature
                 ).first()
                 if tx_data and tx_data.transaction_data:
@@ -41,16 +47,16 @@ def process_transactions(parser: Type[TransactionDecoder], signature_list_table:
                 try:
                     transaction_data = EncodedTransactionWithStatusMeta.from_json(tx_data_json)
                     # Set up the decoder processor function
-                    tx_decoder._processor = lambda x, block_time=transaction.block_time, block_number=slot_number, sess=session:\
-                        tx_decoder.save_event_to_database(x, timestamp=block_time, block_number=block_number, session=sess)  # pylint: disable=protected-access
+                    tx_decoder._processor = lambda x, time=transaction.block_time, block_number=slot_number, sess=session:\
+                        tx_decoder.save_event_to_database(x, timestamp=time, block_number=block_number, session=sess)  # pylint: disable=protected-access
                     # Decode the transaction data
                     tx_decoder.parse_transaction(transaction_data)
                     # Collect transactions that have been successfully parsed
                     transactions_to_update.append(transaction.signature)
-                except KeyboardInterrupt:
-                    raise KeyboardInterrupt
-                except Exception as e:
-                    LOGGER.error(
+                except KeyboardInterrupt as exc:
+                    raise KeyboardInterrupt from exc
+                except Exception as e:  # pylint: disable=broad-exception-caught
+                    LOGGER.error(  # pylint: disable=logging-too-many-args
                         "While parsing transaction = `%s` \n an error occurred: %s",
                         str(transaction.signature),
                         str(e),

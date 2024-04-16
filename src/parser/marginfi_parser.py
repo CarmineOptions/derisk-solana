@@ -61,7 +61,7 @@ class MarginfiTransactionParser(TransactionDecoder):
         depositor = event.data.header.signer
 
         deposit = MarginfiParsedTransactions(
-            transaction_id=str(self.last_tx.transaction.signatures[0]),
+            transaction_id=str(self.transaction.transaction.signatures[0]),
             instruction_name='lending_account_deposit',
             event_name= event.name,
 
@@ -88,12 +88,12 @@ class MarginfiTransactionParser(TransactionDecoder):
         # get token decimals from token post balances
         signer = event.data.header.signer
         post_token_balance = next((
-            b for b in self.last_tx.meta.post_token_balances
+            b for b in self.transaction.meta.post_token_balances
             if b.mint == mint
         ), None)
         amount_decimal = post_token_balance.ui_token_amount.decimals if post_token_balance else None
         payment = MarginfiParsedTransactions(
-            transaction_id=str(self.last_tx.transaction.signatures[0]),
+            transaction_id=str(self.transaction.transaction.signatures[0]),
             instruction_name='lending_account_repay',
             event_name=event.name,
 
@@ -121,13 +121,13 @@ class MarginfiTransactionParser(TransactionDecoder):
         borrower = event.data.header.signer
         # attempt to obtain decimal for mint amount
         post_token_balance = next((
-            b for b in self.last_tx.meta.post_token_balances
+            b for b in self.transaction.meta.post_token_balances
             if b.owner == borrower and b.mint == mint
         ), None)
         amount_decimal = post_token_balance.ui_token_amount.decimals if post_token_balance else None
 
         loan = MarginfiParsedTransactions(
-            transaction_id=str(self.last_tx.transaction.signatures[0]),
+            transaction_id=str(self.transaction.transaction.signatures[0]),
             instruction_name='lending_account_borrow',
             event_name=event.name,
 
@@ -153,13 +153,13 @@ class MarginfiTransactionParser(TransactionDecoder):
 
         # get token balance for relevant token to obtain number of decimals
         post_token_balance = next((
-            b for b in self.last_tx.meta.post_token_balances
+            b for b in self.transaction.meta.post_token_balances
             if b.mint == mint
         ), None)
 
         amount_decimal = post_token_balance.ui_token_amount.decimals if post_token_balance else None
         withdrawal = MarginfiParsedTransactions(
-            transaction_id=str(self.last_tx.transaction.signatures[0]),
+            transaction_id=str(self.transaction.transaction.signatures[0]),
             instruction_name='lending_account_withdraw',
             event_name=event.name,
 
@@ -193,13 +193,15 @@ class MarginfiTransactionParser(TransactionDecoder):
         liquidator_received_liability = event.data.post_balances.liquidator_liability_balance - \
                                      event.data.pre_balances.liquidator_liability_balance
 
-        post_token_balance = next((b for b in self.last_tx.meta.post_token_balances if b.mint == liability_token), None)
+        post_token_balance = next((b for b in self.transaction.meta.post_token_balances if b.mint == liability_token), None)
         amount_decimal_asset_token = post_token_balance.ui_token_amount.decimals if post_token_balance else None
         amount_decimal_liability_token = post_token_balance.ui_token_amount.decimals if post_token_balance else None
 
+        if self.transaction:
+            transaction_id = str(self.transaction.transaction.signatures[0])
         # Assets
         liquidator_received_assets_record = MarginfiParsedTransactions(
-            transaction_id=str(self.last_tx.transaction.signatures[0]),
+            transaction_id=transaction_id,
             instruction_name='lending_account_liquidate',
             event_name=event.name,
             position='asset',
@@ -212,7 +214,7 @@ class MarginfiTransactionParser(TransactionDecoder):
         )
 
         liquidatee_removed_assets_record = MarginfiParsedTransactions(
-            transaction_id=str(self.last_tx.transaction.signatures[0]),
+            transaction_id=transaction_id,
             instruction_name='lending_account_liquidate',
             event_name=event.name,
             position='asset',
@@ -226,7 +228,7 @@ class MarginfiTransactionParser(TransactionDecoder):
 
         # Liability
         liquidator_received_liability_record = MarginfiParsedTransactions(
-            transaction_id=str(self.last_tx.transaction.signatures[0]),
+            transaction_id=transaction_id,
             instruction_name='lending_account_liquidate',
             event_name=event.name,
             position='liability',
@@ -239,7 +241,7 @@ class MarginfiTransactionParser(TransactionDecoder):
         )
 
         liquidatee_removed_liability_record = MarginfiParsedTransactions(
-            transaction_id=str(self.last_tx.transaction.signatures[0]),
+            transaction_id=transaction_id,
             instruction_name='lending_account_liquidate',
             event_name=event.name,
             position='liability',
@@ -292,7 +294,11 @@ class MarginfiTransactionParser(TransactionDecoder):
         are encoded and match a known program ID. It also associates these instructions with
         corresponding log messages, and handles specific events accordingly.
         """
-        self.last_tx = transaction_with_meta
+        self.transaction = transaction_with_meta
+        if not self.transaction.meta:
+            return
+        if self.transaction.meta.err:
+            return
         log_msgs = transaction_with_meta.meta.log_messages
 
         try:
@@ -300,7 +306,7 @@ class MarginfiTransactionParser(TransactionDecoder):
                 log_msgs, self.save_event
             )
         except StreamError:
-            LOGGER.warning(f"Stream error at transaction = `{self.last_tx.transaction.signatures[0]}`")
+            LOGGER.warning(f"Stream error at transaction = `{self.transaction.transaction.signatures[0]}`")
 
 
 if __name__ == "__main__":

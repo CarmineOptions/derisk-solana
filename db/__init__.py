@@ -147,7 +147,7 @@ class LendingAccounts(Base):
 class MarginfiParsedTransactions(ParsedTransactions):
     __tablename__ = "marginfi_parsed_transactions"
 
-    __table_args__ = (
+    __table_args__ = (  # type: ignore
         Index("ix_marginfi_parsed_transactions_transaction_id", "transaction_id"),
         Index("ix_marginfi_parsed_transactions_instruction_name", "instruction_name"),
         Index("ix_marginfi_parsed_transactions_event_name", "event_name"),
@@ -159,7 +159,7 @@ class MarginfiParsedTransactions(ParsedTransactions):
 
 class MarginfiLendingAccounts(LendingAccounts):
     __tablename__ = "marginfi_lending_accounts"
-    __table_args__ = (
+    __table_args__ = (  # type: ignore
         Index("ix_marginfi_lending_accounts_address", "address"),
         Index("ix_marginfi_lending_accounts_group", "group"),
         Index("ix_marginfi_lending_accounts_authority", "authority"),
@@ -172,7 +172,7 @@ class KaminoParsedTransactions(ParsedTransactions):
     source = Column(String, nullable=True)
     destination = Column(String, nullable=True)
     obligation = Column(String, nullable=True)
-    __table_args__ = (
+    __table_args__ = (  # type: ignore
         Index("ix_kamino_parsed_transactions_transaction_id", "transaction_id"),
         Index("ix_kamino_parsed_transactions_instruction_name", "instruction_name"),
         Index("ix_kamino_parsed_transactions_event_name", "event_name"),
@@ -193,7 +193,7 @@ class KaminoParsedTransactions(ParsedTransactions):
 
 class KaminoLendingAccounts(LendingAccounts):
     __tablename__ = "kamino_lending_accounts"
-    __table_args__ = (
+    __table_args__ = (  # type: ignore
         Index("ix_kamino_lending_accounts_address", "address"),
         Index("ix_kamino_lending_accounts_group", "group"),
         Index("ix_kamino_lending_accounts_authority", "authority"),
@@ -213,7 +213,7 @@ class TransactionsList(Base):
 
 class MarginfiTransactionsList(TransactionsList):
     __tablename__ = 'marginfi_hist_transaction_list'
-    __table_args__ = (
+    __table_args__ = (  # type: ignore
         Index('idx_marginfi_transaction_list_signature', 'signature'),
         {"schema": SCHEMA},
     )
@@ -221,7 +221,7 @@ class MarginfiTransactionsList(TransactionsList):
 
 class KaminoTransactionsList(TransactionsList):
     __tablename__ = 'kamino_hist_transaction_list'
-    __table_args__ = (
+    __table_args__ = (  # type: ignore
         Index('idx_kamino_transaction_list_signature', 'signature'),
         {"schema": SCHEMA},
     )

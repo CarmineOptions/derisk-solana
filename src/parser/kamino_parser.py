@@ -108,7 +108,10 @@ class KaminoTransactionParser(TransactionDecoder):
         """
         # Storing the transaction for later use
         self.transaction = transaction_with_meta
-        if transaction_with_meta.meta.err:
+        if not self.transaction.meta:
+            return
+
+        if self.transaction.meta.err:
             return
         # Get Kamino transactions
         parsed_instructions = self._get_kamino_instructions(transaction_with_meta)
