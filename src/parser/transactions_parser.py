@@ -1,6 +1,7 @@
 """
 Module dedicated to transaction parser for Kamino protocol.
 """
+import os
 from typing import Type
 import logging
 
@@ -17,6 +18,9 @@ LOGGER = logging.getLogger(__name__)
 
 BATCH_SIZE = 1000
 
+START_INDEX = os.getenv('START_INDEX', None)
+END_INDEX = os.getenv('END_INDEX', None)
+
 
 def process_transactions(parser: Type[TransactionDecoder], signature_list_table: Type[TransactionsList]):
     LOGGER.info('Initiate transactions parsing...')
@@ -28,7 +32,19 @@ def process_transactions(parser: Type[TransactionDecoder], signature_list_table:
 
         # Minimize the DB session scope to only fetching necessary data
         with get_db_session() as session:
-            transactions = session.query(signature_list_table).filter_by(is_parsed=False).limit(BATCH_SIZE).all()
+            if not (START_INDEX and END_INDEX):
+                transactions = session.query(signature_list_table).filter_by(is_parsed=False).limit(BATCH_SIZE).all()
+            else:
+                LOGGER.info(f"Processing transactions {START_INDEX} - {END_INDEX}")
+                transactions = (
+                    session.query(signature_list_table)
+                    .filter_by(is_parsed=False)
+                    .filter(signature_list_table.id >= START_INDEX)
+                    .filter(signature_list_table.id <= END_INDEX)
+                    .order_by(signature_list_table.id)
+                    .limit(BATCH_SIZE)
+                    .all()
+                )
             LOGGER.info(f"Fetched {len(transactions)} transactions for processing.")
 
             for transaction in transactions:
@@ -40,11 +56,18 @@ def process_transactions(parser: Type[TransactionDecoder], signature_list_table:
                 ).first()
                 if tx_data and tx_data.transaction_data:
                     transactions_data.append((transaction, tx_data.transaction_data, tx_data.slot))
+                else:
+                    transactions_data.append((transaction, None, None))
 
         # Parse transactions
         with get_db_session() as session:
             for transaction, tx_data_json, slot_number in transactions_data:
                 try:
+                    if not tx_data_json:
+                        LOGGER.warning(f" NO data for transaction: {transaction.signature}")
+                        transactions_to_update.append(transaction.id)
+                        continue
+
                     transaction_data = EncodedTransactionWithStatusMeta.from_json(tx_data_json)
                     # Set up the decoder processor function
                     tx_decoder._processor = lambda x, time=transaction.block_time, block_number=slot_number, sess=session:\
@@ -52,7 +75,7 @@ def process_transactions(parser: Type[TransactionDecoder], signature_list_table:
                     # Decode the transaction data
                     tx_decoder.parse_transaction(transaction_data)
                     # Collect transactions that have been successfully parsed
-                    transactions_to_update.append(transaction.signature)
+                    transactions_to_update.append(transaction.id)
                 except KeyboardInterrupt as exc:
                     raise KeyboardInterrupt from exc
                 except Exception as e:  # pylint: disable=broad-exception-caught
@@ -62,14 +85,14 @@ def process_transactions(parser: Type[TransactionDecoder], signature_list_table:
                         str(e),
                         exc_info=True
                     )
-                    transactions_to_update.append(transaction.signature)
+                    transactions_to_update.append(transaction.id)
             session.commit()
 
         # Update the database in a single operation to mark transactions as parsed
         if transactions_to_update:
             with get_db_session() as session:
                 session.query(signature_list_table).filter(
-                    signature_list_table.signature.in_(transactions_to_update)
+                    signature_list_table.id.in_(transactions_to_update)
                 ).update({"is_parsed": True}, synchronize_session=False)
                 session.commit()
                 LOGGER.info(f"Successfully parsed and updated {len(transactions_to_update)} "
