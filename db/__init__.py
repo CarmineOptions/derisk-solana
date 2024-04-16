@@ -1,6 +1,7 @@
 """
 Module containing functionality related to Postgres DB used throughout the repo.
 """
+
 import os
 from enum import Enum
 
@@ -19,7 +20,7 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.types import Enum as SQLEnum
 from sqlalchemy import Index
-from sqlalchemy.dialects.postgresql import ARRAY as PG_ARRAY
+from sqlalchemy.dialects.postgresql import ARRAY as PG_ARRAY, JSONB
 
 from db.utils import check_bigint
 
@@ -39,7 +40,8 @@ if POSTGRES_DB is None:
     raise ValueError("no POSTGRES_DB env var")
 
 CONN_STRING = f"postgresql+psycopg2://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_HOST}/{POSTGRES_DB}"
-SCHEMA = 'lenders'
+SCHEMA = "public"
+LENDERS = "lenders"
 
 
 def get_db_session() -> Session:
@@ -54,21 +56,27 @@ def get_db_session() -> Session:
 
 
 class CollectionStreamTypes(Enum):
-    HISTORICAL = 'historical'
-    CURRENT = 'current'
-    SIGNATURE = 'signature'
+    HISTORICAL = "historical"
+    CURRENT = "current"
+    SIGNATURE = "signature"
 
 
 class TransactionStatusWithSignature(Base):
-    __tablename__ = 'transactions'
+    __tablename__ = "transactions"
 
     id = Column(Integer, primary_key=True)
-    source = Column(String, ForeignKey(f'{SCHEMA}.protocols.public_key'), nullable=False)
+    source = Column(
+        String, ForeignKey(f"{SCHEMA}.protocols.public_key"), nullable=False
+    )
     signature = Column(String, nullable=False)
     slot = Column(BigInteger, nullable=False)
     block_time = Column(BigInteger, nullable=False)
-    transaction_data = Column(String, nullable=True)  # column to store json with transaction's data
-    collection_stream = Column(SQLEnum(CollectionStreamTypes, name='collection_stream_types'), nullable=True)
+    transaction_data = Column(
+        String, nullable=True
+    )  # column to store json with transaction's data
+    collection_stream = Column(
+        SQLEnum(CollectionStreamTypes, name="collection_stream_types"), nullable=True
+    )
 
     __table_args__ = (
         Index("ix_transactions_slot", "slot"),
@@ -91,7 +99,9 @@ class TransactionStatusError(Base):
 
     id = Column(Integer, primary_key=True)
     error_body = Column(String, nullable=False)
-    tx_signatures_id = Column(Integer, ForeignKey(f'{SCHEMA}.transactions.id'), nullable=False)
+    tx_signatures_id = Column(
+        Integer, ForeignKey(f"{SCHEMA}.transactions.id"), nullable=False
+    )
 
 
 class ParsedTransactions(Base):
@@ -398,9 +408,11 @@ class CLOBLiqudity(Base):
 
 
 class AmmLiquidity(Base):
-    __tablename__ = 'amm_liquidity'
+    __tablename__ = "amm_liquidity"
     __table_args__ = (
-        PrimaryKeyConstraint("dex", "token_x_address", "token_y_address", "market_address", "timestamp"),
+        PrimaryKeyConstraint(
+            "dex", "token_x_address", "token_y_address", "market_address", "timestamp"
+        ),
         {"schema": SCHEMA},
     )
 
@@ -428,9 +440,11 @@ class AmmLiquidity(Base):
 
 
 class DexNormalizedLiquidity(Base):
-    __tablename__ = 'dex_normalized_liquidity'
+    __tablename__ = "dex_normalized_liquidity"
     __table_args__ = (
-        PrimaryKeyConstraint("dex", "token_x_address", "token_y_address", "market_address", "timestamp"),
+        PrimaryKeyConstraint(
+            "dex", "token_x_address", "token_y_address", "market_address", "timestamp"
+        ),
         {"schema": SCHEMA},
     )
 
@@ -455,10 +469,9 @@ class DexNormalizedLiquidity(Base):
         )
 
 
-
 class Protocols(Base):
-    __tablename__ = 'protocols'
-    __table_args__ = {'schema': SCHEMA}
+    __tablename__ = "protocols"
+    __table_args__ = {"schema": SCHEMA}
 
     id = Column(Integer, primary_key=True)
     public_key = Column(String, unique=True, nullable=False)
@@ -466,6 +479,27 @@ class Protocols(Base):
     # to define what collection stream to use for their collection.
     watershed_block = Column(Integer, nullable=False)
     last_block_collected = Column(Integer, nullable=True)
+
+
+class LoanStates(Base):
+    __tablename__ = "loan_states"
+    __table_args__ = {"schema": LENDERS}
+
+    slot = Column(BigInteger, primary_key=True, nullable=False)
+    protocol = Column(String, primary_key=True, nullable=False)
+    user = Column(String, primary_key=True, nullable=False)
+    collateral = Column(JSONB, nullable=False)
+    debt = Column(JSONB, nullable=False)
+
+    def __repr__(self):
+        return (
+            "LoanStates("
+            f"slot={self.slot},"
+            f"protocol={self.protocol},"
+            f"user={self.user},"
+            f"collateral={self.collateral},"
+            f"debt={self.debt},"
+        )
 
 
 if __name__ == "__main__":
