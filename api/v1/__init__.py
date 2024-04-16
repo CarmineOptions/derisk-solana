@@ -3,7 +3,7 @@ import sqlalchemy
 
 from api.liquidity import get_cached_liquidity, get_pair_key
 from api.utils import parse_int
-from db import get_db_session
+from api.db import db_session
 
 v1 = Blueprint("v1", __name__)
 
@@ -40,12 +40,10 @@ def get_transactions():
         )
 
     try:
-        session = get_db_session()
         query = "SELECT * FROM tx_signatures WHERE slot >= :start AND slot <= :end"
-        result = session.execute(
+        result = db_session.execute(
             sqlalchemy.text(query), {"start": start_block_number, "end": end_block_number}
         )
-        session.close()
         keys = result.keys()
         data = list(
             map(
@@ -91,7 +89,6 @@ def get_lender_parsed_transactions():
         )
 
     try:
-        session = get_db_session()
         protocol_table = f"lenders.{protocol}_parsed_transactions"
         query = f"""
         WITH MaxValue AS (
@@ -102,8 +99,7 @@ def get_lender_parsed_transactions():
         FROM {protocol_table}, MaxValue
         WHERE block BETWEEN max_block - {limit} AND max_block;
         """
-        result = session.execute(sqlalchemy.text(query))
-        session.close()
+        result = db_session.execute(sqlalchemy.text(query))
         keys = result.keys()
         data = list(
             map(
