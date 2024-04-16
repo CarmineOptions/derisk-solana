@@ -80,6 +80,8 @@ class MangoTransactionParser(TransactionDecoder):
 
     def _handle_log(self, msg):
         if msg.startswith("Program data:"):
+            if 'vx89Qqxin' in msg or 'dZKDSrOa2' in msg:  # do not parse 'PerpUpdateFundingLog' and 'PerpUpdateFundingLogV2'
+                return
             self.event_parser.parse_logs(
                 ['Program 4MangoMjqJ2firMokCjjGgoK8d4MXcrgL7XJaL3w6fVg invoke [1]', msg],
                 self.save_event
@@ -358,7 +360,7 @@ if __name__ == "__main__":
     transaction = solana_client.get_transaction(
         Signature.from_string(
             # '3QBx7uhgy4PBGWY93qpKgxv9WDS2BS7aWXNgDwHq4tgUXmNvvd6sUQUGzpoJCqwVx5w9MzPL3rzqX2yiwW9R75kD'  # liq
-            '5NjfT9JHTJfguseYvLxZ3dUykEmEybjgq4TwFNm6QfpCutuZ2e4j7X2QHreUa3pfM3x32DFGdZuVG5ATWRKzeVTN'
+            '3a2S23GbLxunNUTCyriULoPn9m5AFjcYE7gAySF4pXkxVx6RzDq7BtWunEmkoE6xsWjEALg4HeouE6BH3FiQtxkB'
         ),
         'jsonParsed',
         max_supported_transaction_version=0
