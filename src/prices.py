@@ -4,7 +4,48 @@ import requests
 
 import streamlit
 
+BASE_API_URL = "https://price.jup.ag/v4/price"
 
+def token_list_to_ids(l: list[str]) -> str:
+  ids = ""
+  for index, token in enumerate(l):
+    if index > 0:
+      ids+= ","
+    ids += token
+  return ids
+
+def get_prices_for_tokens(tokens: list[str]) -> dict[str, float | None]:
+  """
+  Fetches prices for the list of tokens
+  
+  Args:
+		tokens (list[str]): List of ids or addresses of tokens
+          
+  Returns:
+		dict[str, float | None]: dict of id/address used as input as keys and prices in USDC as values
+  """
+  token_price_map = {}
+
+  if len(tokens) == 0:
+    return token_price_map
+
+  ids = token_list_to_ids(tokens)
+  url = f"{BASE_API_URL}?ids={ids}&vsToken=USDC"
+  response = requests.get(url, timeout=15)
+
+  if response.status_code == 200:
+    data = response.json()["data"]
+  else:
+    response.raise_for_status()
+
+  for token_address in tokens:
+    price_dict = data.get(token_address)
+    if price_dict is not None and "price" in price_dict:
+      token_price_map[token_address] = price_dict["price"]
+    else:
+      token_price_map[token_address] = None
+
+  return token_price_map
 
 @streamlit.cache_data(ttl=datetime.timedelta(minutes=1))
 def get_prices() -> dict[str, decimal.Decimal]:
