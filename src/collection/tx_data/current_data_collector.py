@@ -61,7 +61,7 @@ class CurrentTXCollector(TXFromBlockCollector):
         #         last_collected_block = block
         # last_block_on_chain = self._get_latest_finalized_block_on_chain()
         start = self.last_block if self.last_block else int(START_BLOCK)
-        end = self.last_block + int(BATCH_SIZE) if self.last_block else int(START_BLOCK) + BATCH_SIZE
+        end = min(self.last_block + int(BATCH_SIZE) if self.last_block else int(START_BLOCK) + BATCH_SIZE, int(END_BLOCK))
         self.assignment = list(  # pylint: disable=attribute-defined-outside-init
             range(start, end)  # type: ignore
         )
