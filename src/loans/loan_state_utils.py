@@ -1,5 +1,6 @@
 
 import pandas
+from sqlalchemy import func
 from sqlalchemy.orm.session import Session
 from db import LoanStates
 
@@ -33,7 +34,7 @@ def store_loan_states(df: pandas.DataFrame, session: Session):
 
 def fetch_loan_states(session: Session) -> pandas.DataFrame:
     """
-    Fetches loan states from the DB and returns them as a DataFrame
+    Fetches loan states with the max slot from the DB and returns them as a DataFrame
 
     Args:
     - session (sqlalchemy.orm.session.Session): A SQLAlchemy session object.
@@ -47,8 +48,12 @@ def fetch_loan_states(session: Session) -> pandas.DataFrame:
         - debt (json/dict): JSON or dictionary representing debt.
     """
 
-    # TODO: limit states that are fetched
-    query_result = session.query(LoanStates).all()
+    # Define a subquery for the maximum slot value
+    max_slot_subquery = session.query(func.max(LoanStates.slot)).subquery()
+
+    # Retrieve entries from the loan_states table where slot equals the maximum slot value
+    query_result = session.query(LoanStates).filter(LoanStates.slot == max_slot_subquery).all()
+
     df = pandas.DataFrame([{
         'slot': record.slot,
         'protocol': record.protocol,
@@ -57,3 +62,19 @@ def fetch_loan_states(session: Session) -> pandas.DataFrame:
         'debt': record.debt
     } for record in query_result])
     return df
+
+
+
+def fetch_events(min_slot: int, protocol: str, session: Session) -> pandas.DataFrame:
+    """
+    Fetches loan states with the max slot from the DB and returns them as a DataFrame
+
+    Args:
+    - min_slot (int): Slot from which events will be fetched (non-inclusive).
+    - protocol (str): Protocol which events will be fetched.
+    - session (sqlalchemy.orm.session.Session): A SQLAlchemy session object.
+
+    Returns:
+    - df (pandas.DataFrame): Events in a DataFrame
+    """
+    pass
