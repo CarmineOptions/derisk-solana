@@ -319,12 +319,11 @@ class MangoParsedTransactions(ParsedTransactions):
     taker_closed_pnl = Column(Float)
 
     # Ensure all fields are converted to snake_case as above
-    __table_args__ = (
+    __table_args__ = (  # type: ignore
         {"schema": SCHEMA},
     )
 
     def __repr__(self):
-        class_name = self.__class__.__name__
         attributes = vars(self)
         # Filter out attributes that are None
         attr_str = "\n".join(f"{key}: {value!r}" for key, value in attributes.items() if value is not None)
@@ -333,7 +332,7 @@ class MangoParsedTransactions(ParsedTransactions):
 
 class MangoLendingAccounts(LendingAccounts):
     __tablename__ = "mango_lending_accounts"
-    __table_args__ = (
+    __table_args__ = (  # type: ignore
         Index("ix_mango_lending_accounts_address", "address"),
         Index("ix_mango_lending_accounts_group", "group"),
         Index("ix_mango_lending_accounts_authority", "authority"),

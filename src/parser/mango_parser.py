@@ -30,9 +30,7 @@ def stream_read_muted(stream, length, path):
     try:
         data = stream.read(length)
     except Exception:
-        raise construct.core.StreamError("stream.read() failed, requested %s bytes" % (length,), path=path)
-    # if len(data) != length:
-    #     raise construct.core.StreamError("stream read less than specified amount, expected %d, found %d" % (length, len(data)), path=path)
+        raise construct.core.StreamError("stream.read() failed, requested %s bytes" % (length,), path=path)  # pylint: disable=raise-missing-from
     return data
 
 
