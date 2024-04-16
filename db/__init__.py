@@ -23,7 +23,7 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.types import Enum as SQLEnum
 from sqlalchemy import Index
-from sqlalchemy.dialects.postgresql import ARRAY as PG_ARRAY
+from sqlalchemy.dialects.postgresql import ARRAY as PG_ARRAY, JSONB
 
 from db.utils import check_bigint
 
@@ -583,6 +583,27 @@ class Protocols(Base):
     # to define what collection stream to use for their collection.
     watershed_block = Column(Integer, nullable=False)
     last_block_collected = Column(Integer, nullable=True)
+
+
+class LoanStates(Base):
+    __tablename__ = "loan_states"
+    __table_args__ = {"schema": SCHEMA}
+
+    slot = Column(BigInteger, primary_key=True, nullable=False)
+    protocol = Column(String, primary_key=True, nullable=False)
+    user = Column(String, primary_key=True, nullable=False)
+    collateral = Column(JSONB, nullable=False)
+    debt = Column(JSONB, nullable=False)
+
+    def __repr__(self):
+        return (
+            "LoanStates("
+            f"slot={self.slot},"
+            f"protocol={self.protocol},"
+            f"user={self.user},"
+            f"collateral={self.collateral},"
+            f"debt={self.debt},"
+        )
 
 
 if __name__ == "__main__":
