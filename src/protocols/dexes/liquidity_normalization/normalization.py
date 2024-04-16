@@ -122,10 +122,10 @@ async def common_raw_amm_data_handler(
 # Maps protocol identifier to function that will convert
 # it's data to DexNormalizedLiquidity entry
 RAW_DEX_DATA_HANDLERS = {
-    "INVARIANT": common_raw_amm_data_handler,
-    "LIFINITY": common_raw_amm_data_handler,
-    "SABER": common_raw_amm_data_handler,
-    "SENTRE": common_raw_amm_data_handler,
+    # "INVARIANT": common_raw_amm_data_handler,
+    # "LIFINITY": common_raw_amm_data_handler,
+    # "SABER": common_raw_amm_data_handler,
+    # "SENTRE": common_raw_amm_data_handler,
     "BonkSwap": common_raw_amm_data_handler,
     "DOOAR": common_raw_amm_data_handler,
     "FluxBeam": common_raw_amm_data_handler,
