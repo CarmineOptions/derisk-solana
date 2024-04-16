@@ -13,6 +13,7 @@ from sqlalchemy import (
     ForeignKey,
     PrimaryKeyConstraint,
     Float,
+    Boolean
 )
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session
@@ -38,7 +39,7 @@ if POSTGRES_DB is None:
     raise ValueError("no POSTGRES_DB env var")
 
 CONN_STRING = f"postgresql+psycopg2://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_HOST}/{POSTGRES_DB}"
-SCHEMA = 'public'
+SCHEMA = 'lenders'
 
 
 def get_db_session() -> Session:
@@ -101,6 +102,138 @@ class TransactionStatusMemo(Base):
     memo_body = Column(String, nullable=False)
     tx_signatures_id = Column(Integer, ForeignKey(f'{SCHEMA}.transactions.id'), nullable=False)
 
+
+class ParsedTransactions(Base):
+    __abstract__ = True
+    __tablename__ = "parsed_transactions"
+    __table_args__ = {"schema": SCHEMA}
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    transaction_id = Column(String, nullable=True)
+    instruction_name = Column(String, nullable=True)
+    event_name = Column(String, nullable=True)
+    event_number = Column(String, nullable=True)
+
+    position = Column(SQLEnum('asset', 'liability', name='sqlenum', schema=SCHEMA), nullable=True)
+    token = Column(String, nullable=True)
+    amount = Column(BigInteger, nullable=True)
+    amount_decimal = Column(Integer, nullable=True)
+
+    bank = Column(String, nullable=True)
+    account = Column(String, nullable=True)
+    signer = Column(String, nullable=True)
+
+    context = Column(String, nullable=True)
+
+    block = Column(BigInteger, nullable=True)
+    created_at = Column(BigInteger, nullable=True)
+
+    def __repr__(self):
+        return f"<ParsedTransactions(\n   id={self.id}, \n   transaction_id='{self.transaction_id}',\n" \
+               f"\n   instruction_name='{self.instruction_name}', \n   event_name='{self.event_name}',\n " \
+               f"\n   position='{self.position}', \n   token='{self.token}'," \
+               f"\n   amount={self.amount}, \n   amount_decimal={self.amount_decimal}, \n   account='{self.account}', " \
+               f"\n   signer='{self.signer}', \n   created_at={self.created_at}"
+
+
+class LendingAccounts(Base):
+    __abstract__ = True
+    __tablename__ = "lending_accounts"
+    __table_args__ = {"schema": SCHEMA}
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    authority = Column(String, nullable=True)
+    address = Column(String, nullable=True)
+    group = Column(String, nullable=True)
+    block = Column(BigInteger, nullable=True)
+    created_at = Column(BigInteger, nullable=False)
+
+    def __repr__(self):
+        return f"<LendingAccounts(\n   id={self.id}, \n   authority='{self.authority}', " \
+               f"\n   address='{self.address}', \n   group='{self.group}',\n   created_at={self.created_at})>"
+
+
+class MarginfiParsedTransactions(ParsedTransactions):
+    __tablename__ = "marginfi_parsed_transactions"
+
+    __table_args__ = (  # type: ignore
+        Index("ix_marginfi_parsed_transactions_transaction_id", "transaction_id"),
+        Index("ix_marginfi_parsed_transactions_instruction_name", "instruction_name"),
+        Index("ix_marginfi_parsed_transactions_event_name", "event_name"),
+        Index("ix_marginfi_parsed_transactions_account", "account"),
+        Index("ix_marginfi_parsed_transactions_token", "token"),
+        {"schema": SCHEMA},
+    )
+
+
+class MarginfiLendingAccounts(LendingAccounts):
+    __tablename__ = "marginfi_lending_accounts"
+    __table_args__ = (  # type: ignore
+        Index("ix_marginfi_lending_accounts_address", "address"),
+        Index("ix_marginfi_lending_accounts_group", "group"),
+        Index("ix_marginfi_lending_accounts_authority", "authority"),
+        {"schema": SCHEMA}
+    )
+
+
+class KaminoParsedTransactions(ParsedTransactions):
+    __tablename__ = "kamino_parsed_transactions"
+    source = Column(String, nullable=True)
+    destination = Column(String, nullable=True)
+    obligation = Column(String, nullable=True)
+    __table_args__ = (  # type: ignore
+        Index("ix_kamino_parsed_transactions_transaction_id", "transaction_id"),
+        Index("ix_kamino_parsed_transactions_instruction_name", "instruction_name"),
+        Index("ix_kamino_parsed_transactions_event_name", "event_name"),
+        Index("ix_kamino_parsed_transactions_account", "account"),
+        Index("ix_kamino_parsed_transactions_token", "token"),
+        {"schema": SCHEMA},
+    )
+
+    def __repr__(self):
+        return f"<ParsedTransactions(\n   id={self.id}, \n   transaction_id='{self.transaction_id}'," \
+               f"\n   instruction_name='{self.instruction_name}', \n   event_name='{self.event_name}', " \
+               f"\n   event_num = {self.event_number}" \
+               f"\n   position='{self.position}', \n   token='{self.token}'," \
+               f"\n   source='{self.source}', \n   destination='{self.destination}'," \
+               f"\n   amount={self.amount}, \n   amount_decimal={self.amount_decimal}, \n   account='{self.account}', " \
+               f"\n   signer='{self.signer}', \n   created_at={self.created_at}, \n   obligation={self.obligation}"
+
+
+class KaminoLendingAccounts(LendingAccounts):
+    __tablename__ = "kamino_lending_accounts"
+    __table_args__ = (  # type: ignore
+        Index("ix_kamino_lending_accounts_address", "address"),
+        Index("ix_kamino_lending_accounts_group", "group"),
+        Index("ix_kamino_lending_accounts_authority", "authority"),
+        {"schema": SCHEMA}
+    )
+
+
+class TransactionsList(Base):
+    __abstract__ = True
+    __tablename__ = 'hist_transaction_list'
+    __table_args__ = {"schema": SCHEMA}
+
+    signature = Column(String, primary_key=True)
+    block_time = Column(BigInteger)
+    is_parsed = Column(Boolean, default=False)
+
+
+class MarginfiTransactionsList(TransactionsList):
+    __tablename__ = 'marginfi_hist_transaction_list'
+    __table_args__ = (  # type: ignore
+        Index('idx_marginfi_transaction_list_signature', 'signature'),
+        {"schema": SCHEMA},
+    )
+
+
+class KaminoTransactionsList(TransactionsList):
+    __tablename__ = 'kamino_hist_transaction_list'
+    __table_args__ = (  # type: ignore
+        Index('idx_kamino_transaction_list_signature', 'signature'),
+        {"schema": SCHEMA},
+    )
 
 class CLOBLiqudity(Base):
     __tablename__ = "orderbook_liquidity"
