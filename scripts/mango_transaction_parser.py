@@ -11,4 +11,4 @@ from src.parser.transactions_parser import process_transactions
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
-    process_transactions(parser=MangoTransactionParser, signature_list_table=MangoTransactionsList)
+    process_transactions(parser=MangoTransactionParser, signature_list_table=MangoTransactionsList)  # type: ignore
