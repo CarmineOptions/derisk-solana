@@ -1,11 +1,10 @@
 from flask import abort
 import sqlalchemy
-from db import get_db_session
 from api.cache import cache
+from api.db import db_session
 
 def fetch_data_from_database():
     try:
-        session = get_db_session()
         query = """
         WITH MaxValue AS (
             SELECT MAX(timestamp) AS max_timestamp
@@ -15,8 +14,7 @@ def fetch_data_from_database():
         FROM public.dex_normalized_liquidity, MaxValue
         WHERE timestamp = max_timestamp;
         """
-        result = session.execute(sqlalchemy.text(query))
-        session.close()
+        result = db_session.execute(sqlalchemy.text(query))
         keys = result.keys()
         data = list(
             map(
