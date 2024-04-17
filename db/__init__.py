@@ -13,7 +13,8 @@ from sqlalchemy import (
     ForeignKey,
     PrimaryKeyConstraint,
     Float,
-    Boolean, inspect
+    Boolean,
+    inspect
 )
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session
@@ -39,7 +40,7 @@ if POSTGRES_DB is None:
     raise ValueError("no POSTGRES_DB env var")
 
 CONN_STRING = f"postgresql+psycopg2://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_HOST}/{POSTGRES_DB}"
-SCHEMA = 'lenders'
+SCHEMA = 'public'
 
 
 def get_db_session() -> Session:
@@ -213,7 +214,7 @@ class KaminoLendingAccounts(LendingAccounts):
 
 
 class MangoParsedTransactions(ParsedTransactions):
-    __tablename__ = "mango_parsed_transactions_2"
+    __tablename__ = "mango_parsed_transactions"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     transaction_id = Column(String, nullable=True, index=True)
@@ -337,11 +338,11 @@ class MangoParsedTransactions(ParsedTransactions):
 
 
 class MangoLendingAccounts(LendingAccounts):
-    __tablename__ = "mango_lending_accounts_2"
+    __tablename__ = "mango_lending_accounts"
     __table_args__ = (  # type: ignore
-        Index("ix_mango_lending_accounts_2_address", "address"),
-        Index("ix_mango_lending_accounts_2_group", "group"),
-        Index("ix_mango_lending_accounts_2_authority", "authority"),
+        Index("ix_mango_lending_accounts_address", "address"),
+        Index("ix_mango_lending_accounts_group", "group"),
+        Index("ix_mango_lending_accounts_authority", "authority"),
         {"schema": SCHEMA}
     )
 
@@ -373,14 +374,14 @@ class KaminoTransactionsList(TransactionsList):
 
 
 class MangoTransactionsList(Base):
-    __tablename__ = 'mango_hist_transaction_list_2'
+    __tablename__ = 'mango_hist_transaction_list'
     id = Column(Integer, primary_key=True, autoincrement=True)
     signature = Column(String)
     block_time = Column(BigInteger)
     is_parsed = Column(Boolean, default=False)
 
     __table_args__ = (
-        Index('idx_mango_transaction_list_2_signature', 'signature'),
+        Index('idx_mango_transaction_list_signature', 'signature'),
         {"schema": SCHEMA},
     )
 
