@@ -94,3 +94,32 @@ class PriceFetcher:
 				self.prices[symbol] = decimal.Decimal(data[_id][self.VS_CURRENCY])
 		else:
 			response.raise_for_status()
+
+def get_tokens_address_to_info_map() -> dict[str, dict[str, str | int]]:
+    """
+    Retrieves list of solana tokens obtained via Jupiter api and returns a map
+    where keys are the tokens addresses and values are a dicts containing 'symbol', 'name', 'decimals'
+
+    Returns:
+    - token_address_to_info_map: Dict mapping token address to 'symbol', 'name', 'decimals'
+    """
+
+    # List of tokens from Jupiter
+    r = requests.get("https://token.jup.ag/all", timeout=30)
+
+    if r.status_code != 200:
+        raise ValueError(f"Unable to fetch list of tokens: {r.text}")
+
+    return {
+        token["address"]: {
+            "symbol": token["symbol"],
+            "name": token["name"],
+            "decimals": token["decimals"],
+        }
+        for token in r.json()
+    }
+
+def get_mint_decimals(address: str) -> int|None:
+    token_info = get_tokens_address_to_info_map()
+
+    return token_info.get(address)
