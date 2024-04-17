@@ -324,8 +324,8 @@ class MangoParsedTransactions(ParsedTransactions):
         {"schema": SCHEMA},
     )
 
-    def __init__(self, **kwargs):
-        valid_keys = {c.key for c in inspect(self.__class__).mapper.column_attrs}
+    def __init__(self, **kwargs):  # pylint: disable=super-init-not-called
+        valid_keys = {c.key for c in inspect(self.__class__).mapper.column_attrs}  # type: ignore
         filtered_kwargs = {k: v for k, v in kwargs.items() if k in valid_keys}
         for key, value in filtered_kwargs.items():
             setattr(self, key, value)
