@@ -95,19 +95,19 @@ def fetch_events(
     if protocol == "mango":
         return (
             session.query(MangoParsedTransactions)
-            .filter(MangoParsedTransactions.slot > min_slot)
+            .filter(MangoParsedTransactions.block > min_slot)
             .all()
         )
     if protocol == "marginfi":
         return (
             session.query(MarginfiParsedTransactions)
-            .filter(MarginfiParsedTransactions.slot > min_slot)
+            .filter(MarginfiParsedTransactions.block > min_slot)
             .all()
         )
     if protocol == "kamino":
         return (
             session.query(KaminoParsedTransactions)
-            .filter(KaminoParsedTransactions.slot > min_slot)
+            .filter(KaminoParsedTransactions.block > min_slot)
             .all()
         )
     raise ValueError(f"invalid protocol {protocol}")
@@ -118,7 +118,7 @@ def process_events_to_loan_states(session: Session):
     min_slot = 0
 
     if len(current_loan_states) > 0:
-        min_slot = current_loan_states.iloc[0]["slot"]
+        min_slot = int(current_loan_states.iloc[0]["slot"])
 
     mango_events: list[MangoParsedTransactions] = fetch_events(
         min_slot, "mango", session
