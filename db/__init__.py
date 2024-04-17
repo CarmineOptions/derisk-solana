@@ -188,7 +188,7 @@ class DexNormalizedLiquidity(Base):
         )
 
 class TokenLendingSupplies(Base):
-    __tablename__ = 'dex_normalized_liquidity'
+    __tablename__ = 'token_lending_supplies'
     __table_args__ = (
         PrimaryKeyConstraint("timestamp", "protocol_id", 'vault'),
         {"schema": SCHEMA},
