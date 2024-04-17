@@ -1,21 +1,20 @@
 """
 Kamino transaction parser.
 """
+from typing import Callable, Dict
 import struct
-from typing import Any, List, Tuple, Callable, Dict
 import logging
 import os
-
 
 import base58
 from solders.pubkey import Pubkey
 from solders.signature import Signature
 from solders.transaction_status import EncodedTransactionWithStatusMeta, UiPartiallyDecodedInstruction
 
+from db import SolendParsedTransactions, SolendObligations, SolendReserves
 from src.parser.solend_config import INSTRUCTION_ACCOUNT_MAP
-from db import SolendParsedTransactions, SolendLendingAccounts
 from src.parser.parser import UnknownInstruction
-from src.protocols.addresses import KAMINO_ADDRESS, SOLEND_ADDRESS
+from src.protocols.addresses import SOLEND_ADDRESS
 
 LOGGER = logging.getLogger(__name__)
 
@@ -62,15 +61,6 @@ def unpack_u8(input_bytes):
 
     return value, rest
 
-
-def unpack_bytes32(input_bytes):
-    if len(input_bytes) < 32:
-        raise UnpackError("32 bytes cannot be unpacked: insufficient input length")
-
-    bytes32 = input_bytes[:32]  # Slicing the first 32 bytes
-    rest = input_bytes[32:]
-
-    return bytes32, rest
 
 
 def unpack_pubkey(input_bytes, pubkey_bytes: int = 8):
@@ -178,6 +168,7 @@ class SolendTransactionParser:
         'deposit_reserve_liquidity',
         'redeem_reserve_collateral',
         'init_obligation',
+        'init_reserve',
         'deposit_obligation_collateral',
         'deposit_reserve_liquidity_and_obligation_collateral',
         'withdraw_obligation_collateral_and_redeem_reserve_liquidity',
@@ -241,12 +232,17 @@ class SolendTransactionParser:
         for pubkey, name in zip(instruction.accounts, account_names):
             if str(pubkey) not in instruction_accounts:
                 instruction_accounts[str(pubkey)] = name
+        # parse `init_obligation` event
+        if instruction_name == 'init_obligation':
+            self._init_obligation(instruction_accounts)
+        if instruction_name == 'init_reserve':
+            self._init_reserve(instruction_accounts)
         inner_instructions = next((
             i for i in self.transaction.meta.inner_instructions if i.index == instruction_index), None)
         if inner_instructions:
             for inner_instruction in inner_instructions.instructions:
-                print(instruction_accounts)
-                print(inner_instruction.parsed['info'])
+                # print(instruction_accounts)
+                # print(inner_instruction.parsed['info'])
                 self._save_inner_instruction(
                     inner_instruction,
                     instruction_accounts,
@@ -267,17 +263,19 @@ class SolendTransactionParser:
 
             self._processor(transfer)
 
-        if inner_instruction.parsed['type'] == 'mintTo':
+        elif inner_instruction.parsed['type'] == 'mintTo':
             mint_to = self._parse_mintto_instruction(
                 inner_instruction, instruction_accounts, instruction_name, instruction_index)
 
             self._processor(mint_to)
 
-        if inner_instruction.parsed['type'] == 'burn':
+        elif inner_instruction.parsed['type'] == 'burn':
             burn = self._parse_burn_instruction(
                 inner_instruction, instruction_accounts, instruction_name, instruction_index)
 
             self._processor(burn)
+        else:
+            raise UnknownInstruction(inner_instruction)
 
     def _parse_transfer_instruction(self, inner_instruction, accounts: Dict[str, str], instruction_name: str, instruction_idx: int):
         """"""
@@ -379,31 +377,70 @@ class SolendTransactionParser:
             authority=authority
         )
 
+    def _init_reserve(self, accounts: Dict[str, str]):
+        """"""
+        # Extract relevant keys from the accounts dictionary
+        source_liquidity_pubkey = next((k for k, v in accounts.items() if v == 'source_liquidity_pubkey'), None)
+        destination_collateral_pubkey = next((
+            k for k, v in accounts.items() if v == 'destination_collateral_pubkey'), None)
+        reserve_pubkey = next((k for k, v in accounts.items() if v == 'reserve_pubkey'), None)
+        reserve_liquidity_mint_pubkey = next((
+            k for k, v in accounts.items() if v == 'reserve_liquidity_mint_pubkey'), None)
+        reserve_liquidity_supply_pubkey = next((
+            k for k, v in accounts.items() if v == 'reserve_liquidity_supply_pubkey'), None)
+        config_fee_receiver = next((k for k, v in accounts.items() if v == 'config.fee_receiver'), None)
+        reserve_collateral_mint_pubkey = next((
+            k for k, v in accounts.items() if v == 'reserve_collateral_mint_pubkey'), None)
+        reserve_collateral_supply_pubkey = next((
+            k for k, v in accounts.items() if v == 'reserve_collateral_supply_pubkey'), None)
+        pyth_product_pubkey = next((k for k, v in accounts.items() if v == 'pyth_product_pubkey'), None)
+        pyth_price_pubkey = next((k for k, v in accounts.items() if v == 'pyth_price_pubkey'), None)
+        switchboard_feed_pubkey = next((k for k, v in accounts.items() if v == 'switchboard_feed_pubkey'), None)
+        lending_market_pubkey = next((k for k, v in accounts.items() if v == 'lending_market_pubkey'), None)
+        lending_market_authority_pubkey = next((
+            k for k, v in accounts.items() if v == 'lending_market_authority_pubkey'), None)
+        lending_market_owner_pubkey = next((
+            k for k, v in accounts.items() if v == 'lending_market_owner_pubkey'), None)
+        user_transfer_authority_pubkey = next((
+            k for k, v in accounts.items() if v == 'user_transfer_authority_pubkey'), None)
+
+        # Create new reserve instance
+        new_reserve = SolendReserves(
+            source_liquidity_pubkey=source_liquidity_pubkey,
+            destination_collateral_pubkey=destination_collateral_pubkey,
+            reserve_pubkey=reserve_pubkey,
+            reserve_liquidity_mint_pubkey=reserve_liquidity_mint_pubkey,
+            reserve_liquidity_supply_pubkey=reserve_liquidity_supply_pubkey,
+            config_fee_receiver=config_fee_receiver,
+            reserve_collateral_mint_pubkey=reserve_collateral_mint_pubkey,
+            reserve_collateral_supply_pubkey=reserve_collateral_supply_pubkey,
+            pyth_product_pubkey=pyth_product_pubkey,
+            pyth_price_pubkey=pyth_price_pubkey,
+            switchboard_feed_pubkey=switchboard_feed_pubkey,
+            lending_market_pubkey=lending_market_pubkey,
+            lending_market_authority_pubkey=lending_market_authority_pubkey,
+            lending_market_owner_pubkey=lending_market_owner_pubkey,
+            user_transfer_authority_pubkey=user_transfer_authority_pubkey
+        )
+
+        # Assuming a method _processor to handle the new Reserve
+        self._processor(new_reserve)
+
     def _init_obligation(
             self,
-            instruction: UiPartiallyDecodedInstruction,
-            metadata: Any,
-            instruction_idx: int
+            accounts: Dict[str, str]
     ):
-        # Extract relevant account addresses from the instruction using metadata definitions
-        accounts = self._get_accounts_from_instruction(instruction.accounts, metadata.idl_ix)
-        # Locate inner instructions related to the primary instruction by index
-        inner_instructions = next((i for i in self.transaction.meta.inner_instructions if i.index == instruction_idx), None)
-        # failed instructions do not have inner instructions.
-        if not inner_instructions:
-            return
-        # Create account record from inner instruction.
-        for i in inner_instructions.instructions:
-            info = i.parsed['info']
-            if i.parsed['type'] == "createAccount":
-                new_obligation = SolendLendingAccounts(
-                    authority=str(info['source']),
-                    address=str(info['newAccount']),
-                    group=str(accounts['lendingMarket'])
-                )
-                self._processor(new_obligation)
-            else:
-                raise UnknownInstruction(i)
+        # create obligation
+        obligation = next((k for k, v in accounts.items() if v == 'obligation_pubkey'), None)
+        lending_market = next((k for k, v in accounts.items() if v == 'lending_market_pubkey'), None)
+        authority = next((k for k, v in accounts.items() if v == 'obligation_owner_pubkey'), None)
+
+        new_obligation = SolendObligations(
+            authority=authority,
+            address=obligation,
+            group=lending_market
+        )
+        self._processor(new_obligation)
 
     def print_event_to_console(self, event_record):
         """

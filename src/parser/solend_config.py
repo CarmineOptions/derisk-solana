@@ -23,6 +23,25 @@ INSTRUCTION_ACCOUNT_MAP = {
         "sysvar::clock",  # readonly (system variable)
         "spl_token",  # readonly (system variable)
     ],
+    'init_reserve': [
+        "source_liquidity_pubkey",
+        "destination_collateral_pubkey",
+        "reserve_pubkey",
+        "reserve_liquidity_mint_pubkey",
+        "reserve_liquidity_supply_pubkey",
+        "config.fee_receiver",
+        "reserve_collateral_mint_pubkey",
+        "reserve_collateral_supply_pubkey",
+        "pyth_product_pubkey",
+        "pyth_price_pubkey",
+        "switchboard_feed_pubkey",
+        "lending_market_pubkey",
+        "lending_market_authority_pubkey",
+        "lending_market_owner_pubkey",
+        "user_transfer_authority_pubkey",
+        "sysvar::rent",
+        "spl_token"
+    ],
     "init_obligation": [
         "obligation_pubkey",
         "lending_market_pubkey",  # readonly
@@ -58,6 +77,20 @@ INSTRUCTION_ACCOUNT_MAP = {
         "user_transfer_authority_pubkey",  # readonly
         "sysvar::clock",  # readonly (system variable)
         "spl_token",  # readonly (system variable)
+    ],
+    'withdraw_obligation_collateral_and_redeem_reserve_liquidity': [
+        "source_collateral_pubkey",
+        "destination_collateral_pubkey",
+        "withdraw_reserve_pubkey",
+        "obligation_pubkey",
+        "lending_market_pubkey",
+        "lending_market_authority_pubkey",
+        "destination_liquidity_pubkey",
+        "reserve_collateral_mint_pubkey",
+        "reserve_liquidity_supply_pubkey",
+        "obligation_owner_pubkey",
+        "user_transfer_authority_pubkey",
+        "spl_token"
     ],
     "withdraw_obligation_collateral": [
         "source_collateral_pubkey",
@@ -107,15 +140,55 @@ INSTRUCTION_ACCOUNT_MAP = {
         "sysvar::clock",  # readonly (system variable)
         "spl_token",  # readonly (system variable)
     ],
-    "flash_loan": [
+    "liquidate_obligation_and_redeem_reserve_collateral": [
+        "source_liquidity_pubkey",
+        "destination_collateral_pubkey",
+        "destination_liquidity_pubkey",
+        "repay_reserve_pubkey",
+        "repay_reserve_liquidity_supply_pubkey",
+        "withdraw_reserve_pubkey",
+        "withdraw_reserve_collateral_mint_pubkey",
+        "withdraw_reserve_collateral_supply_pubkey",
+        "withdraw_reserve_liquidity_supply_pubkey",
+        "withdraw_reserve_liquidity_fee_receiver_pubkey",
+        "obligation_pubkey",
+        "lending_market_pubkey",
+        "lending_market_authority_pubkey",
+        "user_transfer_authority_pubkey",
+        "spl_token"
+    ],
+    "redeem_fees": [
+        "reserve_pubkey",
+        "reserve_liquidity_fee_receiver_pubkey",
+        "reserve_supply_liquidity_pubkey",
+        "lending_market_pubkey",
+        "lending_market_authority_pubkey",
+        "spl_token"
+    ],
+    "flash_borrow_reserve_liquidity": [
         "source_liquidity_pubkey",
         "destination_liquidity_pubkey",
         "reserve_pubkey",
+        "lending_market_pubkey",
+        "lending_market_authority_pubkey",
+        "sysvar::instructions",
+        "spl_token"
+    ],
+    "flash_repay_reserve_liquidity": [
+        "source_liquidity_pubkey",
+        "destination_liquidity_pubkey",
         "reserve_liquidity_fee_receiver_pubkey",
         "host_fee_receiver_pubkey",
-        "lending_market_pubkey",  # readonly
-        "lending_market_authority_pubkey",  # readonly (computed within function)
-        "spl_token",  # readonly (system variable)
-        "flash_loan_receiver_program_id",  # readonly
+        "reserve_pubkey",
+        "lending_market_pubkey",
+        "user_transfer_authority_pubkey",
+        "sysvar::instructions",
+        "spl_token"
+    ],
+    "forgive_debt": [
+        "obligation_pubkey",
+        "reserve_pubkey",
+        "lending_market_pubkey",
+        "lending_market_owner"
     ]
 }
