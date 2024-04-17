@@ -66,12 +66,16 @@ async def get_marginfy_loan_parameters(
         timeout=10,
     ).json()
 
-    mint_bank_map: dict[str, MarginfyBankParameters | None] = {}
+    mint_bank_map: dict[str, str] = {}
 
     for mint in mints:
-        bank = next((bank["bankAddress"] for bank in banks if bank["tokenAddress"] == mint), None)
+        bank = next(
+            (bank["bankAddress"] for bank in banks if bank["tokenAddress"] == mint),
+            None,
+        )
 
-        mint_bank_map[mint] = bank
+        if bank is not None:
+            mint_bank_map[mint] = bank
 
     tasks = [get_single_marginfy_parameters(bank) for bank in mint_bank_map.values()]
     results = await asyncio.gather(*tasks)
@@ -117,7 +121,7 @@ async def get_kamino_reserves() -> dict[str, Reserve]:
 
 @dataclass
 class KaminoReserveParameters:
-  loan_to_value: Decimal
+    loan_to_value: Decimal
 
 
 def kamino_reserve_to_parameters(reserve: Reserve) -> KaminoReserveParameters:
@@ -125,7 +129,10 @@ def kamino_reserve_to_parameters(reserve: Reserve) -> KaminoReserveParameters:
     loan_to_value = Decimal(reserve.config.loan_to_value_pct / 100)
     return KaminoReserveParameters(loan_to_value)
 
-async def get_kamino_loan_parameters(reserve_pubkeys: list[str]) -> dict[str, KaminoReserveParameters | None]:
+
+async def get_kamino_loan_parameters(
+    reserve_pubkeys: list[str],
+) -> dict[str, KaminoReserveParameters | None]:
     """
     Fetches Kamino configuration and parses loan parameters from it.
 
@@ -146,6 +153,5 @@ async def get_kamino_loan_parameters(reserve_pubkeys: list[str]) -> dict[str, Ka
             pubkey_reserve_parameters_map[key] = kamino_reserve_to_parameters(reserve)
         else:
             pubkey_reserve_parameters_map[key] = None
-
 
     return pubkey_reserve_parameters_map
