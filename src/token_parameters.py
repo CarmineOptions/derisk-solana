@@ -55,6 +55,9 @@ async def get_marginfy_loan_parameters(token_address: str) -> MarginfiLoanParame
 
     b = await Bank.fetch(client, Pubkey.from_string(bank_address))
 
+    if b is None:
+        return None
+
     return MarginfiLoanParameters(
         Decimal(b.config.liability_weight_init.value) / BASE,
         Decimal(b.config.liability_weight_maint.value) / BASE,
