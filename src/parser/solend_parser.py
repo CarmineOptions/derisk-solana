@@ -8,18 +8,24 @@ import os
 
 
 import base58
-from base58 import b58decode
-from construct.core import StreamError
 from solders.pubkey import Pubkey
 from solders.signature import Signature
 from solders.transaction_status import EncodedTransactionWithStatusMeta, UiPartiallyDecodedInstruction
 
 from src.parser.solend_config import INSTRUCTION_ACCOUNT_MAP
-from db import KaminoParsedTransactions, KaminoLendingAccounts
+from db import SolendParsedTransactions, SolendLendingAccounts
 from src.parser.parser import UnknownInstruction
 from src.protocols.addresses import KAMINO_ADDRESS, SOLEND_ADDRESS
 
 LOGGER = logging.getLogger(__name__)
+
+
+def snake_to_camel(snake_str):
+    # Split the string into words based on underscores
+    components = snake_str.split('_')
+    # Capitalize the first letter of each component except the first one
+    # and join them back into a single string
+    return components[0] + ''.join(x.title() for x in components[1:])
 
 
 class UnpackError(Exception):
@@ -35,8 +41,6 @@ class SolendInstructionData:
     def __repr__(self):
         return (f"SolendInstructionData(instruction_id={self.instruction_id}, amount={self.amount}, "
                 f"value_name={self.value_name})")
-
-
 
 
 def unpack_u64(input_bytes):
@@ -176,18 +180,23 @@ class SolendTransactionParser:
         'init_obligation',
         'deposit_obligation_collateral',
         'deposit_reserve_liquidity_and_obligation_collateral',
+        'withdraw_obligation_collateral_and_redeem_reserve_liquidity',
         'withdraw_obligation_collateral',
         'borrow_obligation_liquidity',
         'repay_obligation_liquidity',
         'liquidate_obligation',
-        'flash_loan'
+        'liquidate_obligation_and_redeem_reserve_collateral',
+        'redeem_fees',
+        'flash_borrow_reserve_liquidity',
+        'flash_repay_reserve_liquidity',
+        'forgive_debt',
+        # 'flash_loan'
     ]
 
     def __init__(
         self,
         program_id: Pubkey = Pubkey.from_string(SOLEND_ADDRESS)
     ):
-        print('aaa')
         self.program_id = program_id
         self.transaction: EncodedTransactionWithStatusMeta | None = None
         self._processor: Callable = self.print_event_to_console
@@ -220,62 +229,79 @@ class SolendTransactionParser:
         parsed_data = unpack_data(data)
         # Get instruction name
         instruction_name = {v: k for k, v in self.instruction_types.items()}[parsed_data.instruction_id]
-        print(instruction_name)
+        print('INstr name', instruction_name)
         if instruction_name not in self.relevant_instructions:
             return
         # get inner instructions
         instruction_index = self.transaction.transaction.message.instructions.index(instruction)  # type: ignore
         # pair present account keys with its names
         account_names = INSTRUCTION_ACCOUNT_MAP[instruction_name]
-        instruction_accounts = {str(pubkey): name for pubkey, name in zip(instruction.accounts, account_names)}
+
+        instruction_accounts = dict()
+        for pubkey, name in zip(instruction.accounts, account_names):
+            if str(pubkey) not in instruction_accounts:
+                instruction_accounts[str(pubkey)] = name
         inner_instructions = next((
             i for i in self.transaction.meta.inner_instructions if i.index == instruction_index), None)
         if inner_instructions:
             for inner_instruction in inner_instructions.instructions:
                 print(instruction_accounts)
                 print(inner_instruction.parsed['info'])
-                self._save_inner_instruction(inner_instruction, instruction_accounts, instruction_index)
+                self._save_inner_instruction(
+                    inner_instruction,
+                    instruction_accounts,
+                    instruction_name,
+                    instruction_index
+                )
 
-    def _save_inner_instruction(self, inner_instruction, instruction_accounts, instruction_index):
+    def _save_inner_instruction(
+            self,
+            inner_instruction,
+            instruction_accounts,
+            instruction_name: str,
+            instruction_index: int
+    ):
         if inner_instruction.parsed['type'] == 'transfer':
-            transfer = self._parse_transfer_instruction(inner_instruction, instruction_accounts, instruction_index)
+            transfer = self._parse_transfer_instruction(
+                inner_instruction, instruction_accounts, instruction_name, instruction_index)
 
             self._processor(transfer)
 
         if inner_instruction.parsed['type'] == 'mintTo':
-            mint_to = self._parse_mintto_instruction(inner_instruction, instruction_accounts, instruction_index)
+            mint_to = self._parse_mintto_instruction(
+                inner_instruction, instruction_accounts, instruction_name, instruction_index)
 
             self._processor(mint_to)
 
         if inner_instruction.parsed['type'] == 'burn':
-            burn = self._parse_burn_instruction(inner_instruction, instruction_accounts, instruction_index)
+            burn = self._parse_burn_instruction(
+                inner_instruction, instruction_accounts, instruction_name, instruction_index)
 
             self._processor(burn)
 
-    def _parse_transfer_instruction(self, inner_instruction, accounts: Dict[str, str], instruction_idx: int):
+    def _parse_transfer_instruction(self, inner_instruction, accounts: Dict[str, str], instruction_name: str, instruction_idx: int):
         """"""
         instruction = inner_instruction.parsed
 
         # Extracting data
         token = str(instruction['info']['token']) if 'token' in instruction['info'] else None
         amount = int(instruction['info']['amount'])
-
         source = instruction['info']['source']
         source_name = accounts[source]
         destination = instruction['info']['destination']
         destination_name = accounts[destination]
 
-        obligation = str(accounts['obligation']) if 'obligation' in accounts else None
+        obligation = next((k for k, v in accounts.items() if v == 'obligation_pubkey'), None)
 
-        event_name = f"{instruction['type']}-{source_name}-{destination_name}"
+        event_name = f"{instruction['type']}-{snake_to_camel(source_name)}-{snake_to_camel(destination_name)}"
         event_number = instruction_idx
 
-        account = str(accounts['owner']) if 'owner' in accounts else None
         signer = instruction['info']['authority'] if 'authority' in instruction['info'] else None
-        bank = str(accounts['lendingMarket']) if 'lendingMarket' in accounts else None
+        bank = next((k for k, v in accounts.items() if v == 'lending_market_pubkey'), None)
+        authority = next((k for k, v in accounts.items() if v == 'user_transfer_authority_pubkey'), None)
 
         # Create the MangoParsedTransactions object
-        return KaminoParsedTransactions(
+        return SolendParsedTransactions(
             transaction_id=str(self.transaction.transaction.signatures[0]),
             instruction_name=instruction_name,
             event_name=event_name,
@@ -284,71 +310,73 @@ class SolendTransactionParser:
             amount=amount,
             source=source,
             destination=destination,
-            account=account,
             signer=signer,
             bank=bank,
-            obligation=obligation
+            obligation=obligation,
+            authority=authority
         )
 
     def _parse_mintto_instruction(self, inner_instruction, accounts, instruction_name: str, instruction_idx: int):
+        """"""
         instruction = inner_instruction.parsed
+
         # Extracting data
         token = str(instruction['info']['mint']) if 'mint' in instruction['info'] else None
         amount = int(instruction['info']['amount'])
         destination = instruction['info']['account']
-        obligation = str(accounts['obligation']) if 'obligation' in accounts else None
+        destination_name = accounts[destination]
+        obligation = next((k for k, v in accounts.items() if v == 'obligation_pubkey'), None)
 
-        event_name = f"{instruction['type']}-{destination_name}"
+        event_name = f"{instruction['type']}-{snake_to_camel(destination_name)}"
         event_number = instruction_idx
 
-        account = str(accounts['owner']) if 'owner' in accounts else None
         signer = instruction['info']['mintAuthority'] if 'mintAuthority' in instruction['info'] else None
-        bank = str(accounts['lendingMarket']) if 'lendingMarket' in accounts else None
+        bank = next((k for k, v in accounts.items() if v == 'lending_market_pubkey'), None)
+        authority = next((k for k, v in accounts.items() if v == 'user_transfer_authority_pubkey'), None)
 
-        # Create the MangoParsedTransactions object
-        return KaminoParsedTransactions(
-            transaction_id=str(self.transaction.transaction.signatures[0]),
-            instruction_name=camel_to_snake(instruction_name),
-            event_name=event_name,
-            event_number=event_number,
-            token=token,
-            amount=amount,
-            destination=destination,
-            account=account,
-            signer=signer,
-            bank=bank,
-            obligation=obligation
-        )
-
-    def _parse_burn_instruction(self, inner_instruction, accounts, instruction_name: str, instruction_idx: int):
-        instruction = inner_instruction.parsed
-        # Extracting data
-        token = str(instruction['info']['mint']) if 'mint' in instruction['info'] else None
-        amount = int(instruction['info']['amount'])
-        source = instruction['info']['account']
-        source_name = accounts, source
-        obligation = str(accounts['obligation']) if 'obligation' in accounts else None
-
-        event_name = f"{instruction['type']}-{source_name}"
-        event_number = instruction_idx
-
-        account = str(accounts['owner']) if 'owner' in accounts else None
-        signer = instruction['info']['authority'] if 'authority' in instruction['info'] else None
-        bank = str(accounts['lendingMarket']) if 'lendingMarket' in accounts else None
-
-        # Create the MangoParsedTransactions object
-        return KaminoParsedTransactions(
+        return SolendParsedTransactions(
             transaction_id=str(self.transaction.transaction.signatures[0]),
             instruction_name=instruction_name,
             event_name=event_name,
             event_number=event_number,
             token=token,
             amount=amount,
-            source=source,
-            account=account,
+            destination=destination,
             signer=signer,
             bank=bank,
-            obligation=obligation
+            obligation=obligation,
+            authority=authority
+        )
+
+    def _parse_burn_instruction(self, inner_instruction, accounts, instruction_name: str, instruction_idx: int):
+        """"""
+        instruction = inner_instruction.parsed
+        token = str(instruction['info']['mint']) if 'mint' in instruction['info'] else None
+        amount = int(instruction['info']['amount'])
+        source = instruction['info']['account']
+        source_name = accounts[source]
+
+        obligation = next((k for k, v in accounts.items() if v == 'obligation_pubkey'), None)
+
+        event_name = f"{instruction['type']}-{snake_to_camel(source_name)}"
+        event_number = instruction_idx
+
+        signer = instruction['info']['mintAuthority'] if 'mintAuthority' in instruction['info'] else None
+        bank = next((k for k, v in accounts.items() if v == 'lending_market_pubkey'), None)
+        authority = next((k for k, v in accounts.items() if v == 'user_transfer_authority_pubkey'), None)
+
+        # Create the MangoParsedTransactions object
+        return SolendParsedTransactions(
+            transaction_id=str(self.transaction.transaction.signatures[0]),
+            instruction_name=instruction_name,
+            event_name=event_name,
+            event_number=event_number,
+            token=token,
+            amount=amount,
+            signer=signer,
+            bank=bank,
+            obligation=obligation,
+            authority=authority
         )
 
     def _init_obligation(
@@ -368,7 +396,7 @@ class SolendTransactionParser:
         for i in inner_instructions.instructions:
             info = i.parsed['info']
             if i.parsed['type'] == "createAccount":
-                new_obligation = KaminoLendingAccounts(
+                new_obligation = SolendLendingAccounts(
                     authority=str(info['source']),
                     address=str(info['newAccount']),
                     group=str(accounts['lendingMarket'])
@@ -409,7 +437,7 @@ if __name__ == "__main__":
 
     transaction = solana_client.get_transaction(
         Signature.from_string(
-            '3321qCkErQ2QmXLqf1ZLHzW4JxXVLoWLvV3ytDkHUfAhKK18uk8Xr6atYLw6uFUZHvHiL5xkEFY6P8BkAUHZt4sF'
+            '4ajP7iq5Ar5g3aBeorhf4AW98A84EZsSMVbJTNuyripXCDW6Qgt9oh1GtvDoCn2WN6XRggCEXfGqXKAf7Ee5YkVs'
         ),
         'jsonParsed',
         max_supported_transaction_version=0
