@@ -115,7 +115,7 @@ class MangoTransactionParser(TransactionDecoder):
         ]:
             flat_event = self._flatten_event_data(event.data)
             mango_event = MangoParsedTransactions(
-                transaction_id=str(self.last_tx.transaction.signatures[0]),
+                transaction_id=str(self.transaction.transaction.signatures[0]),
                 event_name=event.name,
                 event_number=self.event_counter,
                 **{camel_to_snake(k): v for k, v in flat_event.items()}
@@ -134,6 +134,10 @@ class MangoTransactionParser(TransactionDecoder):
         are encoded and match a known program ID. It also associates these instructions with
         corresponding log messages, and handles specific events accordingly.
         """
+        self.transaction = transaction_with_meta
+        self.event_counter = 1
+        if self.transaction.meta.err:
+            return
         # Get log messages from transaction metadata
         log_msgs = transaction_with_meta.meta.log_messages
         # self.event_parser.parse_logs(log_msgs, self.save_event)
@@ -177,7 +181,7 @@ class MangoTransactionParser(TransactionDecoder):
             'tokenLiqBankruptcy',
             'tokenDepositIntoExisting',
         ]:
-            LOGGER.warning(f"Instruction `{instruction_name} found in `{str(self.last_tx.transaction.signatures[0])}`.")
+            LOGGER.warning(f"Instruction `{instruction_name} found in `{str(self.transaction.transaction.signatures[0])}`.")
 
         # instructions handled through program data log messages.
         # expected instructions are
@@ -206,7 +210,7 @@ class MangoTransactionParser(TransactionDecoder):
         """"""
         accounts = self._get_accounts_from_instruction(instruction.accounts, metadata.idl_ix)
         # Locate inner instructions related to the primary instruction by index
-        inner_instructions = next((i for i in self.last_tx.meta.inner_instructions if i.index == instruction_idx), None)
+        inner_instructions = next((i for i in self.transaction.meta.inner_instructions if i.index == instruction_idx), None)
         if inner_instructions:
             for inner_instruction in inner_instructions.instructions:
                 if inner_instruction.parsed['type'] == 'transfer':
@@ -221,7 +225,7 @@ class MangoTransactionParser(TransactionDecoder):
         """"""
         data = event.data
         asset_transfer_from_liqee = MangoParsedTransactions(
-            transaction_id=str(self.last_tx.transaction.signatures[0]),
+            transaction_id=str(self.transaction.transaction.signatures[0]),
             instruction_name=event.name,
             event_name='asset_transfer_from_liqee',
             event_number=self.event_counter,
@@ -235,7 +239,7 @@ class MangoTransactionParser(TransactionDecoder):
         )
 
         asset_transfer_to_liqor = MangoParsedTransactions(
-            transaction_id=str(self.last_tx.transaction.signatures[0]),
+            transaction_id=str(self.transaction.transaction.signatures[0]),
             instruction_name=event.name,
             event_name='asset_transfer_to_liqor',
             event_number=self.event_counter,
@@ -249,7 +253,7 @@ class MangoTransactionParser(TransactionDecoder):
         )
 
         asset_liquidation_fee = MangoParsedTransactions(
-            transaction_id=str(self.last_tx.transaction.signatures[0]),
+            transaction_id=str(self.transaction.transaction.signatures[0]),
             instruction_name=event.name,
             event_name='asset_liquidation_fee',
             event_number=self.event_counter,
@@ -263,7 +267,7 @@ class MangoTransactionParser(TransactionDecoder):
         )
 
         liab_transfer = MangoParsedTransactions(
-            transaction_id=str(self.last_tx.transaction.signatures[0]),
+            transaction_id=str(self.transaction.transaction.signatures[0]),
             instruction_name=event.name,
             event_name='liab_transfer',
             event_number=self.event_counter,
@@ -302,7 +306,7 @@ class MangoTransactionParser(TransactionDecoder):
 
         # Create the MangoParsedTransactions object
         return MangoParsedTransactions(
-            transaction_id=str(self.last_tx.transaction.signatures[0]),
+            transaction_id=str(self.transaction.transaction.signatures[0]),
             instruction_name=instruction_name,
             event_name=event_name,
             event_number=event_number,
