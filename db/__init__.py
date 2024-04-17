@@ -41,6 +41,7 @@ if POSTGRES_DB is None:
 
 CONN_STRING = f"postgresql+psycopg2://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_HOST}/{POSTGRES_DB}"
 SCHEMA = 'public'
+SCHEMA_LENDERS = 'lenders'
 
 
 def get_db_session() -> Session:
@@ -76,7 +77,7 @@ class TransactionStatusWithSignature(Base):
         Index("ix_transactions_block_time", "block_time"),
         Index("ix_transactions_signature", "signature"),
         Index("ix_transactions_source", "source"),
-        {"schema": SCHEMA},
+        {"schema": SCHEMA_LENDERS},
     )
 
     def __repr__(self):
@@ -88,26 +89,26 @@ class TransactionStatusWithSignature(Base):
 
 class TransactionStatusError(Base):
     __tablename__ = "tx_status_errors"
-    __table_args__ = {"schema": SCHEMA}
+    __table_args__ = {"schema": SCHEMA_LENDERS}
 
     id = Column(Integer, primary_key=True)
     error_body = Column(String, nullable=False)
-    tx_signatures_id = Column(Integer, ForeignKey(f'{SCHEMA}.transactions.id'), nullable=False)
+    tx_signatures_id = Column(Integer, ForeignKey(f'{SCHEMA_LENDERS}.transactions.id'), nullable=False)
 
 
 class TransactionStatusMemo(Base):
     __tablename__ = "tx_status_memo"
-    __table_args__ = {"schema": SCHEMA}
+    __table_args__ = {"schema": SCHEMA_LENDERS}
 
     id = Column(Integer, primary_key=True)
     memo_body = Column(String, nullable=False)
-    tx_signatures_id = Column(Integer, ForeignKey(f'{SCHEMA}.transactions.id'), nullable=False)
+    tx_signatures_id = Column(Integer, ForeignKey(f'{SCHEMA_LENDERS}.transactions.id'), nullable=False)
 
 
 class ParsedTransactions(Base):
     __abstract__ = True
     __tablename__ = "parsed_transactions"
-    __table_args__ = {"schema": SCHEMA}
+    __table_args__ = {"schema": SCHEMA_LENDERS}
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     transaction_id = Column(String, nullable=True)
@@ -140,7 +141,7 @@ class ParsedTransactions(Base):
 class LendingAccounts(Base):
     __abstract__ = True
     __tablename__ = "lending_accounts"
-    __table_args__ = {"schema": SCHEMA}
+    __table_args__ = {"schema": SCHEMA_LENDERS}
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     authority = Column(String, nullable=True)
@@ -165,7 +166,7 @@ class MarginfiParsedTransactions(ParsedTransactions):
         Index("ix_marginfi_parsed_transactions_event_name", "event_name"),
         Index("ix_marginfi_parsed_transactions_account", "account"),
         Index("ix_marginfi_parsed_transactions_token", "token"),
-        {"schema": SCHEMA},
+        {"schema": SCHEMA_LENDERS},
     )
 
 
@@ -175,7 +176,7 @@ class MarginfiLendingAccounts(LendingAccounts):
         Index("ix_marginfi_lending_accounts_address", "address"),
         Index("ix_marginfi_lending_accounts_group", "group"),
         Index("ix_marginfi_lending_accounts_authority", "authority"),
-        {"schema": SCHEMA}
+        {"schema": SCHEMA_LENDERS}
     )
 
 
@@ -190,7 +191,7 @@ class KaminoParsedTransactions(ParsedTransactions):
         Index("ix_kamino_parsed_transactions_event_name", "event_name"),
         Index("ix_kamino_parsed_transactions_account", "account"),
         Index("ix_kamino_parsed_transactions_token", "token"),
-        {"schema": SCHEMA},
+        {"schema": SCHEMA_LENDERS},
     )
 
     def __repr__(self):
@@ -209,7 +210,7 @@ class KaminoLendingAccounts(LendingAccounts):
         Index("ix_kamino_lending_accounts_address", "address"),
         Index("ix_kamino_lending_accounts_group", "group"),
         Index("ix_kamino_lending_accounts_authority", "authority"),
-        {"schema": SCHEMA}
+        {"schema": SCHEMA_LENDERS}
     )
 
 
@@ -321,7 +322,7 @@ class MangoParsedTransactions(ParsedTransactions):
 
     # Ensure all fields are converted to snake_case as above
     __table_args__ = (  # type: ignore
-        {"schema": SCHEMA},
+        {"schema": SCHEMA_LENDERS},
     )
 
     def __init__(self, **kwargs):  # pylint: disable=super-init-not-called
@@ -343,14 +344,14 @@ class MangoLendingAccounts(LendingAccounts):
         Index("ix_mango_lending_accounts_address", "address"),
         Index("ix_mango_lending_accounts_group", "group"),
         Index("ix_mango_lending_accounts_authority", "authority"),
-        {"schema": SCHEMA}
+        {"schema": SCHEMA_LENDERS}
     )
 
 
 class TransactionsList(Base):
     __abstract__ = True
     __tablename__ = 'hist_transaction_list'
-    __table_args__ = {"schema": SCHEMA}
+    __table_args__ = {"schema": SCHEMA_LENDERS}
 
     signature = Column(String, primary_key=True)
     block_time = Column(BigInteger)
@@ -361,7 +362,7 @@ class MarginfiTransactionsList(TransactionsList):
     __tablename__ = 'marginfi_hist_transaction_list'
     __table_args__ = (  # type: ignore
         Index('idx_marginfi_transaction_list_signature', 'signature'),
-        {"schema": SCHEMA},
+        {"schema": SCHEMA_LENDERS},
     )
 
 
@@ -369,7 +370,7 @@ class KaminoTransactionsList(TransactionsList):
     __tablename__ = 'kamino_hist_transaction_list'
     __table_args__ = (  # type: ignore
         Index('idx_kamino_transaction_list_signature', 'signature'),
-        {"schema": SCHEMA},
+        {"schema": SCHEMA_LENDERS},
     )
 
 
@@ -382,7 +383,7 @@ class MangoTransactionsList(Base):
 
     __table_args__ = (
         Index('idx_mango_transaction_list_signature', 'signature'),
-        {"schema": SCHEMA},
+        {"schema": SCHEMA_LENDERS},
     )
 
 
@@ -473,7 +474,7 @@ class DexNormalizedLiquidity(Base):
 
 class Protocols(Base):
     __tablename__ = 'protocols'
-    __table_args__ = {'schema': SCHEMA}
+    __table_args__ = {'schema': SCHEMA_LENDERS}
 
     id = Column(Integer, primary_key=True)
     public_key = Column(String, unique=True, nullable=False)
