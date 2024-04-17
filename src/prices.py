@@ -11,10 +11,8 @@ BASE_API_URL = "https://price.jup.ag/v4/price"
 def token_list_to_ids(l: list[str]) -> str:
   ids = ""
   for index, token in enumerate(l):
-    # if kamino vault get price for its token
-    kamino_token = kamino_vault_map.vault_map.get(token)
-    if kamino_token is not None:
-        token = kamino_token
+    # if kamino vault or reserve map to its mint
+    token = kamino_vault_map.kamino_address_to_mint_address(token)
 
     if index > 0:
       ids+= ","
@@ -47,12 +45,9 @@ def get_prices_for_tokens(tokens: list[str]) -> dict[str, float | None]:
     response.raise_for_status()
 
   for token_address in tokens:
-    kamino_token = kamino_vault_map.vault_map.get(token_address)
+    validated_token_address = kamino_vault_map.kamino_address_to_mint_address(token_address)
 
-    if kamino_token is not None:
-        price_dict = data.get(kamino_token)
-    else:
-        price_dict = data.get(token_address)
+    price_dict = data.get(validated_token_address)
 
     if price_dict is not None and "price" in price_dict:
       token_price_map[token_address] = price_dict["price"]
