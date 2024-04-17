@@ -75,7 +75,7 @@ async def get_marginfy_loan_parameters(
 
     tasks = [get_single_marginfy_parameters(bank) for bank in mint_bank_map.values()]
     results = await asyncio.gather(*tasks)
-    processed_results = {mint: result for mint, result in zip(mint_bank_map.keys(), results)}
+    processed_results = dict(zip(mint_bank_map.keys(), results))
 
     return processed_results
 
