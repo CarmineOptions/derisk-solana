@@ -585,9 +585,51 @@ class Protocols(Base):
     last_block_collected = Column(Integer, nullable=True)
 
 
-class LoanStates(Base):
-    __tablename__ = "loan_states"
-    __table_args__ = {"schema": SCHEMA}
+class MarginfiLoanStates(Base):
+    __tablename__ = "marginfi_loan_states"
+    __table_args__ = {"schema": "lenders"} # TODO: change to SCHEMA when it's value is "lenders"
+
+    slot = Column(BigInteger, primary_key=True, nullable=False)
+    protocol = Column(String, primary_key=True, nullable=False)
+    user = Column(String, primary_key=True, nullable=False)
+    collateral = Column(JSONB, nullable=False)
+    debt = Column(JSONB, nullable=False)
+
+    def __repr__(self):
+        return (
+            "LoanStates("
+            f"slot={self.slot},"
+            f"protocol={self.protocol},"
+            f"user={self.user},"
+            f"collateral={self.collateral},"
+            f"debt={self.debt},"
+        )
+
+
+class KaminoLoanStates(Base):
+    __tablename__ = "kamino_loan_states"
+    __table_args__ = {"schema": "lenders"} # TODO: change to SCHEMA when it's value is "lenders"
+
+    slot = Column(BigInteger, primary_key=True, nullable=False)
+    protocol = Column(String, primary_key=True, nullable=False)
+    user = Column(String, primary_key=True, nullable=False)
+    collateral = Column(JSONB, nullable=False)
+    debt = Column(JSONB, nullable=False)
+
+    def __repr__(self):
+        return (
+            "LoanStates("
+            f"slot={self.slot},"
+            f"protocol={self.protocol},"
+            f"user={self.user},"
+            f"collateral={self.collateral},"
+            f"debt={self.debt},"
+        )
+
+
+class MangoLoanStates(Base):
+    __tablename__ = "mango_loan_states"
+    __table_args__ = {"schema": "lenders"} # TODO: change to SCHEMA when it's value is "lenders"
 
     slot = Column(BigInteger, primary_key=True, nullable=False)
     protocol = Column(String, primary_key=True, nullable=False)
