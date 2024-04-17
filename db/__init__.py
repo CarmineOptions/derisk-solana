@@ -279,6 +279,67 @@ class SolendReserves(Base):  # table to store reserves data
     )
 
 
+class SolendParsedTransactions(ParsedTransactions):
+    __tablename__ = "solend_parsed_transactions"
+    source = Column(String, nullable=True)
+    destination = Column(String, nullable=True)
+    obligation = Column(String, nullable=True)
+    authority = Column(String, nullable=True)
+    __table_args__ = (
+        Index("ix_solend_parsed_transactions_transaction_id", "transaction_id"),
+        Index("ix_solend_parsed_transactions_instruction_name", "instruction_name"),
+        Index("ix_solend_parsed_transactions_event_name", "event_name"),
+        Index("ix_solend_parsed_transactions_obligation", "obligation"),
+        Index("ix_solend_parsed_transactions_token", "token"),
+        {"schema": SCHEMA},
+    )
+
+    def __repr__(self):
+        return f"<SolendParsedTransactions(\n   id={self.id}, \n   transaction_id='{self.transaction_id}'," \
+               f"\n   instruction_name='{self.instruction_name}', \n   event_name='{self.event_name}', " \
+               f"\n   event_num = {self.event_number}" \
+               f"\n   position='{self.position}', \n   token='{self.token}'," \
+               f"\n   source='{self.source}', \n   destination='{self.destination}'," \
+               f"\n   amount={self.amount}, \n   amount_decimal={self.amount_decimal}, \n   account='{self.account}'," \
+               f"\n   signer='{self.signer}', \n   created_at={self.created_at}, \n   obligation={self.obligation}" \
+               f"\n   bank=`{self.bank}`, \n   authority='{self.authority}"
+
+
+class SolendObligations(LendingAccounts):  # table to store obligations' data
+    __tablename__ = "solend_lending_accounts"
+    __table_args__ = (  # type: ignore
+        Index("ix_solend_lending_accounts_address", "address"),
+        Index("ix_solend_lending_accounts_group", "group"),
+        Index("ix_solend_lending_accounts_authority", "authority"),
+        {"schema": SCHEMA}
+    )
+
+
+class SolendReserves(Base):  # table to store reserves data
+    __tablename__ = 'solend_reserves'
+
+    id = Column(Integer, primary_key=True)
+    source_liquidity_pubkey = Column(String)
+    destination_collateral_pubkey = Column(String)
+    reserve_pubkey = Column(String, index=True)
+    reserve_liquidity_mint_pubkey = Column(String)
+    reserve_liquidity_supply_pubkey = Column(String)
+    config_fee_receiver = Column(String)
+    reserve_collateral_mint_pubkey = Column(String)
+    reserve_collateral_supply_pubkey = Column(String)
+    pyth_product_pubkey = Column(String)
+    pyth_price_pubkey = Column(String)
+    switchboard_feed_pubkey = Column(String)
+    lending_market_pubkey = Column(String)
+    lending_market_authority_pubkey = Column(String)
+    lending_market_owner_pubkey = Column(String)
+    user_transfer_authority_pubkey = Column(String)
+
+    __table_args__ = (  # type: ignore
+        {"schema": SCHEMA}
+    )
+
+
 class MangoParsedTransactions(ParsedTransactions):
     __tablename__ = "mango_parsed_transactions"
 
@@ -449,6 +510,14 @@ class MangoTransactionsList(Base):
     __table_args__ = (
         Index('idx_mango_transaction_list_signature', 'signature'),
         {"schema": SCHEMA_LENDERS},
+    )
+
+
+class SolendTransactionsList(TransactionsList):
+    __tablename__ = 'solend_hist_transaction_list'
+    __table_args__ = (  # type: ignore
+        Index('idx_solend_transaction_list_signature', 'signature'),
+        {"schema": SCHEMA},
     )
 
 
