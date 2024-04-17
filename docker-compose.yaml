@@ -219,11 +219,37 @@ services:
         db:
           condition: service_healthy
 
-
-  events-loan-state:
+  marginfi-events-loan-state:
       build:
         dockerfile: ./Dockerfile.event_processing
       environment:
+        PROTOCOL: marginfi
+        POSTGRES_USER: postgres
+        POSTGRES_PASSWORD: postgres
+        POSTGRES_HOST: db
+        POSTGRES_DB: postgres
+      depends_on:
+        db:
+          condition: service_healthy
+
+  mango-events-loan-state:
+      build:
+        dockerfile: ./Dockerfile.event_processing
+      environment:
+        PROTOCOL: mango
+        POSTGRES_USER: postgres
+        POSTGRES_PASSWORD: postgres
+        POSTGRES_HOST: db
+        POSTGRES_DB: postgres
+      depends_on:
+        db:
+          condition: service_healthy
+
+  kamino-events-loan-state:
+      build:
+        dockerfile: ./Dockerfile.event_processing
+      environment:
+        PROTOCOL: kamino
         POSTGRES_USER: postgres
         POSTGRES_PASSWORD: postgres
         POSTGRES_HOST: db
