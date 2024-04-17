@@ -5,6 +5,8 @@ import requests
 
 import streamlit
 
+from src import kamino_vault_map
+
 BASE_API_URL = "https://price.jup.ag/v4/price"
 
 T = TypeVar("T")
