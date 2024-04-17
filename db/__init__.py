@@ -65,7 +65,7 @@ class TransactionStatusWithSignature(Base):
     __tablename__ = 'transactions'
 
     id = Column(Integer, primary_key=True)
-    source = Column(String, ForeignKey(f'{SCHEMA}.protocols.public_key'), nullable=False)
+    source = Column(String, ForeignKey(f'{SCHEMA_LENDERS}.protocols.public_key'), nullable=False)
     signature = Column(String, nullable=False)
     slot = Column(BigInteger, nullable=False)
     block_time = Column(BigInteger, nullable=False)
