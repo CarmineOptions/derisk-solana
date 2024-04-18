@@ -669,6 +669,106 @@ class SolendLoanStates(Base):
         )
 
 
+class MarginfiLiquidableDepts(Base):
+    __tablename__ = "marginfi_liquidable_depts"
+    __table_args__ = {"schema": SCHEMA_LENDERS}
+
+    # TODO: timestamp or slot (block)?
+    # amount, price - should be int or string? If 18 digits int may not be big enough
+    timestamp = Column(BigInteger, primary_key=True, nullable=False)
+    protocol = Column(String, primary_key=True, nullable=False)
+    collateral_token = Column(String, primary_key=True, nullable=False)
+    debt_token = Column(String, primary_key=True, nullable=False)
+    collateral_token_price = Column(String, primary_key=True, nullable=False)
+    amount = Column(String, primary_key=True, nullable=False)
+
+    def __repr__(self):
+        return (
+            "MarginfiLiquidableDepts("
+            f"timestamp={self.timestamp},"
+            f"protocol={self.protocol},"
+            f"collateral_token={self.collateral_token},"
+            f"debt_token={self.debt_token},"
+            f"collateral_token_price={self.collateral_token_price},"
+            f"amount={self.amount})"
+        )
+
+
+class KaminoLiquidableDepts(Base):
+    __tablename__ = "kamino_liquidable_depts"
+    __table_args__ = {"schema": SCHEMA_LENDERS}
+
+    # TODO: timestamp or slot (block)?
+    # amount, price - should be int or string? If 18 digits int may not be big enough
+    timestamp = Column(BigInteger, primary_key=True, nullable=False)
+    protocol = Column(String, primary_key=True, nullable=False)
+    collateral_token = Column(String, primary_key=True, nullable=False)
+    debt_token = Column(String, primary_key=True, nullable=False)
+    collateral_token_price = Column(String, primary_key=True, nullable=False)
+    amount = Column(String, primary_key=True, nullable=False)
+
+    def __repr__(self):
+        return (
+            "MarginfiLiquidableDepts("
+            f"timestamp={self.timestamp},"
+            f"protocol={self.protocol},"
+            f"collateral_token={self.collateral_token},"
+            f"debt_token={self.debt_token},"
+            f"collateral_token_price={self.collateral_token_price},"
+            f"amount={self.amount})"
+        )
+
+
+class MangoLiquidableDepts(Base):
+    __tablename__ = "mango_liquidable_depts"
+    __table_args__ = {"schema": SCHEMA_LENDERS}
+
+    # TODO: timestamp or slot (block)?
+    # amount, price - should be int or string? If 18 digits int may not be big enough
+    timestamp = Column(BigInteger, primary_key=True, nullable=False)
+    protocol = Column(String, primary_key=True, nullable=False)
+    collateral_token = Column(String, primary_key=True, nullable=False)
+    debt_token = Column(String, primary_key=True, nullable=False)
+    collateral_token_price = Column(String, primary_key=True, nullable=False)
+    amount = Column(String, primary_key=True, nullable=False)
+
+    def __repr__(self):
+        return (
+            "MarginfiLiquidableDepts("
+            f"timestamp={self.timestamp},"
+            f"protocol={self.protocol},"
+            f"collateral_token={self.collateral_token},"
+            f"debt_token={self.debt_token},"
+            f"collateral_token_price={self.collateral_token_price},"
+            f"amount={self.amount})"
+        )
+
+
+class SolendLiquidableDepts(Base):
+    __tablename__ = "solend_liquidable_depts"
+    __table_args__ = {"schema": SCHEMA_LENDERS}
+
+    # TODO: timestamp or slot (block)?
+    # amount, price - should be int or string? If 18 digits int may not be big enough
+    timestamp = Column(BigInteger, primary_key=True, nullable=False)
+    protocol = Column(String, primary_key=True, nullable=False)
+    collateral_token = Column(String, primary_key=True, nullable=False)
+    debt_token = Column(String, primary_key=True, nullable=False)
+    collateral_token_price = Column(String, primary_key=True, nullable=False)
+    amount = Column(String, primary_key=True, nullable=False)
+
+    def __repr__(self):
+        return (
+            "MarginfiLiquidableDepts("
+            f"timestamp={self.timestamp},"
+            f"protocol={self.protocol},"
+            f"collateral_token={self.collateral_token},"
+            f"debt_token={self.debt_token},"
+            f"collateral_token_price={self.collateral_token_price},"
+            f"amount={self.amount})"
+        )
+
+
 if __name__ == "__main__":
     # create the database engine
     ENGINE = create_engine(CONN_STRING)
