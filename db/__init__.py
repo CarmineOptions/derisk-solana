@@ -301,7 +301,7 @@ class SolendParsedTransactions(ParsedTransactions):
         Index("ix_solend_parsed_transactions_event_name", "event_name"),
         Index("ix_solend_parsed_transactions_obligation", "obligation"),
         Index("ix_solend_parsed_transactions_token", "token"),
-        {"schema": SCHEMA},
+        {"schema": SCHEMA_LENDERS},
     )
 
     def __repr__(self):
@@ -321,7 +321,7 @@ class SolendObligations(LendingAccounts):  # table to store obligations' data
         Index("ix_solend_lending_accounts_address", "address"),
         Index("ix_solend_lending_accounts_group", "group"),
         Index("ix_solend_lending_accounts_authority", "authority"),
-        {"schema": SCHEMA}
+        {"schema": SCHEMA_LENDERS}
     )
 
 
@@ -346,7 +346,7 @@ class SolendReserves(Base):  # table to store reserves data
     user_transfer_authority_pubkey = Column(String)
 
     __table_args__ = (  # type: ignore
-        {"schema": SCHEMA}
+        {"schema": SCHEMA_LENDERS}
     )
 
 
@@ -503,9 +503,9 @@ class MarginfiTransactionsList(TransactionsList):
 
 
 class MarginfiTransactionsListV2(TransactionsList):
-    __tablename__ = 'marginfi_hist_transaction_listV2'
+    __tablename__ = 'marginfi_hist_transaction_list_V2'
     __table_args__ = (  # type: ignore
-        Index('idx_marginfi_transaction_list_signature', 'signature'),
+        Index('idx_marginfi_transaction_list_v2_signature', 'signature'),
         {"schema": SCHEMA_LENDERS},
     )
 
@@ -535,15 +535,7 @@ class SolendTransactionsList(TransactionsList):
     __tablename__ = 'solend_hist_transaction_list'
     __table_args__ = (  # type: ignore
         Index('idx_solend_transaction_list_signature', 'signature'),
-        {"schema": SCHEMA},
-    )
-
-
-class SolendTransactionsList(TransactionsList):
-    __tablename__ = 'solend_hist_transaction_list'
-    __table_args__ = (  # type: ignore
-        Index('idx_solend_transaction_list_signature', 'signature'),
-        {"schema": SCHEMA},
+        {"schema": SCHEMA_LENDERS},
     )
 
 
