@@ -14,6 +14,7 @@ from sqlalchemy import (
     PrimaryKeyConstraint,
     Float,
     Numeric,
+    DECIMAL
 )
 
 from sqlalchemy.ext.declarative import declarative_base
@@ -199,9 +200,9 @@ class TokenLendingSupplies(Base):
     market = Column(String)
     vault = Column(String, nullable = False)
     underlying_mint_address = Column(String, nullable = False)
-    deposits_total = Column(Numeric, nullable = False)
-    lent_total = Column(Numeric, nullable = False)
-    available_to_borrow = Column(Numeric, nullable = False)
+    deposits_total = Column(DECIMAL, nullable = False)
+    lent_total = Column(DECIMAL, nullable = False)
+    available_to_borrow = Column(DECIMAL, nullable = False)
 
     def __repr__(self):
         return (

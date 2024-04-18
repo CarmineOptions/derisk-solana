@@ -25,7 +25,7 @@ class OracleConfig:
 
     @classmethod
     def from_decoded(cls, obj: Container) -> "OracleConfig":
-        return cls(setup=oracle_setup.from_decoded(obj.setup), keys=obj.keys)
+        return cls(setup=oracle_setup.from_decoded(obj.setup), keys=obj.keys) # type: ignore
 
     def to_encodable(self) -> dict[str, typing.Any]:
         return {"setup": self.setup.to_encodable(), "keys": self.keys}
