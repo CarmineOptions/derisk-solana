@@ -104,7 +104,10 @@ class MarginfiTransactionParserV2(TransactionDecoder):
                 instruction_index = self.transaction.transaction.message.instructions.index(instruction)
                 data = instruction.data
                 msg_bytes = b58decode(str.encode(str(data)))
-                parsed_instruction = self.program.coder.instruction.parse(msg_bytes)
+                try:
+                    parsed_instruction = self.program.coder.instruction.parse(msg_bytes)
+                except:
+                    continue
                 self._save_marginfi_instruction(
                     instruction, snake_to_camel(parsed_instruction.name), instruction_index, parsed_instruction)
         for idx, instruction in enumerate(self.transaction.meta.inner_instructions):
@@ -117,7 +120,10 @@ class MarginfiTransactionParserV2(TransactionDecoder):
                     instruction_index = idx
                     data = mf_instruction.data
                     msg_bytes = b58decode(str.encode(str(data)))
-                    parsed_instruction = self.program.coder.instruction.parse(msg_bytes)
+                    try:
+                        parsed_instruction = self.program.coder.instruction.parse(msg_bytes)
+                    except:
+                        continue
                     self._save_marginfi_instruction(
                         mf_instruction,
                         snake_to_camel(parsed_instruction.name),
