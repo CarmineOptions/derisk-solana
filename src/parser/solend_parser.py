@@ -136,6 +136,7 @@ def unpack_data(data: str):
             amount=collateral_amount,
             value_name="WithdrawObligationCollateralAndRedeemReserveCollateral"
         )
+    return
 
 
 
@@ -208,7 +209,6 @@ class SolendTransactionParser:
             return
         # Parse instructions:
         for instruction in self.transaction.transaction.message.instructions:
-            # print(instruction)
             # Check if instruction is partially decoded and belongs to the known program
             if isinstance(instruction, UiPartiallyDecodedInstruction) and instruction.program_id == self.program_id:
                 self._process_instruction(instruction)
@@ -217,6 +217,8 @@ class SolendTransactionParser:
         # process instruction data
         data = instruction.data
         parsed_data = unpack_data(data)
+        if not parsed_data:
+            return
         # Get instruction name
         instruction_name = {v: k for k, v in self.instruction_types.items()}[parsed_data.instruction_id]
 
@@ -234,8 +236,10 @@ class SolendTransactionParser:
         # parse `init_obligation` event
         if instruction_name == 'init_obligation':
             self._init_obligation(instruction_accounts)
+            return
         if instruction_name == 'init_reserve':
             self._init_reserve(instruction_accounts)
+            return
         inner_instructions = next((
             i for i in self.transaction.meta.inner_instructions if i.index == instruction_index), None)
         if inner_instructions:
@@ -471,7 +475,7 @@ if __name__ == "__main__":
 
     transaction = solana_client.get_transaction(
         Signature.from_string(
-            '4ajP7iq5Ar5g3aBeorhf4AW98A84EZsSMVbJTNuyripXCDW6Qgt9oh1GtvDoCn2WN6XRggCEXfGqXKAf7Ee5YkVs'
+            '5dDKbA4DHkVmigpQGerwpgbFJDEaTMfyo4jkJf9NjBLNRGkznxeTyQsHZSpsLSmcZ4PsnqMpr4Uvfa2yALLKrqQq'
         ),
         'jsonParsed',
         max_supported_transaction_version=0
