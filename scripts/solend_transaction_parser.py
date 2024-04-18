@@ -22,7 +22,7 @@ START_INDEX = os.getenv('START_INDEX', None)
 END_INDEX = os.getenv('END_INDEX', None)
 
 
-def process_transactions(parser: Type[SolendTransactionParser], signature_list_table: Type[SolendTransactionsList]):
+def process_transactions(signature_list_table: Type[SolendTransactionsList]):
     LOGGER.info('Initiate transactions parsing...')
     # Create parser
     tx_decoder = SolendTransactionParser()
@@ -53,12 +53,12 @@ def process_transactions(parser: Type[SolendTransactionParser], signature_list_t
                     TransactionStatusWithSignature.slot
                 ).filter(
                     TransactionStatusWithSignature.signature == transaction.signature
+                ).filter(
+                    TransactionStatusWithSignature.source == 'So1endDq2YkqhipRh3WViPa8hdiSpxWy6z3Z6tMCpAo'
                 ).first()
                 if tx_data and tx_data.transaction_data:
                     transactions_data.append((transaction, tx_data.transaction_data, tx_data.slot))
-                else:
-                    # transactions_data.append((transaction, None, None))
-                    pass
+
 
         # Parse transactions
         with get_db_session() as session:
@@ -98,3 +98,9 @@ def process_transactions(parser: Type[SolendTransactionParser], signature_list_t
                 session.commit()
                 LOGGER.info(f"Successfully parsed and updated {len(transactions_to_update)} "
                             f"transactions. Last parsed transaction = `{transactions_to_update[-1]}`")
+
+
+if __name__ == '__main__':
+    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+
+    process_transactions(signature_list_table=SolendTransactionsList)

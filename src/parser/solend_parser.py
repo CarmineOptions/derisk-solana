@@ -220,7 +220,7 @@ class SolendTransactionParser:
         parsed_data = unpack_data(data)
         # Get instruction name
         instruction_name = {v: k for k, v in self.instruction_types.items()}[parsed_data.instruction_id]
-        print('INstr name', instruction_name)
+
         if instruction_name not in self.relevant_instructions:
             return
         # get inner instructions
@@ -241,8 +241,6 @@ class SolendTransactionParser:
             i for i in self.transaction.meta.inner_instructions if i.index == instruction_index), None)
         if inner_instructions:
             for inner_instruction in inner_instructions.instructions:
-                # print(instruction_accounts)
-                # print(inner_instruction.parsed['info'])
                 self._save_inner_instruction(
                     inner_instruction,
                     instruction_accounts,
