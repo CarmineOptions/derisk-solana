@@ -258,6 +258,19 @@ services:
         db:
           condition: service_healthy
 
+  solend-events-loan-state:
+      build:
+        dockerfile: ./Dockerfile.event_processing
+      environment:
+        PROTOCOL: solend
+        POSTGRES_USER: postgres
+        POSTGRES_PASSWORD: postgres
+        POSTGRES_HOST: db
+        POSTGRES_DB: postgres
+      depends_on:
+        db:
+          condition: service_healthy
+
   portainer:
     image: portainer/portainer-ce
     ports:
