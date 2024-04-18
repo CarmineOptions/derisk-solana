@@ -1,5 +1,6 @@
 # import datetime
 import logging
+
 # import multiprocessing
 # import os
 import sys
@@ -8,42 +9,47 @@ import streamlit as st
 
 sys.path.append(".")
 
+import plotly.express as px
+
 # import src.data_processing
 # import src.persistent_state
 # import src.prices
 # import src.visualizations.histogram
 # import src.visualizations.loans_table
-# import src.visualizations.protocol_stats
+import src.prices
+import src.visualizations.protocol_stats
 import src.protocols
 import src.visualizations.main_chart
 import src.visualizations.settings
 from src.prices import get_prices_for_tokens
-from src.protocols.dexes.amms.utils import get_tokens_symbol_to_info_map
+from src.protocols.dexes.amms.utils import get_tokens_address_to_info_map
+
 
 
 def main():
     st.title("DeRisk Solana")
     st.header("Hello, World!")
 
-    # TODO: Once token lending supplies are ready, use those to get
-    # addresses of possible tokens and then we can use token address -> info map
-    # which is better then the symbol -> info map which has to be strict since some
-    # tokens share the same symbol (ie there are multiple "USDC" tokens, only one is the stable)
-    _collateral_tokens = set(
-        i.split("-")[0] for i in src.visualizations.settings.TOKEN_PAIRS
-    )
+    tokens_available = src.visualizations.protocol_stats.get_unique_token_supply_mints()
+    if not tokens_available:
+        tokens_available = [
+            "So11111111111111111111111111111111111111112",
+            "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+        ]
+        # TODO: handle better
 
-    _loan_tokens = set(i.split("-")[1] for i in src.visualizations.settings.TOKEN_PAIRS)
+    tokens_info = get_tokens_address_to_info_map()
 
-    tokens = get_tokens_symbol_to_info_map()
+    tokens_prices = get_prices_for_tokens(tokens_available)
 
-    collateral_tokens = src.visualizations.main_chart.token_symbols_to_Token_list(
-        list(_collateral_tokens), tokens
+    # We want to only show tokens for which we have info and price
+    tokens_to_offer = [
+        i for i in set(tokens_info.keys()) & set(tokens_prices.keys()) if i
+    ]
+
+    tokens = src.visualizations.main_chart.token_addresses_to_Token_list(
+        tokens_to_offer, tokens_info
     )
-    loan_tokens = src.visualizations.main_chart.token_symbols_to_Token_list(
-        list(_loan_tokens), tokens
-    )
-    prices = get_prices_for_tokens([i.address for i in collateral_tokens + loan_tokens])
 
     # Select protocols and token pair of interest.
     col1, col2, col3 = st.columns(3)
@@ -58,14 +64,14 @@ def main():
     with col2:
         collateral_token = st.selectbox(
             label="Select collateral token:",
-            options=collateral_tokens,
+            options=tokens,
             index=0,
         )
 
     with col3:
         loan_token = st.selectbox(
             label="Select loan token:",
-            options=loan_tokens,
+            options=tokens,
             index=0,
         )
 
@@ -77,10 +83,10 @@ def main():
     # # Load relevant data and plot the liquidable debt against the available supply.
     main_chart_data = src.visualizations.main_chart.get_main_chart_data(
         token_selection=selected_tokens,  # type: ignore
-        prices=prices,
+        prices=tokens_prices,
     )
     main_chart_figure = src.visualizations.main_chart.get_figure(
-        token_pair=selected_tokens, data=main_chart_data, prices=prices
+        token_pair=selected_tokens, data=main_chart_data, prices=tokens_prices
     )
     st.plotly_chart(figure_or_data=main_chart_figure, use_container_width=True)
 
@@ -120,47 +126,111 @@ def main():
     # )
 
     # # Display comparison stats for all lending protocols.
-    # streamlit.header("Comparison of lending protocols")
+    st.header("Comparison of lending protocols")
     # streamlit.dataframe(src.visualizations.protocol_stats.load_general_stats())
     # streamlit.dataframe(src.visualizations.protocol_stats.load_utilization_stats())
-    # # Plot supply, collateral and debt stats for all lending protocols.
-    # collateral_stats = src.visualizations.protocol_stats.load_collateral_stats()
-    # debt_stats = src.visualizations.protocol_stats.load_debt_stats()
-    # supply_stats = src.visualizations.protocol_stats.load_supply_stats()
-    # columns = streamlit.columns(6)
-    # for column, token in zip(columns, src.visualizations.settings.TOKENS):
-    # 	with column:
-    # 		collateral_stats_figure = src.visualizations.protocol_stats.get_collateral_stats_figure(
-    # 			data=collateral_stats,
-    # 			token=token,
-    # 		)
-    # 		streamlit.plotly_chart(figure_or_data=collateral_stats_figure, use_container_width=True)
-    # 		debt_stats_figure = src.visualizations.protocol_stats.get_debt_stats_figure(
-    # 			data=debt_stats,
-    # 			token=token,
-    # 		)
-    # 		streamlit.plotly_chart(figure_or_data=debt_stats_figure, use_container_width=True)
-    # 		supply_stats_figure = src.visualizations.protocol_stats.get_supply_stats_figure(
-    # 			data=supply_stats,
-    # 			token=token,
-    # 		)
-    # 		streamlit.plotly_chart(figure_or_data=supply_stats_figure, use_container_width=True)
 
-    # # Plot histograms of loan size distribution.
-    # streamlit.header("Loan size distribution")
-    # histogram_data = src.visualizations.histogram.load_data(protocols=protocols, token_pair=token_pair)  # type: ignore
-    # histogram_figure = src.visualizations.histogram.get_figure(data=histogram_data)
-    # streamlit.plotly_chart(figure_or_data=histogram_figure, use_container_width=True)
+    token_supplies_df = src.visualizations.protocol_stats.get_lending_supplies_df(
+        tokens_prices, tokens_info
+    )
+    if len(token_supplies_df) == 0:
+        # TODO: Handle
+        pass
 
-    # # Display information about the last update.
-    # last_update = src.persistent_state.get_last_update()
-    # last_timestamp = last_update["timestamp"]
-    # last_block_number = last_update["block_number"]
-    # date_str = datetime.datetime.utcfromtimestamp(int(last_timestamp))
-    # streamlit.write(f"Last update timestamp: {date_str} UTC, last block: {last_block_number}.")
+    supplies_data = list(token_supplies_df.groupby("symbol"))
+    supplies_data.sort(key=lambda x: x[1]["Deposits"].sum())
+    supplies_data_chunks = src.prices.split_into_chunks(supplies_data, 3)
+    columns = st.columns(4)
+
+    for column, supply_chunk in zip(columns, supplies_data_chunks):
+        with column:
+            for token_symbol, token_supply_df in supply_chunk:
+                to_show = "Deposits"
+                figure = px.pie(
+                    token_supply_df[["protocol", to_show]]
+                    .groupby("protocol")
+                    .sum()
+                    .reset_index(),
+                    values=to_show,
+                    names="protocol",
+                    title=f"{token_symbol} {to_show}",
+                    color_discrete_sequence=px.colors.sequential.Oranges_r,
+                )
+                st.plotly_chart(figure, True)
+
+            for token_symbol, token_supply_df in supply_chunk:
+                to_show = "Borrowed"
+                figure = px.pie(
+                    token_supply_df[["protocol", to_show]]
+                    .groupby("protocol")
+                    .sum()
+                    .reset_index(),
+                    values=to_show,
+                    names="protocol",
+                    title=f"{token_symbol} {to_show}",
+                    color_discrete_sequence=px.colors.sequential.Greens_r,
+                )
+                st.plotly_chart(figure, True)
+
+            for token_symbol, token_supply_df in supply_chunk:
+                to_show = "Available"
+                figure = px.pie(
+                    token_supply_df[["protocol", to_show]]
+                    .groupby("protocol")
+                    .sum()
+                    .reset_index(),
+                    values=to_show,
+                    names="protocol",
+                    title=f"{token_symbol} {to_show}",
+                    color_discrete_sequence=px.colors.sequential.Blues_r,
+                )
+                st.plotly_chart(figure, True)
+
+
+# t = data[0][1][['protocol', 'Borrowed', 'Deposits', 'Available']].groupby('protocol').sum()
+
+
+# data = list(df.groupby('symbol'))
+
+# # Plot supply, collateral and debt stats for all lending protocols.
+# collateral_stats = src.visualizations.protocol_stats.load_collateral_stats()
+# debt_stats = src.visualizations.protocol_stats.load_debt_stats()
+# supply_stats = src.visualizations.protocol_stats.load_supply_stats()
+# columns = streamlit.columns(6)
+# for column, token in zip(columns, src.visualizations.settings.TOKENS):
+# 	with column:
+# 		collateral_stats_figure = src.visualizations.protocol_stats.get_collateral_stats_figure(
+# 			data=collateral_stats,
+# 			token=token,
+# 		)
+# 		streamlit.plotly_chart(figure_or_data=collateral_stats_figure, use_container_width=True)
+# 		debt_stats_figure = src.visualizations.protocol_stats.get_debt_stats_figure(
+# 			data=debt_stats,
+# 			token=token,
+# 		)
+# 		streamlit.plotly_chart(figure_or_data=debt_stats_figure, use_container_width=True)
+# 		supply_stats_figure = src.visualizations.protocol_stats.get_supply_stats_figure(
+# 			data=supply_stats,
+# 			token=token,
+# 		)
+# 		streamlit.plotly_chart(figure_or_data=supply_stats_figure, use_container_width=True)
+
+# # Plot histograms of loan size distribution.
+# streamlit.header("Loan size distribution")
+# histogram_data = src.visualizations.histogram.load_data(protocols=protocols, token_pair=token_pair)  # type: ignore
+# histogram_figure = src.visualizations.histogram.get_figure(data=histogram_data)
+# streamlit.plotly_chart(figure_or_data=histogram_figure, use_container_width=True)
+
+# # Display information about the last update.
+# last_update = src.persistent_state.get_last_update()
+# last_timestamp = last_update["timestamp"]
+# last_block_number = last_update["block_number"]
+# date_str = datetime.datetime.utcfromtimestamp(int(last_timestamp))
+# streamlit.write(f"Last update timestamp: {date_str} UTC, last block: {last_block_number}.")
 
 
 if __name__ == "__main__":
+
     logging.basicConfig(level=logging.INFO)
 
     st.set_page_config(

@@ -81,6 +81,30 @@ def token_symbols_to_Token_list( # pylint: disable=C0103
     return tokens
 
 
+def token_addresses_to_Token_list( # pylint: disable=C0103
+    addresses: list[str], tokens_address_to_info_map: dict[str, dict[str, str | int]]
+) -> list[Token]:
+
+    tokens = []
+
+    for address in addresses:
+        info = tokens_address_to_info_map.get(address)
+        if not info:
+            print("Unable to find token info for:", address)
+            continue
+
+        tokens.append(
+            Token(
+                address=address,
+                symbol=str(info['symbol']),
+                name=str(info["name"]),
+                decimals=int(info["decimals"]),
+            )
+        )
+
+    return tokens
+
+
 def get_normalized_liquidity(tokens: TokensSelected) -> list[db.DexNormalizedLiquidity]:
 
     with db.get_db_session() as session:
@@ -276,11 +300,11 @@ def get_main_chart_data(
 ) -> pd.DataFrame:
 
     collateral_token = token_selection.collateral
-    collateral_token_price = prices[collateral_token.address]
+    collateral_token_price = prices.get(collateral_token.address)
     liquidity_entries = get_normalized_liquidity(token_selection)
     adjusted_entries = adjust_liquidity(liquidity_entries, token_selection.loan)
 
-    collateral_token_price = prices[token_selection.collateral.address]
+    collateral_token_price = prices.get(token_selection.collateral.address)
 
     data = pd.DataFrame(
         {
