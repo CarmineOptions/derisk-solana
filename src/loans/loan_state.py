@@ -9,27 +9,43 @@ from db import (
     MangoLoanStates,
     MarginfiLoanStates,
     KaminoLoanStates,
+    SolendLoanStates,
     MangoParsedTransactions,
     MarginfiParsedTransactions,
     KaminoParsedTransactions,
+    SolendParsedTransactions,
     get_db_session,
 )
 
 MARGINFI = "marginfi"
 MANGO = "mango"
 KAMINO = "kamino"
+SOLEND = "solend"
 
-Protocol = Literal["marginfi", "mango", "kamino"]
+Protocol = Literal["marginfi", "mango", "kamino", "solend"]
+AnyEvents = list[
+    MangoParsedTransactions
+    | MarginfiParsedTransactions
+    | KaminoParsedTransactions
+    | SolendParsedTransactions
+]
 
 TypeMarginfi = TypeVar("TypeMarginfi", bound=MarginfiParsedTransactions)
 TypeMango = TypeVar("TypeMango", bound=MangoParsedTransactions)
 TypeKamino = TypeVar("TypeKamino", bound=KaminoParsedTransactions)
+TypeSolend = TypeVar("TypeSolend", bound=SolendParsedTransactions)
 
 ProcessFuncTypeMarginfi = Callable[[list[TypeMarginfi]], pandas.DataFrame]
 ProcessFuncTypeMango = Callable[[list[TypeMango]], pandas.DataFrame]
 ProcessFuncTypeKamino = Callable[[list[TypeKamino]], pandas.DataFrame]
+ProcessFuncTypeSolend = Callable[[list[TypeSolend]], pandas.DataFrame]
 
-ProtocolFunc = ProcessFuncTypeMarginfi | ProcessFuncTypeMango | ProcessFuncTypeKamino
+ProtocolFunc = (
+    ProcessFuncTypeMarginfi
+    | ProcessFuncTypeMango
+    | ProcessFuncTypeKamino
+    | ProcessFuncTypeSolend
+)
 
 
 def process_marginfi_events(
@@ -55,6 +71,13 @@ def process_kamino_events(events: list[KaminoParsedTransactions]) -> pandas.Data
     return pandas.DataFrame()
 
 
+def process_solend_events(events: list[SolendParsedTransactions]) -> pandas.DataFrame:
+    # TODO: process solend events
+    print(events)
+
+    return pandas.DataFrame()
+
+
 def protocol_to_process_func(
     protocol: Protocol,
 ) -> ProtocolFunc:
@@ -64,17 +87,30 @@ def protocol_to_process_func(
         return process_mango_events
     if protocol == KAMINO:
         return process_kamino_events
+    if protocol == SOLEND:
+        return process_solend_events
+    # Unreachable
+    raise ValueError(f"invalid protocol {protocol}")
 
 
 def protocol_to_model(
     protocol: Protocol,
-) -> Type[MangoLoanStates] | Type[MarginfiLoanStates] | Type[KaminoLoanStates]:
+) -> (
+    Type[MangoLoanStates]
+    | Type[MarginfiLoanStates]
+    | Type[KaminoLoanStates]
+    | Type[SolendLoanStates]
+):
     if protocol == MARGINFI:
         return MarginfiLoanStates
     if protocol == MANGO:
         return MangoLoanStates
     if protocol == KAMINO:
         return KaminoLoanStates
+    if protocol == SOLEND:
+        return SolendLoanStates
+    # Unreachable
+    raise ValueError(f"invalid protocol {protocol}")
 
 
 def store_loan_states(df: pandas.DataFrame, protocol: Protocol, session: Session):
@@ -145,11 +181,7 @@ def fetch_loan_states(protocol: Protocol, session: Session) -> pandas.DataFrame:
     return df
 
 
-def fetch_events(
-    min_slot: int, protocol: Protocol, session: Session
-) -> list[
-    MarginfiParsedTransactions | MangoParsedTransactions | KaminoParsedTransactions
-]:
+def fetch_events(min_slot: int, protocol: Protocol, session: Session) -> AnyEvents:
     """
     Fetches loan states with the max slot from the DB and returns them as a DataFrame
 
@@ -180,6 +212,13 @@ def fetch_events(
             .all()
         )
 
+    if protocol == "solend":
+        return (
+            session.query(SolendParsedTransactions)
+            .filter(SolendParsedTransactions.block > min_slot)
+            .all()
+        )
+
     # Unreachable
     raise ValueError(f"invalid protocol {protocol}")
 
@@ -187,13 +226,7 @@ def fetch_events(
 def process_events_to_loan_states(
     protocol: Protocol,
     process_function: Callable[
-        [
-            list[
-                MangoParsedTransactions
-                | MarginfiParsedTransactions
-                | KaminoParsedTransactions
-            ]
-        ],
+        [AnyEvents],
         pandas.DataFrame,
     ],
     session: Session,
@@ -204,7 +237,7 @@ def process_events_to_loan_states(
     if len(current_loan_states) > 0:
         min_slot = int(current_loan_states.iloc[0]["slot"])
 
-    events: list[MarginfiParsedTransactions] = fetch_events(min_slot, protocol, session)
+    events: AnyEvents = fetch_events(min_slot, protocol, session)
 
     new_loan_state = process_function(events)
 
