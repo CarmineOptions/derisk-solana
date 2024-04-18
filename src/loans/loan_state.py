@@ -1,6 +1,6 @@
 import logging
 import time
-from typing import Callable, Literal
+from typing import Callable, Literal, Type, TypeVar
 
 import pandas
 from sqlalchemy import func
@@ -15,21 +15,27 @@ from db import (
     get_db_session,
 )
 
-MARGIFI = "margifi"
+MARGINFI = "marginfi"
 MANGO = "mango"
 KAMINO = "kamino"
 
-Protocol = Literal["margifi", "mango", "kamino"]
+Protocol = Literal["marginfi", "mango", "kamino"]
 
-AnyParsedTransactions = (
-    MangoParsedTransactions | MarginfiParsedTransactions | KaminoParsedTransactions
-)
+TypeMarginfi = TypeVar("TypeMarginfi", bound=MarginfiParsedTransactions)
+TypeMango = TypeVar("TypeMango", bound=MangoParsedTransactions)
+TypeKamino = TypeVar("TypeKamino", bound=KaminoParsedTransactions)
+
+ProcessFuncTypeMarginfi = Callable[[list[TypeMarginfi]], pandas.DataFrame]
+ProcessFuncTypeMango = Callable[[list[TypeMango]], pandas.DataFrame]
+ProcessFuncTypeKamino = Callable[[list[TypeKamino]], pandas.DataFrame]
+
+ProtocolFunc = ProcessFuncTypeMarginfi | ProcessFuncTypeMango | ProcessFuncTypeKamino
 
 
-def process_margifi_events(
+def process_marginfi_events(
     events: list[MarginfiParsedTransactions],
 ) -> pandas.DataFrame:
-    # TODO: process margify events
+    # TODO: process marginfi events
     print(events)
 
     return pandas.DataFrame()
@@ -51,9 +57,9 @@ def process_kamino_events(events: list[KaminoParsedTransactions]) -> pandas.Data
 
 def protocol_to_process_func(
     protocol: Protocol,
-) -> Callable[[list[AnyParsedTransactions]], pandas.DataFrame]:
-    if protocol == MARGIFI:
-        return process_margifi_events
+) -> ProtocolFunc:
+    if protocol == MARGINFI:
+        return process_marginfi_events
     elif protocol == MANGO:
         return process_mango_events
     elif protocol == KAMINO:
@@ -64,8 +70,8 @@ def protocol_to_process_func(
 
 def protocol_to_model(
     protocol: Protocol,
-) -> MangoLoanStates | MarginfiLoanStates | KaminoLoanStates:
-    if protocol == MARGIFI:
+) -> Type[MangoLoanStates] | Type[MarginfiLoanStates] | Type[KaminoLoanStates]:
+    if protocol == MARGINFI:
         return MarginfiLoanStates
     elif protocol == MANGO:
         return MangoLoanStates
@@ -145,7 +151,9 @@ def fetch_loan_states(protocol: Protocol, session: Session) -> pandas.DataFrame:
 
 def fetch_events(
     min_slot: int, protocol: Protocol, session: Session
-) -> MarginfiParsedTransactions | MangoParsedTransactions | KaminoParsedTransactions:
+) -> list[
+    MarginfiParsedTransactions | MangoParsedTransactions | KaminoParsedTransactions
+]:
     """
     Fetches loan states with the max slot from the DB and returns them as a DataFrame
 
@@ -175,12 +183,23 @@ def fetch_events(
             .filter(KaminoParsedTransactions.block > min_slot)
             .all()
         )
+
+    # Unreachable
     raise ValueError(f"invalid protocol {protocol}")
 
 
 def process_events_to_loan_states(
     protocol: Protocol,
-    process_function: Callable[[list[AnyParsedTransactions]], pandas.DataFrame],
+    process_function: Callable[
+        [
+            list[
+                MangoParsedTransactions
+                | MarginfiParsedTransactions
+                | KaminoParsedTransactions
+            ]
+        ],
+        pandas.DataFrame,
+    ],
     session: Session,
 ):
     current_loan_states = fetch_loan_states(protocol, session)
