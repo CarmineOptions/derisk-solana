@@ -119,7 +119,7 @@ class ParsedTransactions(Base):
     event_name = Column(String, nullable=True)
     event_number = Column(String, nullable=True)
 
-    position = Column(SQLEnum('asset', 'liability', name='sqlenum', schema=SCHEMA), nullable=True)
+    position = Column(SQLEnum('asset', 'liability', name='sqlenum', schema=SCHEMA_LENDERS), nullable=True)
     token = Column(String, nullable=True)
     amount = Column(BigInteger, nullable=True)
     amount_decimal = Column(Integer, nullable=True)
