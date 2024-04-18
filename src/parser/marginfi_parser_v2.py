@@ -45,6 +45,12 @@ def find_key_by_value(data, target_value):
     return None
 
 
+class InnerInstructionContainer:
+    """ Class for storing inner instructions. """
+    def __init__(self, inner_instructions):
+        self.instructions = inner_instructions
+
+
 class MarginfiTransactionParserV2(TransactionDecoder):
 
     def __init__(
@@ -110,13 +116,12 @@ class MarginfiTransactionParserV2(TransactionDecoder):
                     continue
                 self._save_marginfi_instruction(
                     instruction, snake_to_camel(parsed_instruction.name), instruction_index, parsed_instruction)
+        #
         for idx, instruction in enumerate(self.transaction.meta.inner_instructions):
-            # print(instruction.instructions)
             for inner_instruction in instruction.instructions:
                 if isinstance(inner_instruction, UiPartiallyDecodedInstruction) and inner_instruction.program_id == self.program_id:
-                    # print(inner_instruction)
                     mf_instruction = inner_instruction
-                    related_inner_instructions = instruction
+                    related_inner_instructions = InnerInstructionContainer([instruction.instructions[idx+1]])
                     instruction_index = idx
                     data = mf_instruction.data
                     msg_bytes = b58decode(str.encode(str(data)))
@@ -151,17 +156,8 @@ class MarginfiTransactionParserV2(TransactionDecoder):
     ) -> None:
         """
         Process Kamino instructions based on instruction name
-        ['marginfiGroupInitialize',
-         'marginfiGroupConfigure',
          'lendingPoolAddBank',
-         'lendingPoolAddBankWithSeed',
-         'lendingPoolConfigureBank',
-         'lendingPoolSetupEmissions',
-         'lendingPoolUpdateEmissionsParameters',
-         'lendingPoolHandleBankruptcy',
-
          'marginfiAccountInitialize',
-
          'lendingAccountDeposit',
          'lendingAccountRepay',
          'lendingAccountWithdraw',
@@ -172,12 +168,6 @@ class MarginfiTransactionParserV2(TransactionDecoder):
          'lendingAccountLiquidate',
          'lendingAccountStartFlashloan',
          'lendingAccountEndFlashloan',
-
-         'lendingPoolAccrueBankInterest',
-         'lendingPoolCollectBankFees',
-         'setAccountFlag',
-         'unsetAccountFlag',
-         'setNewAccountAuthority
         """
         metadata = next(i for i in self.program.instruction.values() if i.idl_ix.name == instruction_name)
 
@@ -232,32 +222,6 @@ class MarginfiTransactionParserV2(TransactionDecoder):
         )
 
         self._processor(new_bank)
-
-    def _init_obligation(
-            self,
-            instruction: UiPartiallyDecodedInstruction,
-            metadata: Any,
-            instruction_idx: int
-    ):
-        # Extract relevant account addresses from the instruction using metadata definitions
-        accounts = self._get_accounts_from_instruction(instruction.accounts, metadata.idl_ix)
-        # Locate inner instructions related to the primary instruction by index
-        inner_instructions = next((i for i in self.transaction.meta.inner_instructions if i.index == instruction_idx), None)
-        # failed instructions do not have inner instructions.
-        if not inner_instructions:
-            return
-        # Create account record from inner instruction.
-        for i in inner_instructions.instructions:
-            info = i.parsed['info']
-            if i.parsed['type'] == "createAccount":
-                new_obligation = MarginfiLendingAccountsV2(
-                    authority=str(info['source']),
-                    address=str(info['newAccount']),
-                    group=str(accounts['lendingMarket'])
-                )
-                self._processor(new_obligation)
-            else:
-                raise UnknownInstruction(i)
 
     def _parse_inner_instruction(
             self,
@@ -453,6 +417,7 @@ if __name__ == "__main__":
             '2zzc14Y6QNq6tB7NYPMLs8ssb12qd6xjoDNV1x2CQdoqnSjvLueRFbiGETFC6EdKn2DA1KR8HVQgmKk2c4XnQRdL' # liq
             # '26SP3VFxhT2UiDfL9en2sB52cA9suq9A3vxjSMQkbyWUgcoKRUD8aL2VYsp1AG5HN9EbL2soqVWK874TKhsnJ9Yo'  # create bnk
             # '5WPYSVyXPWDn61gduWdz3sTkofzWKUBMH9RbM6iwxYbfe4JKMEk8f6rWBUcbDRrfLZWmAGfPBASvWm4Bgt9RmXe'  # nested mf instr
+            # '4QsemrpPj5sKYL9ipunuaKXWCDsz1jhXpFWCyaCF8otmGXth25F1gWe7sF3j42SVeT8heXfkHgD8m3jL64YGRWCd'
         ),
         'jsonParsed',
         max_supported_transaction_version=0

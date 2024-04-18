@@ -185,7 +185,7 @@ class MarginfiLendingAccounts(LendingAccounts):
 
 ################ MARGINFI V2 ################################
 class MarginfiParsedTransactionsV2(ParsedTransactions):
-    __tablename__ = "marginfi_parsed_transactions_V2"
+    __tablename__ = "marginfi_parsed_transactions_v4"
     source = Column(String, nullable=True)
     destination = Column(String, nullable=True)
     marginfi_group = Column(String, nullable = True)
@@ -195,10 +195,10 @@ class MarginfiParsedTransactionsV2(ParsedTransactions):
     liquidatee_marginfi_account = Column(String, nullable = True)
     instructed_amount = Column(String, nullable = True)
     __table_args__ = (  # type: ignore
-        Index("ix_marginfi_parsed_transactions_V2_transaction_id", "transaction_id"),
-        Index("ix_marginfi_parsed_transactions_V2_instruction_name", "instruction_name"),
-        Index("ix_marginfi_parsed_transactions_V2_event_name", "event_name"),
-        Index("ix_marginfi_parsed_transactions_V2_account", "account"),
+        Index("ix_marginfi_parsed_transactions_v4_transaction_id", "transaction_id"),
+        Index("ix_marginfi_parsed_transactions_v4_instruction_name", "instruction_name"),
+        Index("ix_marginfi_parsed_transactions_v4_event_name", "event_name"),
+        Index("ix_marginfi_parsed_transactions_v4_account", "account"),
         {"schema": SCHEMA_LENDERS},
     )
 
@@ -210,11 +210,11 @@ class MarginfiParsedTransactionsV2(ParsedTransactions):
 
 
 class MarginfiLendingAccountsV2(LendingAccounts):
-    __tablename__ = "marginfi_lending_accounts_v2"
+    __tablename__ = "marginfi_lending_accounts_v4"
     __table_args__ = (  # type: ignore
-        Index("ix_marginfi_lending_accounts_V2_address", "address"),
-        Index("ix_marginfi_lending_accounts_V2_group", "group"),
-        Index("ix_marginfi_lending_accounts_V2_authority", "authority"),
+        Index("ix_marginfi_lending_accounts_v4_address", "address"),
+        Index("ix_marginfi_lending_accounts_v4_group", "group"),
+        Index("ix_marginfi_lending_accounts_v4_authority", "authority"),
         {"schema": SCHEMA_LENDERS}
     )
 
@@ -226,7 +226,7 @@ class MarginfiLendingAccountsV2(LendingAccounts):
 
 
 class MarginfiBankV2(Base):
-    __tablename__ = "marginfi_banks_v2"
+    __tablename__ = "marginfi_banks_v4"
 
     id = Column(Integer, primary_key=True)
     marginfi_group = Column(String)
@@ -503,7 +503,7 @@ class MarginfiTransactionsList(TransactionsList):
 
 
 class MarginfiTransactionsListV2(TransactionsList):
-    __tablename__ = 'marginfi_hist_transaction_list_V2'
+    __tablename__ = 'marginfi_hist_transaction_list_v2'
     __table_args__ = (  # type: ignore
         Index('idx_marginfi_transaction_list_v2_signature', 'signature'),
         {"schema": SCHEMA_LENDERS},
