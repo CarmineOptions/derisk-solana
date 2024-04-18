@@ -14,7 +14,7 @@ from sqlalchemy import (
     PrimaryKeyConstraint,
     Float,
     Numeric,
-    DECIMAL
+    DECIMAL,
     Boolean,
     inspect
 )
