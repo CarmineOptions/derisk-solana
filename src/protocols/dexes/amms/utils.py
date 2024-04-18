@@ -185,7 +185,7 @@ def get_tokens_symbol_to_info_map() -> dict[str, dict[str, str | int]]:
     """
 
     # List of tokens from Jupiter
-    r = requests.get("https://token.jup.ag/all", timeout=30)
+    r = requests.get("https://token.jup.ag/strict", timeout=30)
 
     if r.status_code != 200:
         raise ValueError(f"Unable to fetch list of tokens: {r.text}")

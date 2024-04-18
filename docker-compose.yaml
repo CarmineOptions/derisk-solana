@@ -136,6 +136,13 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.frontend
+    environment:
+      AUTHENTICATED_RPC_URL: https://<rpc_provider>/<api_token>
+      RATE_LIMIT: 20
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_HOST: db
+      POSTGRES_DB: postgres
     ports:
       - 8501:8501
 

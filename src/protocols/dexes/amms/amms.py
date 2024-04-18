@@ -131,6 +131,10 @@ class MeteoraAMM(Amm):
                 pool for pool in self.pools
                 if len(pool['pool_token_mints']) == 2
             ]
+            self.pools = [
+                pool for pool in self.pools 
+                if pool['weekly_trading_volume'] > 500
+            ]
             LOG.info(f"Successfully fetched {len(self.pools)} pools")
         except requests.exceptions.Timeout:
             LOG.error("Request to Meteora pool API timed out")
@@ -142,7 +146,7 @@ class MeteoraAMM(Amm):
         """
         token_x_amount, token_y_amount = pool.get("pool_token_amounts", (None, None))[
             :2
-        ]  # TODO: Find out why there are two values
+        ]  
 
         # Convert amounts to BigInteger and decimals
         token_x, token_x_decimals = self.convert_to_big_integer_and_decimals(

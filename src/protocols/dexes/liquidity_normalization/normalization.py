@@ -129,6 +129,7 @@ RAW_DEX_DATA_HANDLERS = {
     "BonkSwap": common_raw_amm_data_handler,
     "DOOAR": common_raw_amm_data_handler,
     "FluxBeam": common_raw_amm_data_handler,
+    'Meteora': common_raw_amm_data_handler,
 }
 
 
@@ -164,7 +165,10 @@ async def normalize_amm_liquidity():
 
         for entry in entries:
 
-            if not (entry.token_y_amount and entry.token_x_amount and entry.dex):
+            if not entry.token_y_amount and entry.token_x_amount:
+                continue
+
+            if not entry.dex:
                 LOG.warning(f"Can't handle AmmLiquidity entry: {entry}")
                 continue
 

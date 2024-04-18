@@ -15,6 +15,8 @@ from sqlalchemy import (
     Float,
     Numeric,
     DECIMAL
+    Boolean,
+    inspect
 )
 
 from sqlalchemy.ext.declarative import declarative_base
@@ -42,6 +44,7 @@ if POSTGRES_DB is None:
 
 CONN_STRING = f"postgresql+psycopg2://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_HOST}/{POSTGRES_DB}"
 SCHEMA = 'public'
+SCHEMA_LENDERS = 'lenders'
 
 
 def get_db_session() -> Session:
@@ -65,7 +68,7 @@ class TransactionStatusWithSignature(Base):
     __tablename__ = 'transactions'
 
     id = Column(Integer, primary_key=True)
-    source = Column(String, ForeignKey(f'{SCHEMA}.protocols.public_key'), nullable=False)
+    source = Column(String, ForeignKey(f'{SCHEMA_LENDERS}.protocols.public_key'), nullable=False)
     signature = Column(String, nullable=False)
     slot = Column(BigInteger, nullable=False)
     block_time = Column(BigInteger, nullable=False)
@@ -77,7 +80,7 @@ class TransactionStatusWithSignature(Base):
         Index("ix_transactions_block_time", "block_time"),
         Index("ix_transactions_signature", "signature"),
         Index("ix_transactions_source", "source"),
-        {"schema": SCHEMA},
+        {"schema": SCHEMA_LENDERS},
     )
 
     def __repr__(self):
@@ -89,20 +92,302 @@ class TransactionStatusWithSignature(Base):
 
 class TransactionStatusError(Base):
     __tablename__ = "tx_status_errors"
-    __table_args__ = {"schema": SCHEMA}
+    __table_args__ = {"schema": SCHEMA_LENDERS}
 
     id = Column(Integer, primary_key=True)
     error_body = Column(String, nullable=False)
-    tx_signatures_id = Column(Integer, ForeignKey(f'{SCHEMA}.transactions.id'), nullable=False)
+    tx_signatures_id = Column(Integer, ForeignKey(f'{SCHEMA_LENDERS}.transactions.id'), nullable=False)
 
 
 class TransactionStatusMemo(Base):
     __tablename__ = "tx_status_memo"
-    __table_args__ = {"schema": SCHEMA}
+    __table_args__ = {"schema": SCHEMA_LENDERS}
 
     id = Column(Integer, primary_key=True)
     memo_body = Column(String, nullable=False)
-    tx_signatures_id = Column(Integer, ForeignKey(f'{SCHEMA}.transactions.id'), nullable=False)
+    tx_signatures_id = Column(Integer, ForeignKey(f'{SCHEMA_LENDERS}.transactions.id'), nullable=False)
+
+
+class ParsedTransactions(Base):
+    __abstract__ = True
+    __tablename__ = "parsed_transactions"
+    __table_args__ = {"schema": SCHEMA_LENDERS}
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    transaction_id = Column(String, nullable=True)
+    instruction_name = Column(String, nullable=True)
+    event_name = Column(String, nullable=True)
+    event_number = Column(String, nullable=True)
+
+    position = Column(SQLEnum('asset', 'liability', name='sqlenum', schema=SCHEMA), nullable=True)
+    token = Column(String, nullable=True)
+    amount = Column(BigInteger, nullable=True)
+    amount_decimal = Column(Integer, nullable=True)
+
+    bank = Column(String, nullable=True)
+    account = Column(String, nullable=True)
+    signer = Column(String, nullable=True)
+
+    context = Column(String, nullable=True)
+
+    block = Column(BigInteger, nullable=True)
+    created_at = Column(BigInteger, nullable=True)
+
+    def __repr__(self):
+        return f"<ParsedTransactions(\n   id={self.id}, \n   transaction_id='{self.transaction_id}',\n" \
+               f"\n   instruction_name='{self.instruction_name}', \n   event_name='{self.event_name}',\n " \
+               f"\n   position='{self.position}', \n   token='{self.token}'," \
+               f"\n   amount={self.amount}, \n   amount_decimal={self.amount_decimal}, \n   account='{self.account}', " \
+               f"\n   signer='{self.signer}', \n   created_at={self.created_at}"
+
+
+class LendingAccounts(Base):
+    __abstract__ = True
+    __tablename__ = "lending_accounts"
+    __table_args__ = {"schema": SCHEMA_LENDERS}
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    authority = Column(String, nullable=True)
+    address = Column(String, nullable=True)
+    group = Column(String, nullable=True)
+    action = Column(String, nullable=True)
+    block = Column(BigInteger, nullable=True)
+    created_at = Column(BigInteger, nullable=False)
+
+    def __repr__(self):
+        return f"<LendingAccounts(\n   id={self.id}, \n   authority='{self.authority}', " \
+               f"\n   address='{self.address}', \n   group='{self.group}',\n   action='{self.action}'," \
+               f"\n   created_at={self.created_at})>"
+
+
+class MarginfiParsedTransactions(ParsedTransactions):
+    __tablename__ = "marginfi_parsed_transactions"
+
+    __table_args__ = (  # type: ignore
+        Index("ix_marginfi_parsed_transactions_transaction_id", "transaction_id"),
+        Index("ix_marginfi_parsed_transactions_instruction_name", "instruction_name"),
+        Index("ix_marginfi_parsed_transactions_event_name", "event_name"),
+        Index("ix_marginfi_parsed_transactions_account", "account"),
+        Index("ix_marginfi_parsed_transactions_token", "token"),
+        {"schema": SCHEMA_LENDERS},
+    )
+
+
+class MarginfiLendingAccounts(LendingAccounts):
+    __tablename__ = "marginfi_lending_accounts"
+    __table_args__ = (  # type: ignore
+        Index("ix_marginfi_lending_accounts_address", "address"),
+        Index("ix_marginfi_lending_accounts_group", "group"),
+        Index("ix_marginfi_lending_accounts_authority", "authority"),
+        {"schema": SCHEMA_LENDERS}
+    )
+
+
+class KaminoParsedTransactions(ParsedTransactions):
+    __tablename__ = "kamino_parsed_transactions"
+    source = Column(String, nullable=True)
+    destination = Column(String, nullable=True)
+    obligation = Column(String, nullable=True)
+    __table_args__ = (  # type: ignore
+        Index("ix_kamino_parsed_transactions_transaction_id", "transaction_id"),
+        Index("ix_kamino_parsed_transactions_instruction_name", "instruction_name"),
+        Index("ix_kamino_parsed_transactions_event_name", "event_name"),
+        Index("ix_kamino_parsed_transactions_account", "account"),
+        Index("ix_kamino_parsed_transactions_token", "token"),
+        {"schema": SCHEMA_LENDERS},
+    )
+
+    def __repr__(self):
+        return f"<ParsedTransactions(\n   id={self.id}, \n   transaction_id='{self.transaction_id}'," \
+               f"\n   instruction_name='{self.instruction_name}', \n   event_name='{self.event_name}', " \
+               f"\n   event_num = {self.event_number}" \
+               f"\n   position='{self.position}', \n   token='{self.token}'," \
+               f"\n   source='{self.source}', \n   destination='{self.destination}'," \
+               f"\n   amount={self.amount}, \n   amount_decimal={self.amount_decimal}, \n   account='{self.account}', " \
+               f"\n   signer='{self.signer}', \n   created_at={self.created_at}, \n   obligation={self.obligation}"
+
+
+class KaminoLendingAccounts(LendingAccounts):
+    __tablename__ = "kamino_lending_accounts"
+    __table_args__ = (  # type: ignore
+        Index("ix_kamino_lending_accounts_address", "address"),
+        Index("ix_kamino_lending_accounts_group", "group"),
+        Index("ix_kamino_lending_accounts_authority", "authority"),
+        {"schema": SCHEMA_LENDERS}
+    )
+
+
+class MangoParsedTransactions(ParsedTransactions):
+    __tablename__ = "mango_parsed_transactions"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    transaction_id = Column(String, nullable=True, index=True)
+    event_name = Column(String, nullable=True, index=True)
+    event_number = Column(String, nullable=True, index=True)
+
+    mango_group = Column(String)
+    mango_account = Column(String, index=True)
+    token_index = Column(String)
+    indexed_position = Column(String)
+    deposit_index = Column(String)
+    borrow_index = Column(String)
+    flash_loan_type = Column(String)
+    quantity = Column(String)
+    price = Column(String)
+    signer = Column(String)
+    market_index = Column(String)
+    taker_side = Column(String)
+    maker_slot = Column(String)
+    maker_out = Column(String)
+    timestamp = Column(String)
+    seq_num = Column(String)
+    maker = Column(String)
+    maker_order_id = Column(String)
+    maker_fee = Column(String)
+    maker_timestamp = Column(String)
+    taker = Column(String)
+    taker_order_id = Column(String)
+    taker_client_order_id = Column(String)
+    maker_client_order_id = Column(String)
+    taker_fee = Column(String)
+    to_token_account = Column(String)
+    rate0 = Column(String)
+    rate1 = Column(String)
+    util0 = Column(String)
+    util1 = Column(String)
+    max_rate = Column(String)
+    curve_scaling = Column(String)
+    target_utilization = Column(String)
+    liqee = Column(String)
+    liqor = Column(String)
+    asset_token_index = Column(String)
+    liab_token_index = Column(String)
+    asset_transfer = Column(String)
+    asset_transfer_from_from_liqee = Column(String)
+    asset_transfer_to_liqor = Column(String)
+    asset_liquidation_fee = Column(String)
+    liab_transfer = Column(String)
+    asset_price = Column(String)
+    liab_price = Column(String)
+    insurance_token_index = Column(String)
+    insurance_transfer = Column(String)
+    socialized_loss = Column(String)
+    starting_liab_deposit_index = Column(String)
+    ending_liab_deposit_index = Column(String)
+    cumulative_deposit_interest = Column(String)
+    cumulative_borrow_interest = Column(String)
+    cumulative_long_funding = Column(String)
+    cumulative_short_funding = Column(String)
+    maker_volume = Column(String)
+    taker_volume = Column(String)
+    perp_spot_transfers = Column(String)
+    perp_market_index = Column(String)
+    starting_long_funding = Column(String)
+    starting_short_funding = Column(String)
+    ending_long_funding = Column(String)
+    ending_short_funding = Column(String)
+    asset_usage_fraction = Column(String)
+    fee = Column(String)
+    bankruptcy = Column(String)
+    loan_amount = Column(String)
+    loan_origination_fee = Column(String)
+    index = Column(String)
+    token_index_1 = Column(String)
+    change_amount_1 = Column(String)
+    loan_1 = Column(String)
+    loan_origination_fee_1 = Column(String)
+    deposit_index_1 = Column(String)
+    borrow_index_1 = Column(String)
+    price_1 = Column(String)
+    swap_fee_1 = Column(String)
+    deposit_fee_1 = Column(String)
+    approved_amount_1 = Column(String)
+    token_index_2 = Column(String)
+    change_amount_2 = Column(String)
+    loan_2 = Column(String)
+    loan_origination_fee_2 = Column(String)
+    deposit_index_2 = Column(String)
+    borrow_index_2 = Column(String)
+    price_2 = Column(String)
+    swap_fee_2 = Column(String)
+    deposit_fee_2 = Column(String)
+    approved_amount_2 = Column(String)
+    avg_utilization = Column(String)
+    stable_price = Column(String)
+    collected_fees = Column(String)
+    loan_fee_rate = Column(String)
+    total_borrows = Column(String)
+    total_deposit = Column(String)
+    borrow_rate = Column(String)
+    deposit_rate = Column(String)
+    maker_closed_pnl = Column(String)
+    taker_closed_pnl = Column(String)
+
+    # Ensure all fields are converted to snake_case as above
+    __table_args__ = (  # type: ignore
+        {"schema": SCHEMA_LENDERS},
+    )
+
+    def __init__(self, **kwargs):  # pylint: disable=super-init-not-called
+        valid_keys = {c.key for c in inspect(self.__class__).mapper.column_attrs}  # type: ignore
+        filtered_kwargs = {k: v for k, v in kwargs.items() if k in valid_keys}
+        for key, value in filtered_kwargs.items():
+            setattr(self, key, value)
+
+    def __repr__(self):
+        attributes = vars(self)
+        # Filter out attributes that are None
+        attr_str = "\n".join(f"{key}: {value!r}" for key, value in attributes.items() if value is not None)
+        return f"MangoParsedEvent(\n{attr_str}\n)"
+
+
+class MangoLendingAccounts(LendingAccounts):
+    __tablename__ = "mango_lending_accounts"
+    __table_args__ = (  # type: ignore
+        Index("ix_mango_lending_accounts_address", "address"),
+        Index("ix_mango_lending_accounts_group", "group"),
+        Index("ix_mango_lending_accounts_authority", "authority"),
+        {"schema": SCHEMA_LENDERS}
+    )
+
+
+class TransactionsList(Base):
+    __abstract__ = True
+    __tablename__ = 'hist_transaction_list'
+    __table_args__ = {"schema": SCHEMA_LENDERS}
+
+    signature = Column(String, primary_key=True)
+    block_time = Column(BigInteger)
+    is_parsed = Column(Boolean, default=False)
+
+
+class MarginfiTransactionsList(TransactionsList):
+    __tablename__ = 'marginfi_hist_transaction_list'
+    __table_args__ = (  # type: ignore
+        Index('idx_marginfi_transaction_list_signature', 'signature'),
+        {"schema": SCHEMA_LENDERS},
+    )
+
+
+class KaminoTransactionsList(TransactionsList):
+    __tablename__ = 'kamino_hist_transaction_list'
+    __table_args__ = (  # type: ignore
+        Index('idx_kamino_transaction_list_signature', 'signature'),
+        {"schema": SCHEMA_LENDERS},
+    )
+
+
+class MangoTransactionsList(Base):
+    __tablename__ = 'mango_hist_transaction_list'
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    signature = Column(String)
+    block_time = Column(BigInteger)
+    is_parsed = Column(Boolean, default=False)
+
+    __table_args__ = (
+        Index('idx_mango_transaction_list_signature', 'signature'),
+        {"schema": SCHEMA_LENDERS},
+    )
 
 
 class CLOBLiqudity(Base):
@@ -220,7 +505,7 @@ class TokenLendingSupplies(Base):
 
 class Protocols(Base):
     __tablename__ = 'protocols'
-    __table_args__ = {'schema': SCHEMA}
+    __table_args__ = {'schema': SCHEMA_LENDERS}
 
     id = Column(Integer, primary_key=True)
     public_key = Column(String, unique=True, nullable=False)
