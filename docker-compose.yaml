@@ -206,6 +206,19 @@ services:
         db:
           condition: service_healthy
 
+  token-supplies-fetcher:
+      build:
+        dockerfile: ./Dockerfile.token-supplies-fetching
+      environment:
+        AUTHENTICATED_RPC_URL: ""
+        POSTGRES_USER: postgres
+        POSTGRES_PASSWORD: postgres
+        POSTGRES_HOST: db
+        POSTGRES_DB: postgres
+      depends_on:
+        db:
+          condition: service_healthy
+
 
   portainer:
     image: portainer/portainer-ce
