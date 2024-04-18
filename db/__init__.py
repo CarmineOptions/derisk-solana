@@ -183,6 +183,75 @@ class MarginfiLendingAccounts(LendingAccounts):
     )
 
 
+################ MARGINFI V2 ################################
+class MarginfiParsedTransactionsV2(ParsedTransactions):
+    __tablename__ = "marginfi_parsed_transactions_V2"
+    source = Column(String, nullable=True)
+    destination = Column(String, nullable=True)
+    marginfi_group = Column(String, nullable = True)
+    asset_bank = Column(String, nullable = True)
+    liab_bank = Column(String, nullable = True)
+    liquidator_marginfi_account = Column(String, nullable = True)
+    liquidatee_marginfi_account = Column(String, nullable = True)
+    instructed_amount = Column(String, nullable = True)
+    __table_args__ = (  # type: ignore
+        Index("ix_marginfi_parsed_transactions_V2_transaction_id", "transaction_id"),
+        Index("ix_marginfi_parsed_transactions_V2_instruction_name", "instruction_name"),
+        Index("ix_marginfi_parsed_transactions_V2_event_name", "event_name"),
+        Index("ix_marginfi_parsed_transactions_V2_account", "account"),
+        {"schema": SCHEMA},
+    )
+
+    def __repr__(self):
+        attributes = vars(self)
+        # Filter out attributes that are None
+        attr_str = "\n".join(f"{key}: {value!r}" for key, value in attributes.items())  # if value is not None)
+        return f"MarginfiParsedInstruction(\n{attr_str}\n)"
+
+
+class MarginfiLendingAccountsV2(LendingAccounts):
+    __tablename__ = "marginfi_lending_accounts_v2"
+    __table_args__ = (  # type: ignore
+        Index("ix_marginfi_lending_accounts_V2_address", "address"),
+        Index("ix_marginfi_lending_accounts_V2_group", "group"),
+        Index("ix_marginfi_lending_accounts_V2_authority", "authority"),
+        {"schema": SCHEMA}
+    )
+
+    def __repr__(self):
+        attributes = vars(self)
+        # Filter out attributes that are None
+        attr_str = "\n".join(f"{key}: {value!r}" for key, value in attributes.items()) # if value is not None)
+        return f"MarginfiAccount(\n{attr_str}\n)"
+
+
+class MarginfiBankV2(Base):
+    __tablename__ = "marginfi_banks_v2"
+
+    id = Column(Integer, primary_key=True)
+    marginfi_group = Column(String)
+    admin = Column(String)
+    fee_payer = Column(String)
+    bank_mint = Column(String)
+    bank = Column(String, index=True)
+    liquidity_vault_authority = Column(String)
+    liquidity_vault = Column(String)
+    insurance_vault_authority = Column(String)
+    insurance_vault = Column(String)
+    fee_vault_authority = Column(String)
+    fee_vault = Column(String)
+    rent = Column(String)
+    __table_args__ = (  # type: ignore
+        {"schema": SCHEMA}
+    )
+
+    def __repr__(self):
+        attributes = vars(self)
+        # Filter out attributes that are None
+        attr_str = "\n".join(f"{key}: {value!r}" for key, value in attributes.items()) # if value is not None)
+        return f"MarginfiBank(\n{attr_str}\n)"
+########################################################
+
 class KaminoParsedTransactions(ParsedTransactions):
     __tablename__ = "kamino_parsed_transactions"
     source = Column(String, nullable=True)
