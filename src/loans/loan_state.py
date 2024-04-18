@@ -64,8 +64,6 @@ def protocol_to_process_func(
         return process_mango_events
     if protocol == KAMINO:
         return process_kamino_events
-    else:
-        raise ValueError(f'Invalid protocol "{protocol}"')
 
 
 def protocol_to_model(
@@ -77,8 +75,6 @@ def protocol_to_model(
         return MangoLoanStates
     if protocol == KAMINO:
         return KaminoLoanStates
-    else:
-        raise ValueError(f'Invalid protocol "{protocol}"')
 
 
 def store_loan_states(df: pandas.DataFrame, protocol: Protocol, session: Session):
