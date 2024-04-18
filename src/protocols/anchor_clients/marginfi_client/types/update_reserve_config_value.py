@@ -200,7 +200,7 @@ class U64:
 
 
 @dataclass
-class Pubkey:
+class Pubkey: # type: ignore
     discriminator: typing.ClassVar = 5
     kind: typing.ClassVar = "Pubkey"
     value: PubkeyValue
@@ -450,7 +450,7 @@ def from_json(obj: UpdateReserveConfigValueJSON) -> UpdateReserveConfigValueKind
         return U64((u64json_value[0],))
     if obj["kind"] == "Pubkey":
         pubkey_json_value = typing.cast(PubkeyJSONValue, obj["value"])
-        return Pubkey((Pubkey.from_string(pubkey_json_value[0]),))
+        return Pubkey((Pubkey.from_string(pubkey_json_value[0]),)) # type: ignore
     if obj["kind"] == "ScopeChain":
         scope_chain_json_value = typing.cast(ScopeChainJSONValue, obj["value"])
         return ScopeChain((scope_chain_json_value[0],))
