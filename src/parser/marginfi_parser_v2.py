@@ -121,7 +121,10 @@ class MarginfiTransactionParserV2(TransactionDecoder):
             for inner_instruction in instruction.instructions:
                 if isinstance(inner_instruction, UiPartiallyDecodedInstruction) and inner_instruction.program_id == self.program_id:
                     mf_instruction = inner_instruction
-                    related_inner_instructions = InnerInstructionContainer([instruction.instructions[idx+1]])
+                    related_inner_instructions = InnerInstructionContainer(
+                        [instruction.instructions[idx+1]]
+                        if idx+1 in instruction.instructions else None
+                    )
                     instruction_index = idx
                     data = mf_instruction.data
                     msg_bytes = b58decode(str.encode(str(data)))
@@ -239,7 +242,7 @@ class MarginfiTransactionParserV2(TransactionDecoder):
             inner_instructions = next((
                 i for i in self.transaction.meta.inner_instructions if i.index == instruction_idx), None)
 
-        if inner_instructions:
+        if inner_instructions and inner_instructions.instructions:
             for inner_instruction in inner_instructions.instructions:
                 if not hasattr(inner_instruction, 'parsed'):
                     continue
