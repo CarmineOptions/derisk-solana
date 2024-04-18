@@ -60,9 +60,9 @@ def protocol_to_process_func(
 ) -> ProtocolFunc:
     if protocol == MARGINFI:
         return process_marginfi_events
-    elif protocol == MANGO:
+    if protocol == MANGO:
         return process_mango_events
-    elif protocol == KAMINO:
+    if protocol == KAMINO:
         return process_kamino_events
     else:
         raise ValueError(f'Invalid protocol "{protocol}"')
@@ -73,9 +73,9 @@ def protocol_to_model(
 ) -> Type[MangoLoanStates] | Type[MarginfiLoanStates] | Type[KaminoLoanStates]:
     if protocol == MARGINFI:
         return MarginfiLoanStates
-    elif protocol == MANGO:
+    if protocol == MANGO:
         return MangoLoanStates
-    elif protocol == KAMINO:
+    if protocol == KAMINO:
         return KaminoLoanStates
     else:
         raise ValueError(f'Invalid protocol "{protocol}"')
