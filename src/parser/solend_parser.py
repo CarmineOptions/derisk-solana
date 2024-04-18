@@ -1,5 +1,5 @@
 """
-Kamino transaction parser.
+Solend transaction parser.
 """
 from typing import Callable, Dict
 import struct
@@ -90,7 +90,7 @@ def unpack_data(data: str):
         return SolendInstructionData(instruction_id=tag, amount=new_owner, value_name="SetLendingMarketOwner")
     elif tag == 2:
         liquidity_amount, rest = unpack_u64(rest)
-        return SolendInstructionData(instruction_id=tag, amount=liquidity_amount, value_name="RefreshReserve")
+        return SolendInstructionData(instruction_id=tag, amount=liquidity_amount, value_name="InitReserve")
     elif tag == 3:
         return SolendInstructionData(instruction_id=tag, value_name="RefreshReserve")
     elif tag == 4:
@@ -136,8 +136,7 @@ def unpack_data(data: str):
             amount=collateral_amount,
             value_name="WithdrawObligationCollateralAndRedeemReserveCollateral"
         )
-    else:
-        raise UnpackError(f"Unsupported tag for unpacking: {tag}")
+
 
 
 class SolendTransactionParser:
