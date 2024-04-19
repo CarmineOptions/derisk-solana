@@ -1,6 +1,7 @@
 """
 Module containing functionality related to Postgres DB used throughout the repo.
 """
+from decimal import Decimal
 import os
 from enum import Enum
 
@@ -679,8 +680,8 @@ class MarginfiLiquidableDepts(Base):
     protocol = Column(String, primary_key=True, nullable=False)
     collateral_token = Column(String, primary_key=True, nullable=False)
     debt_token = Column(String, primary_key=True, nullable=False)
-    collateral_token_price = Column(String, primary_key=True, nullable=False)
-    amount = Column(String, primary_key=True, nullable=False)
+    collateral_token_price = Column(Decimal, primary_key=True, nullable=False)
+    amount = Column(Decimal, nullable=False)
 
     def __repr__(self):
         return (
@@ -704,12 +705,12 @@ class KaminoLiquidableDepts(Base):
     protocol = Column(String, primary_key=True, nullable=False)
     collateral_token = Column(String, primary_key=True, nullable=False)
     debt_token = Column(String, primary_key=True, nullable=False)
-    collateral_token_price = Column(String, primary_key=True, nullable=False)
-    amount = Column(String, primary_key=True, nullable=False)
+    collateral_token_price = Column(Decimal, primary_key=True, nullable=False)
+    amount = Column(Decimal, nullable=False)
 
     def __repr__(self):
         return (
-            "MarginfiLiquidableDepts("
+            "KaminoLiquidableDepts("
             f"timestamp={self.timestamp},"
             f"protocol={self.protocol},"
             f"collateral_token={self.collateral_token},"
@@ -729,12 +730,12 @@ class MangoLiquidableDepts(Base):
     protocol = Column(String, primary_key=True, nullable=False)
     collateral_token = Column(String, primary_key=True, nullable=False)
     debt_token = Column(String, primary_key=True, nullable=False)
-    collateral_token_price = Column(String, primary_key=True, nullable=False)
-    amount = Column(String, primary_key=True, nullable=False)
+    collateral_token_price = Column(Decimal, primary_key=True, nullable=False)
+    amount = Column(Decimal, nullable=False)
 
     def __repr__(self):
         return (
-            "MarginfiLiquidableDepts("
+            "MangoLiquidableDepts("
             f"timestamp={self.timestamp},"
             f"protocol={self.protocol},"
             f"collateral_token={self.collateral_token},"
@@ -754,12 +755,12 @@ class SolendLiquidableDepts(Base):
     protocol = Column(String, primary_key=True, nullable=False)
     collateral_token = Column(String, primary_key=True, nullable=False)
     debt_token = Column(String, primary_key=True, nullable=False)
-    collateral_token_price = Column(String, primary_key=True, nullable=False)
-    amount = Column(String, primary_key=True, nullable=False)
+    collateral_token_price = Column(Decimal, primary_key=True, nullable=False)
+    amount = Column(Decimal, nullable=False)
 
     def __repr__(self):
         return (
-            "MarginfiLiquidableDepts("
+            "SolendLiquidableDepts("
             f"timestamp={self.timestamp},"
             f"protocol={self.protocol},"
             f"collateral_token={self.collateral_token},"

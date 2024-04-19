@@ -6,14 +6,14 @@ import pandas
 from sqlalchemy import func
 from sqlalchemy.orm.session import Session
 from db import (
-    MangoLoanStates,
-    MarginfiLoanStates,
-    KaminoLoanStates,
-    SolendLoanStates,
     MangoParsedTransactions,
     MarginfiParsedTransactions,
     KaminoParsedTransactions,
     SolendParsedTransactions,
+    MangoLiquidableDepts,
+    MarginfiLiquidableDepts,
+    KaminoLiquidableDepts,
+    SolendLiquidableDepts,
     get_db_session,
 )
 
@@ -31,10 +31,10 @@ AnyEvents = list[
 ]
 
 AnyProtocolModel = (
-    Type[MangoLoanStates]
-    | Type[MarginfiLoanStates]
-    | Type[KaminoLoanStates]
-    | Type[SolendLoanStates]
+    Type[MangoLiquidableDepts]
+    | Type[MarginfiLiquidableDepts]
+    | Type[KaminoLiquidableDepts]
+    | Type[SolendLiquidableDepts]
 )
 
 TypeMarginfi = TypeVar("TypeMarginfi", bound=MarginfiParsedTransactions)
@@ -52,18 +52,6 @@ ProtocolFunc = (
     | ProcessFuncTypeMango
     | ProcessFuncTypeKamino
     | ProcessFuncTypeSolend
-)
-
-
-from src.loans.common import (
-    KAMINO,
-    MANGO,
-    MARGINFI,
-    SOLEND,
-    AnyEvents,
-    AnyProtocolModel,
-    Protocol,
-    ProtocolFunc,
 )
 
 
@@ -116,28 +104,29 @@ def protocol_to_model(
     protocol: Protocol,
 ) -> AnyProtocolModel:
     if protocol == MARGINFI:
-        return MarginfiLoanStates
+        return MarginfiLiquidableDepts
     if protocol == MANGO:
-        return MangoLoanStates
+        return MangoLiquidableDepts
     if protocol == KAMINO:
-        return KaminoLoanStates
+        return KaminoLiquidableDepts
     if protocol == SOLEND:
-        return SolendLoanStates
+        return SolendLiquidableDepts
     # Unreachable
     raise ValueError(f"invalid protocol {protocol}")
 
 
-def store_loan_states(df: pandas.DataFrame, protocol: Protocol, session: Session):
+def store_liquidable_dept(df: pandas.DataFrame, protocol: Protocol, session: Session):
     """
-    Stores data from a pandas DataFrame to the loan_states table.
+    Stores data from a pandas DataFrame to the liquidable_depts table.
 
     Args:
     - df (pandas.DataFrame): A DataFrame with the following columns:
-        - slot (int): Description of slot.
+        - timestamp (int): Description of timestamp.
         - protocol (str): Description of protocol.
-        - user (str): Description of user.
-        - collateral (json/dict): JSON or dictionary representing collateral.
-        - debt (json/dict): JSON or dictionary representing debt.
+        - collateral_token (str): Description of collateral_token.
+        - debt_token (str): Description of debt_token.
+        - collateral_token_price (str): Description of collateral_token_price.
+        - amount (str): Description of amount.
 
     - session (sqlalchemy.orm.session.Session): A SQLAlchemy session object.
     """
@@ -145,18 +134,19 @@ def store_loan_states(df: pandas.DataFrame, protocol: Protocol, session: Session
     model = protocol_to_model(protocol)
 
     for _, row in df.iterrows():
-        loan_state = model(
-            slot=row["slot"],
+        liquidable_dept = model(
+            timestamp=row["timestamp"],
             protocol=row["protocol"],
-            user=row["user"],
-            collateral=row["collateral"],
-            debt=row["debt"],
+            collateral_token=row["collateral_token"],
+            debt_token=row["debt_token"],
+            collateral_token_price=row["collateral_token_price"],
+            amount=row["amount"],
         )
-        session.add(loan_state)
+        session.add(liquidable_dept)
     session.commit()
 
 
-def fetch_loan_states(protocol: Protocol, session: Session) -> pandas.DataFrame:
+def fetch_liquidable_depts(protocol: Protocol, session: Session) -> pandas.DataFrame:
     """
     Fetches loan states with the max slot from the DB and returns them as a DataFrame
 
@@ -174,20 +164,21 @@ def fetch_loan_states(protocol: Protocol, session: Session) -> pandas.DataFrame:
 
     model = protocol_to_model(protocol)
 
-    # Define a subquery for the maximum slot value
-    max_slot_subquery = session.query(func.max(model.slot)).subquery()
+    # Define a subquery for the maximum timestamp value
+    max_timestamp_subquery = session.query(func.max(model.timestamp)).subquery()
 
-    # Retrieve entries from the loan_states table where slot equals the maximum slot value
-    query_result = session.query(model).filter(model.slot == max_slot_subquery).all()
+    # Retrieve entries from the loan_states table where timestamp equals the maximum timestamp value
+    query_result = session.query(model).filter(model.timestamp == max_timestamp_subquery).all()
 
     df = pandas.DataFrame(
         [
             {
-                "slot": record.slot,
+                "timestamp": record.timestamp,
                 "protocol": record.protocol,
-                "user": record.user,
-                "collateral": record.collateral,
-                "debt": record.debt,
+                "collateral_token": record.collateral_token,
+                "debt_token": record.debt_token,
+                "collateral_token_price": record.collateral_token_price,
+                "amount": record.amount,
             }
             for record in query_result
         ]
@@ -197,7 +188,7 @@ def fetch_loan_states(protocol: Protocol, session: Session) -> pandas.DataFrame:
 
 def fetch_events(min_slot: int, protocol: Protocol, session: Session) -> AnyEvents:
     """
-    Fetches loan states with the max slot from the DB and returns them as a DataFrame
+    Fetches events with the slot from the DB and returns them as a DataFrame
 
     Args:
     - min_slot (int): Slot from which events will be fetched (non-inclusive).
@@ -237,7 +228,7 @@ def fetch_events(min_slot: int, protocol: Protocol, session: Session) -> AnyEven
     raise ValueError(f"invalid protocol {protocol}")
 
 
-def process_events_to_loan_states(
+def process_events_to_liquidable_depts(
     protocol: Protocol,
     process_function: Callable[
         [AnyEvents],
@@ -245,26 +236,26 @@ def process_events_to_loan_states(
     ],
     session: Session,
 ):
-    current_loan_states = fetch_loan_states(protocol, session)
+    current_liquidable_depts = fetch_liquidable_depts(protocol, session)
     min_slot = 0
 
-    if len(current_loan_states) > 0:
-        min_slot = int(current_loan_states.iloc[0]["slot"])
+    if len(current_liquidable_depts) > 0:
+        min_slot = int(current_liquidable_depts.iloc[0]["slot"])
 
     events: AnyEvents = fetch_events(min_slot, protocol, session)
 
-    new_loan_state = process_function(events)
+    new_liquidable_dept = process_function(events)
 
-    store_loan_states(new_loan_state, protocol, session)
+    store_liquidable_dept(new_liquidable_dept, protocol, session)
 
 
 def process_events_continuously(protocol: Protocol):
-    logging.info("Starting events to loan_states processing.")
+    logging.info("Starting events to liquidable_depts processing.")
     session = get_db_session()
 
     process_func = protocol_to_process_func(protocol)
 
     while True:
-        process_events_to_loan_states(protocol, process_func, session)
-        logging.info("Updated loan_states.")
+        process_events_to_liquidable_depts(protocol, process_func, session)
+        logging.info("Updated liquidable_depts.")
         time.sleep(120)
