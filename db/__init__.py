@@ -251,7 +251,72 @@ class MarginfiBankV2(Base):
         attr_str = "\n".join(f"{key}: {value!r}" for key, value in attributes.items()) # if value is not None)
         return f"MarginfiBank(\n{attr_str}\n)"
 
-########################################################
+################################## KAMINO V2 ###############
+class KaminoParsedTransactionsV2(ParsedTransactions):
+    __tablename__ = "kamino_parsed_transactions_v2"
+    obligation = Column(String, nullable=True)
+    source = Column(String, nullable=True)
+    destination = Column(String, nullable=True)
+    lending_market = Column(String, nullable = True)
+    liquidator = Column(String, nullable = True)
+    liquidity_amount = Column(String, nullable = True)
+    repay_reserve = Column(String, nullable = True)
+    withdraw_reserve = Column(String, nullable = True)
+    __table_args__ = (  # type: ignore
+        Index("ix_kamino_parsed_transactions_v2_transaction_id", "transaction_id"),
+        Index("ix_kamino_parsed_transactions_v2_instruction_name", "instruction_name"),
+        Index("ix_kamino_parsed_transactions_v2_event_name", "event_name"),
+        Index("ix_kamino_parsed_transactions_v2_account", "account"),
+        Index("ix_kamino_parsed_transactions_v2_obligation", "obligation"),
+        {"schema": SCHEMA_LENDERS},
+    )
+
+    def __repr__(self):
+        attributes = vars(self)
+        # Filter out attributes that are None
+        attr_str = "\n".join(f"{key}: {value!r}" for key, value in attributes.items())  # if value is not None)
+        return f"KaminoParsedInstruction(\n{attr_str}\n)"
+
+
+class KaminoObligationV2(LendingAccounts):
+    __tablename__ = "kamino_lending_accounts_v2"
+    __table_args__ = (  # type: ignore
+        Index("ix_kamino_lending_accounts_v2_address", "address"),
+        Index("ix_kamino_lending_accounts_v2_group", "group"),
+        Index("ix_kamino_lending_accounts_v2_authority", "authority"),
+        {"schema": SCHEMA_LENDERS}
+    )
+
+    def __repr__(self):
+        attributes = vars(self)
+        # Filter out attributes that are None
+        attr_str = "\n".join(f"{key}: {value!r}" for key, value in attributes.items()) # if value is not None)
+        return f"KaminoAccount(\n{attr_str}\n)"
+
+
+class KaminoReserveV2(Base):
+    __tablename__ = "kamino_reserves_v2"
+
+    id = Column(Integer, primary_key=True)
+    lending_market = Column(String)
+    lending_market_owner = Column(String)
+    reserve = Column(String)
+    reserve_liquidity_mint = Column(String)
+    reserve_liquidity_supply = Column(String)
+    fee_receiver = Column(String)
+    reserve_collateral_mint = Column(String)
+    reserve_collateral_supply = Column(String)
+    rent = Column(String)
+    __table_args__ = (  # type: ignore
+        {"schema": SCHEMA_LENDERS}
+    )
+
+    def __repr__(self):
+        attributes = vars(self)
+        # Filter out attributes that are None
+        attr_str = "\n".join(f"{key}: {value!r}" for key, value in attributes.items()) # if value is not None)
+        return f"KaminoReserve(\n{attr_str}\n)"
+
 
 
 class KaminoParsedTransactions(ParsedTransactions):
@@ -511,7 +576,7 @@ class MarginfiTransactionsListV2(TransactionsList):
 
 
 class KaminoTransactionsList(TransactionsList):
-    __tablename__ = 'kamino_hist_transaction_list'
+    __tablename__ = 'kamino_hist_transaction_list_v2'
     __table_args__ = (  # type: ignore
         Index('idx_kamino_transaction_list_signature', 'signature'),
         {"schema": SCHEMA_LENDERS},
