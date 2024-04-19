@@ -5,6 +5,8 @@ import requests
 
 import streamlit
 
+from src import kamino_vault_map
+
 BASE_API_URL = "https://price.jup.ag/v4/price"
 
 T = TypeVar("T")
@@ -42,7 +44,8 @@ def get_prices_for_tokens(tokens: list[str]) -> dict[str, float | None]:
     chunks = split_into_chunks(tokens, 100)  # Jupiter allows max 100 ids per request
 
     for chunk in chunks:
-        ids = ",".join(chunk)
+        translated_ids = list(kamino_vault_map.kamino_address_to_mint_address, map(chunk))
+        ids = ",".join(translated_ids)
 
         url = f"{BASE_API_URL}?ids={ids}&vsToken=USDC"
 
@@ -53,7 +56,8 @@ def get_prices_for_tokens(tokens: list[str]) -> dict[str, float | None]:
         data = response.json()["data"]
 
         for token_address in chunk:
-            price_dict = data.get(token_address)
+            translated_token_address = kamino_vault_map.kamino_address_to_mint_address(token_address)
+            price_dict = data.get(translated_token_address)
             if price_dict is not None and "price" in price_dict:
                 token_price_map[token_address] = price_dict["price"]
             else:
