@@ -761,6 +761,26 @@ class SolendLiquidableDebts(Base):
         )
 
 
+class CallToActions(Base):
+    __tablename__ = "call_to_actions"
+    __table_args__ = {"schema": SCHEMA_LENDERS}
+
+    timestamp = Column(BigInteger, primary_key=True, nullable=False)
+    collateral_token = Column(String, primary_key=True, nullable=False)
+    debt_token = Column(String, primary_key=True, nullable=False)
+    message = Column(String, nullable=False)
+
+
+    def __repr__(self):
+        return (
+            "SolendLiquidableDebts("
+            f"timestamp={self.timestamp},"
+            f"collateral_token={self.collateral_token},"
+            f"debt_token={self.debt_token},"
+            f"message={self.message},"
+        )
+
+
 if __name__ == "__main__":
     # create the database engine
     ENGINE = create_engine(CONN_STRING)
