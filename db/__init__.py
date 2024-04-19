@@ -670,12 +670,10 @@ class SolendLoanStates(Base):
         )
 
 
-class MarginfiLiquidableDepts(Base):
-    __tablename__ = "marginfi_liquidable_depts"
+class MarginfiLiquidableDebts(Base):
+    __tablename__ = "marginfi_liquidable_debts"
     __table_args__ = {"schema": SCHEMA_LENDERS}
 
-    # TODO: timestamp or slot (block)?
-    # amount, price - should be int or string? If 18 digits int may not be big enough
     timestamp = Column(BigInteger, primary_key=True, nullable=False)
     protocol = Column(String, primary_key=True, nullable=False)
     collateral_token = Column(String, primary_key=True, nullable=False)
@@ -685,7 +683,7 @@ class MarginfiLiquidableDepts(Base):
 
     def __repr__(self):
         return (
-            "MarginfiLiquidableDepts("
+            "MarginfiLiquidableDebts("
             f"timestamp={self.timestamp},"
             f"protocol={self.protocol},"
             f"collateral_token={self.collateral_token},"
@@ -695,12 +693,10 @@ class MarginfiLiquidableDepts(Base):
         )
 
 
-class KaminoLiquidableDepts(Base):
-    __tablename__ = "kamino_liquidable_depts"
+class KaminoLiquidableDebts(Base):
+    __tablename__ = "kamino_liquidable_debts"
     __table_args__ = {"schema": SCHEMA_LENDERS}
 
-    # TODO: timestamp or slot (block)?
-    # amount, price - should be int or string? If 18 digits int may not be big enough
     timestamp = Column(BigInteger, primary_key=True, nullable=False)
     protocol = Column(String, primary_key=True, nullable=False)
     collateral_token = Column(String, primary_key=True, nullable=False)
@@ -710,7 +706,7 @@ class KaminoLiquidableDepts(Base):
 
     def __repr__(self):
         return (
-            "KaminoLiquidableDepts("
+            "KaminoLiquidableDebts("
             f"timestamp={self.timestamp},"
             f"protocol={self.protocol},"
             f"collateral_token={self.collateral_token},"
@@ -720,12 +716,10 @@ class KaminoLiquidableDepts(Base):
         )
 
 
-class MangoLiquidableDepts(Base):
-    __tablename__ = "mango_liquidable_depts"
+class MangoLiquidableDebts(Base):
+    __tablename__ = "mango_liquidable_debts"
     __table_args__ = {"schema": SCHEMA_LENDERS}
 
-    # TODO: timestamp or slot (block)?
-    # amount, price - should be int or string? If 18 digits int may not be big enough
     timestamp = Column(BigInteger, primary_key=True, nullable=False)
     protocol = Column(String, primary_key=True, nullable=False)
     collateral_token = Column(String, primary_key=True, nullable=False)
@@ -735,7 +729,7 @@ class MangoLiquidableDepts(Base):
 
     def __repr__(self):
         return (
-            "MangoLiquidableDepts("
+            "MangoLiquidableDebts("
             f"timestamp={self.timestamp},"
             f"protocol={self.protocol},"
             f"collateral_token={self.collateral_token},"
@@ -745,12 +739,10 @@ class MangoLiquidableDepts(Base):
         )
 
 
-class SolendLiquidableDepts(Base):
-    __tablename__ = "solend_liquidable_depts"
+class SolendLiquidableDebts(Base):
+    __tablename__ = "solend_liquidable_debts"
     __table_args__ = {"schema": SCHEMA_LENDERS}
 
-    # TODO: timestamp or slot (block)?
-    # amount, price - should be int or string? If 18 digits int may not be big enough
     timestamp = Column(BigInteger, primary_key=True, nullable=False)
     protocol = Column(String, primary_key=True, nullable=False)
     collateral_token = Column(String, primary_key=True, nullable=False)
@@ -760,7 +752,7 @@ class SolendLiquidableDepts(Base):
 
     def __repr__(self):
         return (
-            "SolendLiquidableDepts("
+            "SolendLiquidableDebts("
             f"timestamp={self.timestamp},"
             f"protocol={self.protocol},"
             f"collateral_token={self.collateral_token},"
