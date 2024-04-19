@@ -213,43 +213,52 @@ class SolendTransactionParser:
             if isinstance(instruction, UiPartiallyDecodedInstruction) and instruction.program_id == self.program_id:
                 self._process_instruction(instruction)
 
+        # parse inner instructions:
+        for instruction in self.transaction.meta.inner_instructions:
+            for idx, inner_instruction in enumerate(instruction.instructions):
+                if isinstance(inner_instruction,
+                              UiPartiallyDecodedInstruction) and inner_instruction.program_id == self.program_id:
+                    self._process_instruction(inner_instruction)
+
     def _process_instruction(self, instruction: UiPartiallyDecodedInstruction) -> None:
         # process instruction data
         data = instruction.data
         parsed_data = unpack_data(data)
+        if parsed_data.instruction_id == 12:
+            print(parsed_data.instruction_id, self.transaction.meta.err)
         if not parsed_data:
             return
         # Get instruction name
-        instruction_name = {v: k for k, v in self.instruction_types.items()}[parsed_data.instruction_id]
-
-        if instruction_name not in self.relevant_instructions:
-            return
-        # get inner instructions
-        instruction_index = self.transaction.transaction.message.instructions.index(instruction)  # type: ignore
-        # pair present account keys with its names
-        account_names = INSTRUCTION_ACCOUNT_MAP[instruction_name]
-
-        instruction_accounts = dict()
-        for pubkey, name in zip(instruction.accounts, account_names):
-            if str(pubkey) not in instruction_accounts:
-                instruction_accounts[str(pubkey)] = name
-        # parse `init_obligation` event
-        if instruction_name == 'init_obligation':
-            self._init_obligation(instruction_accounts)
-            return
-        if instruction_name == 'init_reserve':
-            self._init_reserve(instruction_accounts)
-            return
-        inner_instructions = next((
-            i for i in self.transaction.meta.inner_instructions if i.index == instruction_index), None)
-        if inner_instructions:
-            for inner_instruction in inner_instructions.instructions:
-                self._save_inner_instruction(
-                    inner_instruction,
-                    instruction_accounts,
-                    instruction_name,
-                    instruction_index
-                )
+        # instruction_name = {v: k for k, v in self.instruction_types.items()}[parsed_data.instruction_id]
+        #
+        # if instruction_name not in self.relevant_instructions:
+        #     return
+        # # get inner instructions
+        # instruction_index = self.transaction.transaction.message.instructions.index(instruction)  # type: ignore
+        # # pair present account keys with its names
+        # account_names = INSTRUCTION_ACCOUNT_MAP[instruction_name]
+        #
+        # instruction_accounts = dict()
+        # for pubkey, name in zip(instruction.accounts, account_names):
+        #     if str(pubkey) not in instruction_accounts:
+        #         instruction_accounts[str(pubkey)] = name
+        # # parse `init_obligation` event
+        # if instruction_name == 'init_obligation':
+        #     self._init_obligation(instruction_accounts)
+        #     return
+        # if instruction_name == 'init_reserve':
+        #     self._init_reserve(instruction_accounts)
+        #     return
+        # inner_instructions = next((
+        #     i for i in self.transaction.meta.inner_instructions if i.index == instruction_index), None)
+        # if inner_instructions:
+        #     for inner_instruction in inner_instructions.instructions:
+        #         self._save_inner_instruction(
+        #             inner_instruction,
+        #             instruction_accounts,
+        #             instruction_name,
+        #             instruction_index
+        #         )
 
     def _save_inner_instruction(
             self,
