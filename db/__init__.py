@@ -576,7 +576,7 @@ class MarginfiTransactionsListV2(TransactionsList):
 
 
 class KaminoTransactionsList(TransactionsList):
-    __tablename__ = 'kamino_hist_transaction_list_v2'
+    __tablename__ = 'kamino_hist_transaction_list_v3'
     __table_args__ = (  # type: ignore
         Index('idx_kamino_transaction_list_signature', 'signature'),
         {"schema": SCHEMA_LENDERS},
