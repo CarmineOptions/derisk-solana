@@ -96,14 +96,24 @@ class KaminoTransactionParserV2(TransactionDecoder):
                     instruction, snake_to_camel(parsed_instruction.name), instruction_index, parsed_instruction)
         #
         for instruction in self.transaction.meta.inner_instructions:
+            instruction_index = instruction.index
             for idx, inner_instruction in enumerate(instruction.instructions):
                 if isinstance(inner_instruction, UiPartiallyDecodedInstruction) and inner_instruction.program_id == self.program_id:
                     kl_instruction = inner_instruction
-                    related_inner_instructions = InnerInstructionContainer(
-                        [instruction.instructions[idx+1]]
-                        if idx+1 < len(instruction.instructions) else None
-                    )
-                    instruction_index = idx
+
+                    related_inner_instructions = []
+                    if idx + 1 < len(instruction.instructions):
+                        for following_instruction in instruction.instructions[idx + 1:]:
+                            if isinstance(following_instruction, ParsedInstruction):
+                                related_inner_instructions.append(following_instruction)
+                            else:
+                                break
+
+                    if related_inner_instructions:
+                        contained_inner_instructions = InnerInstructionContainer(related_inner_instructions)
+                    else:
+                        contained_inner_instructions = InnerInstructionContainer(None)
+
                     data = kl_instruction.data
                     msg_bytes = b58decode(str.encode(str(data)))
                     try:
@@ -117,7 +127,7 @@ class KaminoTransactionParserV2(TransactionDecoder):
                         snake_to_camel(parsed_instruction.name),
                         instruction_index,
                         parsed_instruction,
-                        related_inner_instructions
+                        contained_inner_instructions
                     )
 
     @staticmethod
@@ -430,8 +440,7 @@ if __name__ == "__main__":
 
     transaction = solana_client.get_transaction(
         Signature.from_string(
-            '26ruzaSeNh2Qd4Er5xuShh7FLgo4s7jozHPZKP43FLQwExJJEVtnY9ku2maMk87imfYnd3zdVRjZEMg16H3Vvxj6'
-
+            '3bZHnoSaN1fPPmsVMnfjyfeU76wRXWxKKH4mBZ51sJiiryahu3tJZRk3YSi92fnRqT5wNZanUv6in4WFo7HKNvS9'
         ),
         'jsonParsed',
         max_supported_transaction_version=0
