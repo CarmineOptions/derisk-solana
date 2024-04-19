@@ -253,7 +253,7 @@ class MarginfiBankV2(Base):
 
 ################################## KAMINO V2 ###############
 class KaminoParsedTransactionsV2(ParsedTransactions):
-    __tablename__ = "kamino_parsed_transactions_v2"
+    __tablename__ = "kamino_parsed_transactions_v3"
     obligation = Column(String, nullable=True)
     source = Column(String, nullable=True)
     destination = Column(String, nullable=True)
@@ -263,11 +263,11 @@ class KaminoParsedTransactionsV2(ParsedTransactions):
     repay_reserve = Column(String, nullable = True)
     withdraw_reserve = Column(String, nullable = True)
     __table_args__ = (  # type: ignore
-        Index("ix_kamino_parsed_transactions_v2_transaction_id", "transaction_id"),
-        Index("ix_kamino_parsed_transactions_v2_instruction_name", "instruction_name"),
-        Index("ix_kamino_parsed_transactions_v2_event_name", "event_name"),
-        Index("ix_kamino_parsed_transactions_v2_account", "account"),
-        Index("ix_kamino_parsed_transactions_v2_obligation", "obligation"),
+        Index("ix_kamino_parsed_transactions_v3_transaction_id", "transaction_id"),
+        Index("ix_kamino_parsed_transactions_v3_instruction_name", "instruction_name"),
+        Index("ix_kamino_parsed_transactions_v3_event_name", "event_name"),
+        Index("ix_kamino_parsed_transactions_v3_account", "account"),
+        Index("ix_kamino_parsed_transactions_v3_obligation", "obligation"),
         {"schema": SCHEMA_LENDERS},
     )
 
@@ -279,11 +279,11 @@ class KaminoParsedTransactionsV2(ParsedTransactions):
 
 
 class KaminoObligationV2(LendingAccounts):
-    __tablename__ = "kamino_lending_accounts_v2"
+    __tablename__ = "kamino_lending_accounts_v3"
     __table_args__ = (  # type: ignore
-        Index("ix_kamino_lending_accounts_v2_address", "address"),
-        Index("ix_kamino_lending_accounts_v2_group", "group"),
-        Index("ix_kamino_lending_accounts_v2_authority", "authority"),
+        Index("ix_kamino_lending_accounts_v3_address", "address"),
+        Index("ix_kamino_lending_accounts_v3_group", "group"),
+        Index("ix_kamino_lending_accounts_v3_authority", "authority"),
         {"schema": SCHEMA_LENDERS}
     )
 
@@ -295,7 +295,7 @@ class KaminoObligationV2(LendingAccounts):
 
 
 class KaminoReserveV2(Base):
-    __tablename__ = "kamino_reserves_v2"
+    __tablename__ = "kamino_reserves_v3"
 
     id = Column(Integer, primary_key=True)
     lending_market = Column(String)
@@ -317,7 +317,7 @@ class KaminoReserveV2(Base):
         attr_str = "\n".join(f"{key}: {value!r}" for key, value in attributes.items()) # if value is not None)
         return f"KaminoReserve(\n{attr_str}\n)"
 
-
+###############################################################
 
 class KaminoParsedTransactions(ParsedTransactions):
     __tablename__ = "kamino_parsed_transactions"
