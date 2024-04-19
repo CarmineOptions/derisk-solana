@@ -103,11 +103,11 @@ class MarginfiTransactionParserV2(TransactionDecoder):
         if self.transaction.meta.err:
             return
         # Parse instructions:
-        for instruction in self.transaction.transaction.message.instructions:
+        for instruction_index, instruction in enumerate(self.transaction.transaction.message.instructions):
             # print(instruction)
             # Check if instruction is partially decoded and belongs to the known program
             if isinstance(instruction, UiPartiallyDecodedInstruction) and instruction.program_id == self.program_id:
-                instruction_index = self.transaction.transaction.message.instructions.index(instruction)
+                # instruction_index = self.transaction.transaction.message.instructions.index(instruction)
                 data = instruction.data
                 msg_bytes = b58decode(str.encode(str(data)))
                 try:
@@ -117,13 +117,13 @@ class MarginfiTransactionParserV2(TransactionDecoder):
                 self._save_marginfi_instruction(
                     instruction, snake_to_camel(parsed_instruction.name), instruction_index, parsed_instruction)
         #
-        for idx, instruction in enumerate(self.transaction.meta.inner_instructions):
-            for inner_instruction in instruction.instructions:
+        for instruction in self.transaction.meta.inner_instructions:
+            for idx, inner_instruction in enumerate(instruction.instructions):
                 if isinstance(inner_instruction, UiPartiallyDecodedInstruction) and inner_instruction.program_id == self.program_id:
                     mf_instruction = inner_instruction
                     related_inner_instructions = InnerInstructionContainer(
                         [instruction.instructions[idx+1]]
-                        if idx+1 in instruction.instructions else None
+                        if idx+1 < len(instruction.instructions) else None
                     )
                     instruction_index = idx
                     data = mf_instruction.data
@@ -417,10 +417,11 @@ if __name__ == "__main__":
 
     transaction = solana_client.get_transaction(
         Signature.from_string(
-            '2zzc14Y6QNq6tB7NYPMLs8ssb12qd6xjoDNV1x2CQdoqnSjvLueRFbiGETFC6EdKn2DA1KR8HVQgmKk2c4XnQRdL' # liq
+            # '2zzc14Y6QNq6tB7NYPMLs8ssb12qd6xjoDNV1x2CQdoqnSjvLueRFbiGETFC6EdKn2DA1KR8HVQgmKk2c4XnQRdL' # liq
             # '26SP3VFxhT2UiDfL9en2sB52cA9suq9A3vxjSMQkbyWUgcoKRUD8aL2VYsp1AG5HN9EbL2soqVWK874TKhsnJ9Yo'  # create bnk
             # '5WPYSVyXPWDn61gduWdz3sTkofzWKUBMH9RbM6iwxYbfe4JKMEk8f6rWBUcbDRrfLZWmAGfPBASvWm4Bgt9RmXe'  # nested mf instr
             # '4QsemrpPj5sKYL9ipunuaKXWCDsz1jhXpFWCyaCF8otmGXth25F1gWe7sF3j42SVeT8heXfkHgD8m3jL64YGRWCd'
+            '3co8eMSgXH3ZwWgXkhZuhpKxscCn7gFauQM1KSs9NE9ceceiWUF5d3ChohBJfn8Wenvzfpethme29nVsS62b2Qr5'
         ),
         'jsonParsed',
         max_supported_transaction_version=0
