@@ -8,7 +8,7 @@ import os
 import re
 
 from base58 import b58decode
-from construct.core import StreamError
+
 from solders.pubkey import Pubkey
 from solders.signature import Signature
 from solders.transaction_status import EncodedTransactionWithStatusMeta, UiPartiallyDecodedInstruction, \
@@ -80,36 +80,40 @@ class KaminoTransactionParserV2(TransactionDecoder):
         if self.transaction.meta.err:
             return
         # Parse instructions:
-        for instruction in self.transaction.transaction.message.instructions:
+        for instruction_index, instruction in enumerate(self.transaction.transaction.message.instructions):
             # Check if instruction is partially decoded and belongs to the known program
             if isinstance(instruction, UiPartiallyDecodedInstruction) and instruction.program_id == self.program_id:
-                instruction_index = self.transaction.transaction.message.instructions.index(instruction)
+                # instruction_index = self.transaction.transaction.message.instructions.index(instruction)
                 data = instruction.data
                 msg_bytes = b58decode(str.encode(str(data)))
                 try:
                     parsed_instruction = self.program.coder.instruction.parse(msg_bytes)
                 except:
+                    LOGGER.warning(f"Fail to read instruction: {msg_bytes} "
+                                   f"in `{str(self.transaction.transaction.signatures[0])}`")
                     continue
-                self._save_marginfi_instruction(
+                self._save_kamino_instruction(
                     instruction, snake_to_camel(parsed_instruction.name), instruction_index, parsed_instruction)
         #
-        for idx, instruction in enumerate(self.transaction.meta.inner_instructions):
-            for inner_instruction in instruction.instructions:
+        for instruction in self.transaction.meta.inner_instructions:
+            for idx, inner_instruction in enumerate(instruction.instructions):
                 if isinstance(inner_instruction, UiPartiallyDecodedInstruction) and inner_instruction.program_id == self.program_id:
-                    mf_instruction = inner_instruction
+                    kl_instruction = inner_instruction
                     related_inner_instructions = InnerInstructionContainer(
                         [instruction.instructions[idx+1]]
-                        if idx+1 in instruction.instructions else None
+                        if idx+1 < len(instruction.instructions) else None
                     )
                     instruction_index = idx
-                    data = mf_instruction.data
+                    data = kl_instruction.data
                     msg_bytes = b58decode(str.encode(str(data)))
                     try:
                         parsed_instruction = self.program.coder.instruction.parse(msg_bytes)
                     except:
+                        LOGGER.warning(f"Fail to read instruction: {msg_bytes} "
+                                       f"in `{str(self.transaction.transaction.signatures[0])}`")
                         continue
-                    self._save_marginfi_instruction(
-                        mf_instruction,
+                    self._save_kamino_instruction(
+                        kl_instruction,
                         snake_to_camel(parsed_instruction.name),
                         instruction_index,
                         parsed_instruction,
@@ -125,7 +129,7 @@ class KaminoTransactionParserV2(TransactionDecoder):
                 paired_accounts[account.name] = str(known_accounts[i])
         return paired_accounts
 
-    def _save_marginfi_instruction(  # pylint: disable=too-many-statements, too-many-branches
+    def _save_kamino_instruction(  # pylint: disable=too-many-statements, too-many-branches
             self,
             instruction: UiPartiallyDecodedInstruction,
             instruction_name: str,
@@ -199,7 +203,7 @@ class KaminoTransactionParserV2(TransactionDecoder):
     ):
         """"""
         accounts = self._get_accounts_from_instruction(instruction.accounts, metadata.idl_ix)
-        # Locate inner instructions related to the primary instruction by index
+        # Locate inner instructions related            # print(instruction) to the primary instruction by index
         if not inner_instructions:
             inner_instructions = next((
                 i for i in self.transaction.meta.inner_instructions if i.index == instruction_idx), None)
