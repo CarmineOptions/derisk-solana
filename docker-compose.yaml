@@ -10,7 +10,7 @@ services:
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
-    user: postgres 
+    user: postgres
     healthcheck:
       test: [ "CMD-SHELL", "pg_isready" ]
       interval: 5s
@@ -181,95 +181,147 @@ services:
         condition: service_healthy
 
   amm-liq-fetcher:
-      build:
-        dockerfile: ./Dockerfile.update-amm-pools
-      environment:
-        AUTHENTICATED_RPC_URL: ""
-        POSTGRES_USER: postgres
-        POSTGRES_PASSWORD: postgres
-        POSTGRES_HOST: db
-        POSTGRES_DB: postgres
-      depends_on:
-        db:
-          condition: service_healthy
+    build:
+      dockerfile: ./Dockerfile.update-amm-pools
+    environment:
+      AUTHENTICATED_RPC_URL: ""
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_HOST: db
+      POSTGRES_DB: postgres
+    depends_on:
+      db:
+        condition: service_healthy
 
   liquidity-normalizer:
-      build:
-        dockerfile: ./Dockerfile.liquidity-normalizer
-      environment:
-        AUTHENTICATED_RPC_URL: ""
-        POSTGRES_USER: postgres
-        POSTGRES_PASSWORD: postgres
-        POSTGRES_HOST: db
-        POSTGRES_DB: postgres
-      depends_on:
-        db:
-          condition: service_healthy
+    build:
+      dockerfile: ./Dockerfile.liquidity-normalizer
+    environment:
+      AUTHENTICATED_RPC_URL: ""
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_HOST: db
+      POSTGRES_DB: postgres
+    depends_on:
+      db:
+        condition: service_healthy
 
   token-supplies-fetcher:
-      build:
-        dockerfile: ./Dockerfile.token-supplies-fetching
-      environment:
-        AUTHENTICATED_RPC_URL: ""
-        POSTGRES_USER: postgres
-        POSTGRES_PASSWORD: postgres
-        POSTGRES_HOST: db
-        POSTGRES_DB: postgres
-      depends_on:
-        db:
-          condition: service_healthy
+    build:
+      dockerfile: ./Dockerfile.token-supplies-fetching
+    environment:
+      AUTHENTICATED_RPC_URL: ""
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_HOST: db
+      POSTGRES_DB: postgres
+    depends_on:
+      db:
+        condition: service_healthy
 
   marginfi-events-loan-state:
-      build:
-        dockerfile: ./Dockerfile.event_processing
-      environment:
-        PROTOCOL: marginfi
-        POSTGRES_USER: postgres
-        POSTGRES_PASSWORD: postgres
-        POSTGRES_HOST: db
-        POSTGRES_DB: postgres
-      depends_on:
-        db:
-          condition: service_healthy
+    build:
+      dockerfile: ./Dockerfile.event_processing
+    environment:
+      PROTOCOL: marginfi
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_HOST: db
+      POSTGRES_DB: postgres
+    depends_on:
+      db:
+        condition: service_healthy
 
   mango-events-loan-state:
-      build:
-        dockerfile: ./Dockerfile.event_processing
-      environment:
-        PROTOCOL: mango
-        POSTGRES_USER: postgres
-        POSTGRES_PASSWORD: postgres
-        POSTGRES_HOST: db
-        POSTGRES_DB: postgres
-      depends_on:
-        db:
-          condition: service_healthy
+    build:
+      dockerfile: ./Dockerfile.event_processing
+    environment:
+      PROTOCOL: mango
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_HOST: db
+      POSTGRES_DB: postgres
+    depends_on:
+      db:
+        condition: service_healthy
 
   kamino-events-loan-state:
-      build:
-        dockerfile: ./Dockerfile.event_processing
-      environment:
-        PROTOCOL: kamino
-        POSTGRES_USER: postgres
-        POSTGRES_PASSWORD: postgres
-        POSTGRES_HOST: db
-        POSTGRES_DB: postgres
-      depends_on:
-        db:
-          condition: service_healthy
+    build:
+      dockerfile: ./Dockerfile.event_processing
+    environment:
+      PROTOCOL: kamino
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_HOST: db
+      POSTGRES_DB: postgres
+    depends_on:
+      db:
+        condition: service_healthy
 
   solend-events-loan-state:
-      build:
-        dockerfile: ./Dockerfile.event_processing
-      environment:
-        PROTOCOL: solend
-        POSTGRES_USER: postgres
-        POSTGRES_PASSWORD: postgres
-        POSTGRES_HOST: db
-        POSTGRES_DB: postgres
-      depends_on:
-        db:
-          condition: service_healthy
+    build:
+      dockerfile: ./Dockerfile.event_processing
+    environment:
+      PROTOCOL: solend
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_HOST: db
+      POSTGRES_DB: postgres
+    depends_on:
+      db:
+        condition: service_healthy
+
+  marginfi-events-liquidable-debt:
+    build:
+      dockerfile: ./Dockerfile.liquidable_debt_processing
+    environment:
+      PROTOCOL: marginfi
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_HOST: db
+      POSTGRES_DB: postgres
+    depends_on:
+      db:
+        condition: service_healthy
+
+  mango-events-liquidable-debt:
+    build:
+      dockerfile: ./Dockerfile.liquidable_debt_processing
+    environment:
+      PROTOCOL: mango
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_HOST: db
+      POSTGRES_DB: postgres
+    depends_on:
+      db:
+        condition: service_healthy
+
+  kamino-events-liquidable-debt:
+    build:
+      dockerfile: ./Dockerfile.liquidable_debt_processing
+    environment:
+      PROTOCOL: kamino
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_HOST: db
+      POSTGRES_DB: postgres
+    depends_on:
+      db:
+        condition: service_healthy
+
+  solend-events-liquidable-debt:
+    build:
+      dockerfile: ./Dockerfile.liquidable_debt_processing
+    environment:
+      PROTOCOL: solend
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_HOST: db
+      POSTGRES_DB: postgres
+    depends_on:
+      db:
+        condition: service_healthy
 
   portainer:
     image: portainer/portainer-ce
