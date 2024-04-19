@@ -147,7 +147,7 @@ def prepare_latest_lending_supplies_df(df, prices, tokens) -> pd.DataFrame:
     return df
 
 
-def get_lending_supplies_df(prices, tokens) -> pd.DataFrame:
+def get_top_12_lending_supplies_df(prices, tokens) -> pd.DataFrame:
     mints = get_lending_tokens_with_tvl(prices, tokens)[
         :12
     ]  # We want top 12 tokens by deposits

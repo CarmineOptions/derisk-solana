@@ -39,13 +39,10 @@ def main():
         # TODO: handle better
 
     tokens_info = get_tokens_address_to_info_map()
-
     tokens_prices = get_prices_for_tokens(tokens_available)
+    tokens_with_tvl = src.visualizations.protocol_stats.get_lending_tokens_with_tvl(tokens_prices, tokens_info)
 
-    # We want to only show tokens for which we have info and price
-    tokens_to_offer = [
-        i for i in set(tokens_info.keys()) & set(tokens_prices.keys()) if i
-    ]
+    tokens_to_offer = [i[0] for i in tokens_with_tvl]
 
     tokens = src.visualizations.main_chart.token_addresses_to_Token_list(
         tokens_to_offer, tokens_info
@@ -130,7 +127,7 @@ def main():
     # streamlit.dataframe(src.visualizations.protocol_stats.load_general_stats())
     # streamlit.dataframe(src.visualizations.protocol_stats.load_utilization_stats())
 
-    token_supplies_df = src.visualizations.protocol_stats.get_lending_supplies_df(
+    token_supplies_df = src.visualizations.protocol_stats.get_top_12_lending_supplies_df(
         tokens_prices, tokens_info
     )
     if len(token_supplies_df) == 0:
@@ -138,10 +135,10 @@ def main():
         pass
 
     supplies_data = list(token_supplies_df.groupby("symbol"))
-    supplies_data.sort(key=lambda x: x[1]["Deposits"].sum())
+    supplies_data.sort(key=lambda x: x[1]["Deposits"].sum(), reverse=True)
     supplies_data_chunks = src.prices.split_into_chunks(supplies_data, 3)
-    columns = st.columns(4)
 
+    columns = st.columns(4)
     for column, supply_chunk in zip(columns, supplies_data_chunks):
         with column:
             for token_symbol, token_supply_df in supply_chunk:
@@ -153,7 +150,7 @@ def main():
                     .reset_index(),
                     values=to_show,
                     names="protocol",
-                    title=f"{token_symbol} {to_show}",
+                    title=f"{token_symbol} {to_show}, Total: ${token_supply_df[to_show].sum():,.2f}",
                     color_discrete_sequence=px.colors.sequential.Oranges_r,
                 )
                 st.plotly_chart(figure, True)
@@ -167,7 +164,7 @@ def main():
                     .reset_index(),
                     values=to_show,
                     names="protocol",
-                    title=f"{token_symbol} {to_show}",
+                    title=f"{token_symbol} {to_show}, Total: ${token_supply_df[to_show].sum():,.2f}",
                     color_discrete_sequence=px.colors.sequential.Greens_r,
                 )
                 st.plotly_chart(figure, True)
@@ -181,7 +178,7 @@ def main():
                     .reset_index(),
                     values=to_show,
                     names="protocol",
-                    title=f"{token_symbol} {to_show}",
+                    title=f"{token_symbol} {to_show}, Total: ${token_supply_df[to_show].sum():,.2f}",
                     color_discrete_sequence=px.colors.sequential.Blues_r,
                 )
                 st.plotly_chart(figure, True)
