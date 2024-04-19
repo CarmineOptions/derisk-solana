@@ -26,23 +26,23 @@ def process_transactions(signature_list_table: Type[SolendTransactionsList]):
     LOGGER.info('Initiate transactions parsing...')
     # Create parser
     tx_decoder = SolendTransactionParser()
-    while True:
+    for x in range(1000):
         transactions_to_update = []
         transactions_data = []
 
         # Minimize the DB session scope to only fetching necessary data
         with get_db_session() as session:
             if not (START_INDEX and END_INDEX):
-                transactions = session.query(SolendTransactionsList).filter_by(is_parsed=False).limit(BATCH_SIZE).all()
+                transactions = session.query(SolendTransactionsList).filter_by(is_parsed=True).limit(5000).all()
             else:
                 LOGGER.info(f"Processing transactions {START_INDEX} - {END_INDEX}")
                 transactions = (
                     session.query(SolendTransactionsList)
-                    .filter_by(is_parsed=False)
-                    .filter(signature_list_table.id >= START_INDEX)
-                    .filter(signature_list_table.id <= END_INDEX)
+                    .filter_by(is_parsed=True)
+                    .filter(signature_list_table.id >= x * 10000)
+                    .filter(signature_list_table.id <= (x+1) * 10000)
                     .order_by(signature_list_table.id)
-                    .limit(BATCH_SIZE)
+                    .limit(10000)
                     .all()
                 )
             LOGGER.info(f"Fetched {len(transactions)} transactions for processing.")
@@ -71,8 +71,7 @@ def process_transactions(signature_list_table: Type[SolendTransactionsList]):
 
                     transaction_data = EncodedTransactionWithStatusMeta.from_json(tx_data_json)
                     # Set up the decoder processor function
-                    tx_decoder._processor = lambda x, time=transaction.block_time, block_number=slot_number, sess=session:\
-                        tx_decoder.save_event_to_database(x, timestamp=time, block_number=block_number, session=sess)  # pylint: disable=protected-access
+                    tx_decoder._processor = lambda y: 1 + 1
                     # Decode the transaction data
                     tx_decoder.parse_transaction(transaction_data)
                     # Collect transactions that have been successfully parsed

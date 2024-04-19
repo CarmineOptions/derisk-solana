@@ -226,6 +226,7 @@ class SolendTransactionParser:
         parsed_data = unpack_data(data)
         if parsed_data.instruction_id == 12:
             print(parsed_data.instruction_id, self.transaction.meta.err)
+            print(str(self.transaction.transaction.signatures[0]))
         if not parsed_data:
             return
         # Get instruction name
