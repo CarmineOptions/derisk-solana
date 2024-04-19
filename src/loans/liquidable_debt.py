@@ -59,28 +59,28 @@ def process_marginfi_events(
     events: list[MarginfiParsedTransactions],
 ) -> pandas.DataFrame:
     # TODO: process marginfi events
-    print(events)
+    print(f"processing {len(events)} Marginfi events")
 
     return pandas.DataFrame()
 
 
 def process_mango_events(events: list[MangoParsedTransactions]) -> pandas.DataFrame:
     # TODO: process mango events
-    print(events)
+    print(f"processing {len(events)} Mango events")
 
     return pandas.DataFrame()
 
 
 def process_kamino_events(events: list[KaminoParsedTransactions]) -> pandas.DataFrame:
     # TODO: process kamino events
-    print(events)
+    print(f"processing {len(events)} Kamino events")
 
     return pandas.DataFrame()
 
 
 def process_solend_events(events: list[SolendParsedTransactions]) -> pandas.DataFrame:
     # TODO: process solend events
-    print(events)
+    print(f"processing {len(events)} Solend events", flush=True)
 
     return pandas.DataFrame()
 
@@ -167,10 +167,13 @@ def fetch_liquidable_debts(protocol: Protocol, session: Session) -> pandas.DataF
     # Define a subquery for the maximum timestamp value
     max_timestamp_subquery = session.query(func.max(model.timestamp)).subquery()
 
-    # Retrieve entries from the loan_states table where timestamp equals the maximum timestamp value
-    query_result = (
-        session.query(model).filter(model.timestamp == max_timestamp_subquery).all()
-    )
+    try:
+        # Retrieve entries from the loan_states table where timestamp equals the maximum timestamp value
+        query_result = (
+            session.query(model).filter(model.timestamp == max_timestamp_subquery).all()
+        )
+    except:
+        query_result = []
 
     df = pandas.DataFrame(
         [
