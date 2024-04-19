@@ -1,7 +1,6 @@
 """
 Module containing functionality related to Postgres DB used throughout the repo.
 """
-from decimal import Decimal
 import os
 from enum import Enum
 
@@ -678,8 +677,8 @@ class MarginfiLiquidableDebts(Base):
     protocol = Column(String, primary_key=True, nullable=False)
     collateral_token = Column(String, primary_key=True, nullable=False)
     debt_token = Column(String, primary_key=True, nullable=False)
-    collateral_token_price = Column(Decimal, primary_key=True, nullable=False)
-    amount = Column(Decimal, nullable=False)
+    collateral_token_price = Column(DECIMAL, primary_key=True, nullable=False)
+    amount = Column(DECIMAL, nullable=False)
 
     def __repr__(self):
         return (
@@ -701,8 +700,8 @@ class KaminoLiquidableDebts(Base):
     protocol = Column(String, primary_key=True, nullable=False)
     collateral_token = Column(String, primary_key=True, nullable=False)
     debt_token = Column(String, primary_key=True, nullable=False)
-    collateral_token_price = Column(Decimal, primary_key=True, nullable=False)
-    amount = Column(Decimal, nullable=False)
+    collateral_token_price = Column(DECIMAL, primary_key=True, nullable=False)
+    amount = Column(DECIMAL, nullable=False)
 
     def __repr__(self):
         return (
@@ -724,8 +723,8 @@ class MangoLiquidableDebts(Base):
     protocol = Column(String, primary_key=True, nullable=False)
     collateral_token = Column(String, primary_key=True, nullable=False)
     debt_token = Column(String, primary_key=True, nullable=False)
-    collateral_token_price = Column(Decimal, primary_key=True, nullable=False)
-    amount = Column(Decimal, nullable=False)
+    collateral_token_price = Column(DECIMAL, primary_key=True, nullable=False)
+    amount = Column(DECIMAL, nullable=False)
 
     def __repr__(self):
         return (
@@ -747,8 +746,8 @@ class SolendLiquidableDebts(Base):
     protocol = Column(String, primary_key=True, nullable=False)
     collateral_token = Column(String, primary_key=True, nullable=False)
     debt_token = Column(String, primary_key=True, nullable=False)
-    collateral_token_price = Column(Decimal, primary_key=True, nullable=False)
-    amount = Column(Decimal, nullable=False)
+    collateral_token_price = Column(DECIMAL, primary_key=True, nullable=False)
+    amount = Column(DECIMAL, nullable=False)
 
     def __repr__(self):
         return (
