@@ -8,6 +8,9 @@ import src.protocols.addresses
 import db
 
 # TODO: Add type hints
+# TODO: Make sth like ProtocolStats class that will hold the info
+#       rn the same info is fetched from db multiple times
+
 
 def get_unique_token_supply_mints() -> list[str] | None:
     with db.get_db_session() as sesh:
@@ -137,7 +140,7 @@ def prepare_latest_lending_supplies_df(df, prices, tokens) -> pd.DataFrame:
     df["lent_total"] = df["lent_total"] / 10 ** df["decimals"]
     df["deposits_total"] = df["deposits_total"] / 10 ** df["decimals"]
     df["available_to_borrow"] = df["available_to_borrow"] / 10 ** df["decimals"]
-    df["protocol"] = [addresses[i] for i in df["protocol_id"]]
+    df["Protocol"] = [addresses[i] for i in df["protocol_id"]]
     df["price"] = [prices[i] for i in df["underlying_mint_address"]]
 
     df["Borrowed"] = df["lent_total"] * df["price"]
@@ -153,6 +156,45 @@ def get_top_12_lending_supplies_df(prices, tokens) -> pd.DataFrame:
     ]  # We want top 12 tokens by deposits
     df = get_latest_lending_suplies_for_mints([i[0] for i in mints])
     return prepare_latest_lending_supplies_df(df, prices, tokens)
+
+
+def get_token_utilizations_df(prices, tokens) -> pd.DataFrame:
+    top_tvl_mint_addresses = get_lending_tokens_with_tvl(prices, tokens)
+    lending_suplies = get_latest_lending_suplies_for_mints(
+        [i[0] for i in top_tvl_mint_addresses]
+    )
+    lending_suplies = prepare_latest_lending_supplies_df(
+        lending_suplies, prices, tokens
+    )
+
+    utilizations = (
+        lending_suplies[["Protocol", "Borrowed", "Deposits"]]
+        .groupby("Protocol")
+        .sum()
+        .apply(lambda x: f"{x['Borrowed'] / x['Deposits'] * 100:.3f}%", axis=1)
+        .to_frame()
+    )
+    utilizations.columns = ["Total Utilization"]
+
+    top12 = lending_suplies[
+        lending_suplies["underlying_mint_address"].isin(
+            [i[0] for i in top_tvl_mint_addresses[:12]]
+        )
+    ]
+    data = list(top12.groupby("symbol"))
+    data.sort(key=lambda x: x[1]["Deposits"].sum(), reverse=True)
+
+    for token_symbol, token_df in data:
+        colname = token_symbol + " Utilization"
+        utilizations[colname] = None
+        for protocol, protocol_df in list(token_df.groupby("Protocol")):
+            total_deposit = protocol_df["Deposits"].sum()
+            total_lent = protocol_df["Borrowed"].sum()
+            util = total_lent / total_deposit
+
+            utilizations.loc[protocol, colname] = f"{util * 100:.3f}%"
+
+    return utilizations
 
 
 # TODO: To be implemented.

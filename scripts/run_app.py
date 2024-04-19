@@ -33,8 +33,8 @@ def main():
     tokens_available = src.visualizations.protocol_stats.get_unique_token_supply_mints()
     if not tokens_available:
         tokens_available = [
-            "So11111111111111111111111111111111111111112",
-            "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+            "So11111111111111111111111111111111111111112", # SOL
+            "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v", # USDC
         ]
         # TODO: handle better
 
@@ -122,10 +122,13 @@ def main():
     # 	use_container_width=True,
     # )
 
+
     # # Display comparison stats for all lending protocols.
     st.header("Comparison of lending protocols")
     # streamlit.dataframe(src.visualizations.protocol_stats.load_general_stats())
-    # streamlit.dataframe(src.visualizations.protocol_stats.load_utilization_stats())
+    utilizations_df = src.visualizations.protocol_stats.get_token_utilizations_df(tokens_prices, tokens_info)
+    st.dataframe(utilizations_df, use_container_width=True)
+    # st.write(utilizations_df, True)
 
     token_supplies_df = src.visualizations.protocol_stats.get_top_12_lending_supplies_df(
         tokens_prices, tokens_info
@@ -144,12 +147,12 @@ def main():
             for token_symbol, token_supply_df in supply_chunk:
                 to_show = "Deposits"
                 figure = px.pie(
-                    token_supply_df[["protocol", to_show]]
-                    .groupby("protocol")
+                    token_supply_df[["Protocol", to_show]]
+                    .groupby("Protocol")
                     .sum()
                     .reset_index(),
                     values=to_show,
-                    names="protocol",
+                    names="Protocol",
                     title=f"{token_symbol} {to_show}, Total: ${token_supply_df[to_show].sum():,.2f}",
                     color_discrete_sequence=px.colors.sequential.Oranges_r,
                 )
@@ -158,12 +161,12 @@ def main():
             for token_symbol, token_supply_df in supply_chunk:
                 to_show = "Borrowed"
                 figure = px.pie(
-                    token_supply_df[["protocol", to_show]]
-                    .groupby("protocol")
+                    token_supply_df[["Protocol", to_show]]
+                    .groupby("Protocol")
                     .sum()
                     .reset_index(),
                     values=to_show,
-                    names="protocol",
+                    names="Protocol",
                     title=f"{token_symbol} {to_show}, Total: ${token_supply_df[to_show].sum():,.2f}",
                     color_discrete_sequence=px.colors.sequential.Greens_r,
                 )
@@ -172,12 +175,12 @@ def main():
             for token_symbol, token_supply_df in supply_chunk:
                 to_show = "Available"
                 figure = px.pie(
-                    token_supply_df[["protocol", to_show]]
-                    .groupby("protocol")
+                    token_supply_df[["Protocol", to_show]]
+                    .groupby("Protocol")
                     .sum()
                     .reset_index(),
                     values=to_show,
-                    names="protocol",
+                    names="Protocol",
                     title=f"{token_symbol} {to_show}, Total: ${token_supply_df[to_show].sum():,.2f}",
                     color_discrete_sequence=px.colors.sequential.Blues_r,
                 )
