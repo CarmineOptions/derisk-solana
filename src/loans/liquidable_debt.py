@@ -10,10 +10,10 @@ from db import (
     MarginfiParsedTransactions,
     KaminoParsedTransactions,
     SolendParsedTransactions,
-    MangoLiquidableDepts,
-    MarginfiLiquidableDepts,
-    KaminoLiquidableDepts,
-    SolendLiquidableDepts,
+    MangoLiquidableDebts,
+    MarginfiLiquidableDebts,
+    KaminoLiquidableDebts,
+    SolendLiquidableDebts,
     get_db_session,
 )
 
@@ -31,10 +31,10 @@ AnyEvents = list[
 ]
 
 AnyProtocolModel = (
-    Type[MangoLiquidableDepts]
-    | Type[MarginfiLiquidableDepts]
-    | Type[KaminoLiquidableDepts]
-    | Type[SolendLiquidableDepts]
+    Type[MangoLiquidableDebts]
+    | Type[MarginfiLiquidableDebts]
+    | Type[KaminoLiquidableDebts]
+    | Type[SolendLiquidableDebts]
 )
 
 TypeMarginfi = TypeVar("TypeMarginfi", bound=MarginfiParsedTransactions)
@@ -104,20 +104,20 @@ def protocol_to_model(
     protocol: Protocol,
 ) -> AnyProtocolModel:
     if protocol == MARGINFI:
-        return MarginfiLiquidableDepts
+        return MarginfiLiquidableDebts
     if protocol == MANGO:
-        return MangoLiquidableDepts
+        return MangoLiquidableDebts
     if protocol == KAMINO:
-        return KaminoLiquidableDepts
+        return KaminoLiquidableDebts
     if protocol == SOLEND:
-        return SolendLiquidableDepts
+        return SolendLiquidableDebts
     # Unreachable
     raise ValueError(f"invalid protocol {protocol}")
 
 
-def store_liquidable_dept(df: pandas.DataFrame, protocol: Protocol, session: Session):
+def store_liquidable_debts(df: pandas.DataFrame, protocol: Protocol, session: Session):
     """
-    Stores data from a pandas DataFrame to the liquidable_depts table.
+    Stores data from a pandas DataFrame to the liquidable_debts table.
 
     Args:
     - df (pandas.DataFrame): A DataFrame with the following columns:
@@ -134,7 +134,7 @@ def store_liquidable_dept(df: pandas.DataFrame, protocol: Protocol, session: Ses
     model = protocol_to_model(protocol)
 
     for _, row in df.iterrows():
-        liquidable_dept = model(
+        liquidable_debts = model(
             timestamp=row["timestamp"],
             protocol=row["protocol"],
             collateral_token=row["collateral_token"],
@@ -142,11 +142,11 @@ def store_liquidable_dept(df: pandas.DataFrame, protocol: Protocol, session: Ses
             collateral_token_price=row["collateral_token_price"],
             amount=row["amount"],
         )
-        session.add(liquidable_dept)
+        session.add(liquidable_debts)
     session.commit()
 
 
-def fetch_liquidable_depts(protocol: Protocol, session: Session) -> pandas.DataFrame:
+def fetch_liquidable_debts(protocol: Protocol, session: Session) -> pandas.DataFrame:
     """
     Fetches loan states with the max slot from the DB and returns them as a DataFrame
 
@@ -168,7 +168,9 @@ def fetch_liquidable_depts(protocol: Protocol, session: Session) -> pandas.DataF
     max_timestamp_subquery = session.query(func.max(model.timestamp)).subquery()
 
     # Retrieve entries from the loan_states table where timestamp equals the maximum timestamp value
-    query_result = session.query(model).filter(model.timestamp == max_timestamp_subquery).all()
+    query_result = (
+        session.query(model).filter(model.timestamp == max_timestamp_subquery).all()
+    )
 
     df = pandas.DataFrame(
         [
@@ -228,7 +230,7 @@ def fetch_events(min_slot: int, protocol: Protocol, session: Session) -> AnyEven
     raise ValueError(f"invalid protocol {protocol}")
 
 
-def process_events_to_liquidable_depts(
+def process_events_to_liquidable_debts(
     protocol: Protocol,
     process_function: Callable[
         [AnyEvents],
@@ -236,26 +238,26 @@ def process_events_to_liquidable_depts(
     ],
     session: Session,
 ):
-    current_liquidable_depts = fetch_liquidable_depts(protocol, session)
+    current_liquidable_debts = fetch_liquidable_debts(protocol, session)
     min_slot = 0
 
-    if len(current_liquidable_depts) > 0:
-        min_slot = int(current_liquidable_depts.iloc[0]["slot"])
+    if len(current_liquidable_debts) > 0:
+        min_slot = int(current_liquidable_debts.iloc[0]["slot"])
 
     events: AnyEvents = fetch_events(min_slot, protocol, session)
 
-    new_liquidable_dept = process_function(events)
+    new_liquidable_debts = process_function(events)
 
-    store_liquidable_dept(new_liquidable_dept, protocol, session)
+    store_liquidable_debts(new_liquidable_debts, protocol, session)
 
 
 def process_events_continuously(protocol: Protocol):
-    logging.info("Starting events to liquidable_depts processing.")
+    logging.info("Starting events to liquidable_debts processing.")
     session = get_db_session()
 
     process_func = protocol_to_process_func(protocol)
 
     while True:
-        process_events_to_liquidable_depts(protocol, process_func, session)
-        logging.info("Updated liquidable_depts.")
+        process_events_to_liquidable_debts(protocol, process_func, session)
+        logging.info("Updated liquidable_debts.")
         time.sleep(120)
