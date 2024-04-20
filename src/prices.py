@@ -44,7 +44,7 @@ def get_prices_for_tokens(tokens: list[str]) -> dict[str, float | None]:
     chunks = split_into_chunks(tokens, 100)  # Jupiter allows max 100 ids per request
 
     for chunk in chunks:
-        translated_ids = list(kamino_vault_map.kamino_address_to_mint_address, map(chunk))
+        translated_ids = list(map(kamino_vault_map.kamino_address_to_mint_address, chunk))
         ids = ",".join(translated_ids)
 
         url = f"{BASE_API_URL}?ids={ids}&vsToken=USDC"
