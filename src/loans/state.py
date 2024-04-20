@@ -38,9 +38,9 @@ class State(abc.ABC):
         self.loan_entity_class: LoanEntity = loan_entity_class
         self.verbose_users: set[str] | None = verbose_users
         self.loan_entities: collections.defaultdict = collections.defaultdict(self.loan_entity_class)
+        self.last_slot: int = 0
         self.set_initial_loan_states(initial_loan_states=initial_loan_states)
         self.unprocessed_events: pandas.DataFrame = pandas.DataFrame()
-        self.last_slot: int = 0
 
     def set_initial_loan_states(self, initial_loan_states: pandas.DataFrame) -> None:
         if initial_loan_states.empty:
@@ -51,8 +51,12 @@ class State(abc.ABC):
         self.last_slot = initial_loan_states['slot'].iloc[0]
         for _, loan_state in initial_loan_states.iterrows():
             user = loan_state['user']
-            self.loan_entities[user].collateral = loan_state['collateral']
-            self.loan_entities[user].debt = loan_state['debt']
+            for collateral_token, collateral_amount in loan_state['collateral'].items():
+                if collateral_amount:
+                    self.loan_entities[user].collateral[collateral_token] = collateral_amount
+            for debt_token, debt_amount in loan_state['debt'].items():
+                if debt_amount:
+                    self.loan_entities[user].debt[debt_token] = debt_amount
 
     @abc.abstractmethod
     def get_unprocessed_events(self) -> None:
