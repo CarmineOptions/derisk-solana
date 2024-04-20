@@ -185,7 +185,7 @@ class MarginfiLendingAccounts(LendingAccounts):
 
 ############### MANGO V2 ################
 class MangoParsedEvents(Base):
-    __tablename__ = "mango_parsed_transactions_v2"
+    __tablename__ = "mango_parsed_transactions_v3"
     id = Column(Integer, primary_key=True, autoincrement=True)
     transaction_id = Column(String, nullable=True)
 

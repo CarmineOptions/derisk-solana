@@ -38,12 +38,17 @@ def namedtuple_to_dict(obj):
     """Recursively convert nested namedtuple to dictionary."""
     if hasattr(obj, "_asdict"):  # Check if it's a namedtuple
         return {key: namedtuple_to_dict(value) for key, value in obj._asdict().items()}
+    
     elif isinstance(obj, Iterable) and not isinstance(obj, (str, bytes, dict)):
         return [namedtuple_to_dict(item) for item in obj]
+    if hasattr(obj, "__dict__"):  # Check if it's a namedtuple
+        return {key: namedtuple_to_dict(value) for key, value in obj.__dict__.items()}
+        
+    
     elif isinstance(obj, dict):  # Process values in the dictionary recursively
         return {key: namedtuple_to_dict(value) for key, value in obj.items()}
     else:
-        return str(obj)
+        return obj if not isinstance(obj, Pubkey) else str(obj)
 
 
 class MangoTransactionParserV2(TransactionDecoder):
