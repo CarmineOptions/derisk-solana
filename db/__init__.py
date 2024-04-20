@@ -119,7 +119,7 @@ class ParsedTransactions(Base):
     event_name = Column(String, nullable=True)
     event_number = Column(String, nullable=True)
 
-    position = Column(SQLEnum('asset', 'liability', name='sqlenum', schema=SCHEMA), nullable=True)
+    position = Column(SQLEnum('asset', 'liability', name='sqlenum', schema=SCHEMA_LENDERS), nullable=True)
     token = Column(String, nullable=True)
     amount = Column(BigInteger, nullable=True)
     amount_decimal = Column(Integer, nullable=True)
@@ -183,6 +183,142 @@ class MarginfiLendingAccounts(LendingAccounts):
     )
 
 
+################ MARGINFI V2 ################################
+class MarginfiParsedTransactionsV2(ParsedTransactions):
+    __tablename__ = "marginfi_parsed_transactions_v5"
+    source = Column(String, nullable=True)
+    destination = Column(String, nullable=True)
+    marginfi_group = Column(String, nullable = True)
+    asset_bank = Column(String, nullable = True)
+    liab_bank = Column(String, nullable = True)
+    liquidator_marginfi_account = Column(String, nullable = True)
+    liquidatee_marginfi_account = Column(String, nullable = True)
+    instructed_amount = Column(String, nullable = True)
+    __table_args__ = (  # type: ignore
+        Index("ix_marginfi_parsed_transactions_v5_transaction_id", "transaction_id"),
+        Index("ix_marginfi_parsed_transactions_v5_instruction_name", "instruction_name"),
+        Index("ix_marginfi_parsed_transactions_v5_event_name", "event_name"),
+        Index("ix_marginfi_parsed_transactions_v5_account", "account"),
+        {"schema": SCHEMA_LENDERS},
+    )
+
+    def __repr__(self):
+        attributes = vars(self)
+        # Filter out attributes that are None
+        attr_str = "\n".join(f"{key}: {value!r}" for key, value in attributes.items())  # if value is not None)
+        return f"MarginfiParsedInstruction(\n{attr_str}\n)"
+
+
+class MarginfiLendingAccountsV2(LendingAccounts):
+    __tablename__ = "marginfi_lending_accounts_v5"
+    __table_args__ = (  # type: ignore
+        Index("ix_marginfi_lending_accounts_v5_address", "address"),
+        Index("ix_marginfi_lending_accounts_v5_group", "group"),
+        Index("ix_marginfi_lending_accounts_v5_authority", "authority"),
+        {"schema": SCHEMA_LENDERS}
+    )
+
+    def __repr__(self):
+        attributes = vars(self)
+        # Filter out attributes that are None
+        attr_str = "\n".join(f"{key}: {value!r}" for key, value in attributes.items()) # if value is not None)
+        return f"MarginfiAccount(\n{attr_str}\n)"
+
+
+class MarginfiBankV2(Base):
+    __tablename__ = "marginfi_banks_v5"
+
+    id = Column(Integer, primary_key=True)
+    marginfi_group = Column(String)
+    admin = Column(String)
+    fee_payer = Column(String)
+    bank_mint = Column(String)
+    bank = Column(String, index=True)
+    liquidity_vault_authority = Column(String)
+    liquidity_vault = Column(String)
+    insurance_vault_authority = Column(String)
+    insurance_vault = Column(String)
+    fee_vault_authority = Column(String)
+    fee_vault = Column(String)
+    rent = Column(String)
+    __table_args__ = (  # type: ignore
+        {"schema": SCHEMA_LENDERS}
+    )
+
+    def __repr__(self):
+        attributes = vars(self)
+        # Filter out attributes that are None
+        attr_str = "\n".join(f"{key}: {value!r}" for key, value in attributes.items()) # if value is not None)
+        return f"MarginfiBank(\n{attr_str}\n)"
+
+################################## KAMINO V2 ###############
+class KaminoParsedTransactionsV2(ParsedTransactions):
+    __tablename__ = "kamino_parsed_transactions_v4"
+    obligation = Column(String, nullable=True)
+    source = Column(String, nullable=True)
+    destination = Column(String, nullable=True)
+    lending_market = Column(String, nullable = True)
+    liquidator = Column(String, nullable = True)
+    liquidity_amount = Column(String, nullable = True)
+    repay_reserve = Column(String, nullable = True)
+    withdraw_reserve = Column(String, nullable = True)
+    __table_args__ = (  # type: ignore
+        Index("ix_kamino_parsed_transactions_v4_transaction_id", "transaction_id"),
+        Index("ix_kamino_parsed_transactions_v4_instruction_name", "instruction_name"),
+        Index("ix_kamino_parsed_transactions_v4_event_name", "event_name"),
+        Index("ix_kamino_parsed_transactions_v4_account", "account"),
+        Index("ix_kamino_parsed_transactions_v4_obligation", "obligation"),
+        {"schema": SCHEMA_LENDERS},
+    )
+
+    def __repr__(self):
+        attributes = vars(self)
+        # Filter out attributes that are None
+        attr_str = "\n".join(f"{key}: {value!r}" for key, value in attributes.items())  # if value is not None)
+        return f"KaminoParsedInstruction(\n{attr_str}\n)"
+
+
+class KaminoObligationV2(LendingAccounts):
+    __tablename__ = "kamino_lending_accounts_v4"
+    __table_args__ = (  # type: ignore
+        Index("ix_kamino_lending_accounts_v4_address", "address"),
+        Index("ix_kamino_lending_accounts_v4_group", "group"),
+        Index("ix_kamino_lending_accounts_v4_authority", "authority"),
+        {"schema": SCHEMA_LENDERS}
+    )
+
+    def __repr__(self):
+        attributes = vars(self)
+        # Filter out attributes that are None
+        attr_str = "\n".join(f"{key}: {value!r}" for key, value in attributes.items())
+        return f"KaminoAccount(\n{attr_str}\n)"
+
+
+class KaminoReserveV2(Base):
+    __tablename__ = "kamino_reserves_v4"
+
+    id = Column(Integer, primary_key=True)
+    lending_market = Column(String)
+    lending_market_owner = Column(String)
+    reserve = Column(String)
+    reserve_liquidity_mint = Column(String)
+    reserve_liquidity_supply = Column(String)
+    fee_receiver = Column(String)
+    reserve_collateral_mint = Column(String)
+    reserve_collateral_supply = Column(String)
+    rent = Column(String)
+    __table_args__ = (  # type: ignore
+        {"schema": SCHEMA_LENDERS}
+    )
+
+    def __repr__(self):
+        attributes = vars(self)
+        # Filter out attributes that are None
+        attr_str = "\n".join(f"{key}: {value!r}" for key, value in attributes.items())
+        return f"KaminoReserve(\n{attr_str}\n)"
+
+###############################################################
+
 class KaminoParsedTransactions(ParsedTransactions):
     __tablename__ = "kamino_parsed_transactions"
     source = Column(String, nullable=True)
@@ -219,18 +355,18 @@ class KaminoLendingAccounts(LendingAccounts):
 
 
 class SolendParsedTransactions(ParsedTransactions):
-    __tablename__ = "solend_parsed_transactions"
+    __tablename__ = "solend_parsed_transactions_v2"
     source = Column(String, nullable=True)
     destination = Column(String, nullable=True)
     obligation = Column(String, nullable=True)
     authority = Column(String, nullable=True)
     __table_args__ = (
-        Index("ix_solend_parsed_transactions_transaction_id", "transaction_id"),
-        Index("ix_solend_parsed_transactions_instruction_name", "instruction_name"),
-        Index("ix_solend_parsed_transactions_event_name", "event_name"),
-        Index("ix_solend_parsed_transactions_obligation", "obligation"),
-        Index("ix_solend_parsed_transactions_token", "token"),
-        {"schema": SCHEMA},
+        Index("ix_solend_parsed_transactions_v2_transaction_id", "transaction_id"),
+        Index("ix_solend_parsed_transactions_v2_instruction_name", "instruction_name"),
+        Index("ix_solend_parsed_transactions_v2_event_name", "event_name"),
+        Index("ix_solend_parsed_transactions_v2_obligation", "obligation"),
+        Index("ix_solend_parsed_transactions_v2_token", "token"),
+        {"schema": SCHEMA_LENDERS},
     )
 
     def __repr__(self):
@@ -245,17 +381,17 @@ class SolendParsedTransactions(ParsedTransactions):
 
 
 class SolendObligations(LendingAccounts):  # table to store obligations' data
-    __tablename__ = "solend_lending_accounts"
+    __tablename__ = "solend_lending_accounts_v2"
     __table_args__ = (  # type: ignore
-        Index("ix_solend_lending_accounts_address", "address"),
-        Index("ix_solend_lending_accounts_group", "group"),
-        Index("ix_solend_lending_accounts_authority", "authority"),
-        {"schema": SCHEMA}
+        Index("ix_solend_lending_accounts_v2_address", "address"),
+        Index("ix_solend_lending_accounts_v2_group", "group"),
+        Index("ix_solend_lending_accounts_v2_authority", "authority"),
+        {"schema": SCHEMA_LENDERS}
     )
 
 
 class SolendReserves(Base):  # table to store reserves data
-    __tablename__ = 'solend_reserves'
+    __tablename__ = 'solend_reserves_v2'
 
     id = Column(Integer, primary_key=True)
     source_liquidity_pubkey = Column(String)
@@ -275,7 +411,7 @@ class SolendReserves(Base):  # table to store reserves data
     user_transfer_authority_pubkey = Column(String)
 
     __table_args__ = (  # type: ignore
-        {"schema": SCHEMA}
+        {"schema": SCHEMA_LENDERS}
     )
 
 
@@ -431,8 +567,16 @@ class MarginfiTransactionsList(TransactionsList):
     )
 
 
+class MarginfiTransactionsListV2(TransactionsList):
+    __tablename__ = 'marginfi_hist_transaction_list_v2'
+    __table_args__ = (  # type: ignore
+        Index('idx_marginfi_transaction_list_v2_signature', 'signature'),
+        {"schema": SCHEMA_LENDERS},
+    )
+
+
 class KaminoTransactionsList(TransactionsList):
-    __tablename__ = 'kamino_hist_transaction_list'
+    __tablename__ = 'kamino_hist_transaction_list_v3'
     __table_args__ = (  # type: ignore
         Index('idx_kamino_transaction_list_signature', 'signature'),
         {"schema": SCHEMA_LENDERS},
@@ -456,7 +600,7 @@ class SolendTransactionsList(TransactionsList):
     __tablename__ = 'solend_hist_transaction_list'
     __table_args__ = (  # type: ignore
         Index('idx_solend_transaction_list_signature', 'signature'),
-        {"schema": SCHEMA},
+        {"schema": SCHEMA_LENDERS},
     )
 
 

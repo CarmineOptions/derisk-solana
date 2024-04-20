@@ -22,7 +22,8 @@ START_INDEX = os.getenv('START_INDEX', None)
 END_INDEX = os.getenv('END_INDEX', None)
 
 
-def process_transactions(parser: Type[TransactionDecoder], signature_list_table: Type[TransactionsList]):
+def process_transactions(
+        parser: Type[TransactionDecoder], signature_list_table: Type[TransactionsList], protocol_key: str):
     LOGGER.info('Initiate transactions parsing...')
     # Create parser
     tx_decoder = parser()
@@ -53,11 +54,11 @@ def process_transactions(parser: Type[TransactionDecoder], signature_list_table:
                     TransactionStatusWithSignature.slot
                 ).filter(
                     TransactionStatusWithSignature.signature == transaction.signature
+                ).filter(
+                    TransactionStatusWithSignature.source == protocol_key
                 ).first()
                 if tx_data and tx_data.transaction_data:
                     transactions_data.append((transaction, tx_data.transaction_data, tx_data.slot))
-                else:
-                    transactions_data.append((transaction, None, None))
 
         # Parse transactions
         with get_db_session() as session:

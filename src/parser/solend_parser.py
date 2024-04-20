@@ -1,7 +1,7 @@
 """
 Solend transaction parser.
 """
-from typing import Callable, Dict
+from typing import Callable, Dict, Any
 import struct
 import logging
 import os
@@ -9,7 +9,8 @@ import os
 import base58
 from solders.pubkey import Pubkey
 from solders.signature import Signature
-from solders.transaction_status import EncodedTransactionWithStatusMeta, UiPartiallyDecodedInstruction
+from solders.transaction_status import EncodedTransactionWithStatusMeta, UiPartiallyDecodedInstruction, \
+    ParsedInstruction
 
 from db import SolendParsedTransactions, SolendObligations, SolendReserves
 from src.parser.solend_config import INSTRUCTION_ACCOUNT_MAP
@@ -20,6 +21,8 @@ LOGGER = logging.getLogger(__name__)
 
 
 def snake_to_camel(snake_str):
+    if not snake_str:
+        return ''
     # Split the string into words based on underscores
     components = snake_str.split('_')
     # Capitalize the first letter of each component except the first one
@@ -29,6 +32,12 @@ def snake_to_camel(snake_str):
 
 class UnpackError(Exception):
     pass
+
+
+class InnerInstructionContainer:
+    """ Class for storing inner instructions. """
+    def __init__(self, inner_instructions):
+        self.instructions = inner_instructions
 
 
 class SolendInstructionData:
@@ -60,7 +69,6 @@ def unpack_u8(input_bytes):
     rest = input_bytes[1:]
 
     return value, rest
-
 
 
 def unpack_pubkey(input_bytes, pubkey_bytes: int = 8):
@@ -136,7 +144,26 @@ def unpack_data(data: str):
             amount=collateral_amount,
             value_name="WithdrawObligationCollateralAndRedeemReserveCollateral"
         )
-
+    elif tag == 16:  # UpdateReserveConfig
+        return
+    elif tag == 17:
+        liquidity_amount, rest = unpack_u64(rest)
+        return SolendInstructionData(
+            instruction_id=tag, amount=liquidity_amount, value_name="LiquidateObligationAndRedeemReserveCollateral")
+    elif tag == 18:
+        return SolendInstructionData(instruction_id=tag, value_name="RedeemFees")
+    elif tag == 19:
+        liquidity_amount, rest = unpack_u64(rest)
+        return SolendInstructionData(
+            instruction_id=tag, amount=liquidity_amount, value_name="FlashBorrowReserveLiquidity")
+    elif tag == 20:
+        liquidity_amount, rest = unpack_u64(rest)
+        return SolendInstructionData(
+            instruction_id=tag, amount=liquidity_amount, value_name="FlashRepayReserveLiquidity")
+    elif tag == 21:
+        liquidity_amount, rest = unpack_u64(rest)
+        return SolendInstructionData(instruction_id=tag, amount=liquidity_amount, value_name="ForgiveDebt")
+    return
 
 
 class SolendTransactionParser:
@@ -158,6 +185,8 @@ class SolendTransactionParser:
         "deposit_reserve_liquidity_and_obligation_collateral": 14,
         "withdraw_obligation_collateral_and_redeem_reserve_liquidity": 15,
         "update_reserve_config": 16,
+        "liquidate_obligation_and_redeem_reserve_collateral": 17,
+        "redeem_fee": 18,
         "flash_borrow_reserve_liquidity": 19,
         "flash_repay_reserve_liquidity": 20,
         "forgive_debt": 21,
@@ -180,7 +209,7 @@ class SolendTransactionParser:
         'flash_borrow_reserve_liquidity',
         'flash_repay_reserve_liquidity',
         'forgive_debt',
-        # 'flash_loan'
+        'flash_loan'
     ]
 
     def __init__(
@@ -207,23 +236,48 @@ class SolendTransactionParser:
         if self.transaction.meta.err:
             return
         # Parse instructions:
-        for instruction in self.transaction.transaction.message.instructions:
-            # print(instruction)
+        for instruction_index, instruction in enumerate(self.transaction.transaction.message.instructions):
             # Check if instruction is partially decoded and belongs to the known program
             if isinstance(instruction, UiPartiallyDecodedInstruction) and instruction.program_id == self.program_id:
-                self._process_instruction(instruction)
+                self._process_instruction(instruction, instruction_index)
+        # Search and parse relevant instruction in inner instructions
+        for instruction in self.transaction.meta.inner_instructions:
+            instruction_index = instruction.index
+            for idx, inner_instruction in enumerate(instruction.instructions):
+                if isinstance(inner_instruction,
+                              UiPartiallyDecodedInstruction) and inner_instruction.program_id == self.program_id:
+                    solend_instruction = inner_instruction
+                    related_inner_instructions = []
+                    if idx + 1 < len(instruction.instructions):
+                        for following_instruction in instruction.instructions[idx + 1:]:
+                            if isinstance(following_instruction, ParsedInstruction):
+                                related_inner_instructions.append(following_instruction)
+                            else:
+                                break
+                    if related_inner_instructions:
+                        contained_inner_instructions = InnerInstructionContainer(related_inner_instructions)
+                    else:
+                        contained_inner_instructions = InnerInstructionContainer(None)
 
-    def _process_instruction(self, instruction: UiPartiallyDecodedInstruction) -> None:
+                    self._process_instruction(solend_instruction, instruction_index, contained_inner_instructions)
+
+    def _process_instruction(
+            self,
+            instruction: UiPartiallyDecodedInstruction,
+            instruction_index: int,
+            inner_instructions: Any | None = None,
+    ) -> None:
         # process instruction data
         data = instruction.data
         parsed_data = unpack_data(data)
+        if not parsed_data:
+            return
         # Get instruction name
         instruction_name = {v: k for k, v in self.instruction_types.items()}[parsed_data.instruction_id]
 
         if instruction_name not in self.relevant_instructions:
             return
-        # get inner instructions
-        instruction_index = self.transaction.transaction.message.instructions.index(instruction)  # type: ignore
+
         # pair present account keys with its names
         account_names = INSTRUCTION_ACCOUNT_MAP[instruction_name]
 
@@ -234,11 +288,16 @@ class SolendTransactionParser:
         # parse `init_obligation` event
         if instruction_name == 'init_obligation':
             self._init_obligation(instruction_accounts)
+            return
+        # parse `init_reserve` instruction
         if instruction_name == 'init_reserve':
             self._init_reserve(instruction_accounts)
-        inner_instructions = next((
-            i for i in self.transaction.meta.inner_instructions if i.index == instruction_index), None)
-        if inner_instructions:
+            return
+        # Find related inner instructions
+        if not inner_instructions:
+            inner_instructions = next((
+                i for i in self.transaction.meta.inner_instructions if i.index == instruction_index), None)
+        if inner_instructions and inner_instructions.instructions:
             for inner_instruction in inner_instructions.instructions:
                 self._save_inner_instruction(
                     inner_instruction,
@@ -272,9 +331,12 @@ class SolendTransactionParser:
 
             self._processor(burn)
         else:
-            raise UnknownInstruction(inner_instruction)
+            LOGGER.warning(f"Unknown instruction: {inner_instruction} "
+                           f"in `{str(self.transaction.transaction.signatures[0])}`")
 
-    def _parse_transfer_instruction(self, inner_instruction, accounts: Dict[str, str], instruction_name: str, instruction_idx: int):
+
+    def _parse_transfer_instruction(
+            self, inner_instruction, accounts: Dict[str, str], instruction_name: str, instruction_idx: int):
         """"""
         instruction = inner_instruction.parsed
 
@@ -282,9 +344,9 @@ class SolendTransactionParser:
         token = str(instruction['info']['token']) if 'token' in instruction['info'] else None
         amount = int(instruction['info']['amount'])
         source = instruction['info']['source']
-        source_name = accounts[source]
+        source_name = accounts[source] if source in accounts else None
         destination = instruction['info']['destination']
-        destination_name = accounts[destination]
+        destination_name = accounts[destination] if destination in accounts else None
 
         obligation = next((k for k, v in accounts.items() if v == 'obligation_pubkey'), None)
 
@@ -319,7 +381,7 @@ class SolendTransactionParser:
         token = str(instruction['info']['mint']) if 'mint' in instruction['info'] else None
         amount = int(instruction['info']['amount'])
         destination = instruction['info']['account']
-        destination_name = accounts[destination]
+        destination_name = accounts[destination] if destination in accounts else None
         obligation = next((k for k, v in accounts.items() if v == 'obligation_pubkey'), None)
 
         event_name = f"{instruction['type']}-{snake_to_camel(destination_name)}"
@@ -349,7 +411,7 @@ class SolendTransactionParser:
         token = str(instruction['info']['mint']) if 'mint' in instruction['info'] else None
         amount = int(instruction['info']['amount'])
         source = instruction['info']['account']
-        source_name = accounts[source]
+        source_name = accounts[source] if source in accounts else None
 
         obligation = next((k for k, v in accounts.items() if v == 'obligation_pubkey'), None)
 
@@ -471,7 +533,7 @@ if __name__ == "__main__":
 
     transaction = solana_client.get_transaction(
         Signature.from_string(
-            '4ajP7iq5Ar5g3aBeorhf4AW98A84EZsSMVbJTNuyripXCDW6Qgt9oh1GtvDoCn2WN6XRggCEXfGqXKAf7Ee5YkVs'
+            '4DspdiqxX2NsMYbiLUKjpgJaj3LARZguYWd4RCQMZJUVEf1fmVKbmsEKWTJAytu7rG2ctS6bccntXWL4TLLsuH9Q'
         ),
         'jsonParsed',
         max_supported_transaction_version=0
