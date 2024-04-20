@@ -355,17 +355,17 @@ class KaminoLendingAccounts(LendingAccounts):
 
 
 class SolendParsedTransactions(ParsedTransactions):
-    __tablename__ = "solend_parsed_transactions_v1"
+    __tablename__ = "solend_parsed_transactions_v2"
     source = Column(String, nullable=True)
     destination = Column(String, nullable=True)
     obligation = Column(String, nullable=True)
     authority = Column(String, nullable=True)
     __table_args__ = (
-        Index("ix_solend_parsed_transactions_v1_transaction_id", "transaction_id"),
-        Index("ix_solend_parsed_transactions_v1_instruction_name", "instruction_name"),
-        Index("ix_solend_parsed_transactions_v1_event_name", "event_name"),
-        Index("ix_solend_parsed_transactions_v1_obligation", "obligation"),
-        Index("ix_solend_parsed_transactions_v1_token", "token"),
+        Index("ix_solend_parsed_transactions_v2_transaction_id", "transaction_id"),
+        Index("ix_solend_parsed_transactions_v2_instruction_name", "instruction_name"),
+        Index("ix_solend_parsed_transactions_v2_event_name", "event_name"),
+        Index("ix_solend_parsed_transactions_v2_obligation", "obligation"),
+        Index("ix_solend_parsed_transactions_v2_token", "token"),
         {"schema": SCHEMA_LENDERS},
     )
 
@@ -381,17 +381,17 @@ class SolendParsedTransactions(ParsedTransactions):
 
 
 class SolendObligations(LendingAccounts):  # table to store obligations' data
-    __tablename__ = "solend_lending_accounts_v1"
+    __tablename__ = "solend_lending_accounts_v2"
     __table_args__ = (  # type: ignore
-        Index("ix_solend_lending_accounts_v1_address", "address"),
-        Index("ix_solend_lending_accounts_v1_group", "group"),
-        Index("ix_solend_lending_accounts_v1_authority", "authority"),
+        Index("ix_solend_lending_accounts_v2_address", "address"),
+        Index("ix_solend_lending_accounts_v2_group", "group"),
+        Index("ix_solend_lending_accounts_v2_authority", "authority"),
         {"schema": SCHEMA_LENDERS}
     )
 
 
 class SolendReserves(Base):  # table to store reserves data
-    __tablename__ = 'solend_reserves_v1'
+    __tablename__ = 'solend_reserves_v2'
 
     id = Column(Integer, primary_key=True)
     source_liquidity_pubkey = Column(String)
