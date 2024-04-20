@@ -66,7 +66,6 @@ class MarginFiState(src.loans.state.State):
         min_slot = event["block"].min()
         assert min_slot >= self.last_slot
         event_name = event["instruction_name"].iloc[0]
-        assert event["instruction_name"].nunique() == 1  # TODO: redundant?
         try:  # TODO
             getattr(self, self.EVENTS_METHODS_MAPPING[event_name])(event=event)
         except:
@@ -94,7 +93,6 @@ class MarginFiState(src.loans.state.State):
 
     def process_withdrawal_event(self, event: pandas.DataFrame) -> None:
         transfer_event = event[event['event_name'] == 'transfer-bankLiquidityVault-destinationTokenAccount']
-        # assert len(transfer_event) <= 1  # TODO
         for _, individual_transfer_event in transfer_event.iterrows():
             user = individual_transfer_event["account"]
             token = individual_transfer_event["source"]
@@ -131,7 +129,6 @@ class MarginFiState(src.loans.state.State):
 
     def process_repayment_event(self, event: pandas.DataFrame) -> None:
         transfer_event = event[event['event_name'] == 'transfer-signerTokenAccount-bankLiquidityVault']
-        # assert len(transfer_event) <= 1  # TODO
         for _, individual_transfer_event in transfer_event.iterrows():
             user = individual_transfer_event["account"]
             token = individual_transfer_event["destination"]
@@ -140,7 +137,7 @@ class MarginFiState(src.loans.state.State):
             self.loan_entities[user].debt.increase_value(token=token, value=-amount)
             if user in self.verbose_users:
                 logging.info(
-                    "In block number = {}, user = {} repayed amount = {} of token = {}.".format(
+                    "In block number = {}, user = {} repaid amount = {} of token = {}.".format(
                         individual_transfer_event["block"],
                         user,
                         amount,
@@ -149,28 +146,23 @@ class MarginFiState(src.loans.state.State):
                 )
 
     def process_liquidation_event(self, event: pandas.DataFrame) -> None:
+        # Under MarginFi, each liquidation event consists of a collateral transfer event, debt transfer event and fee
+        # transfer event. The collateral transfer under the liquidation is handled as a separate withdrawal event, the
+        # debt transfer event is handled as a separate repayment event and only the fee transfer event is handled here.
         transfer_event = event[event['event_name'] == 'transfer-bankLiquidityVault-bankInsuranceVault']
-        assert len(transfer_event) <= 1  # TODO
         for _, individual_transfer_event in transfer_event.iterrows():
             user = individual_transfer_event["liquidatee_marginfi_account"]
-            assert user in self.loan_entities  # TODO
-            # TODO: The very first liquidation events do not change the collateral.
-            collateral_token = None
-            collateral_amount = decimal.Decimal('0')
-            assert collateral_amount >= 0
+            assert user in self.loan_entities
             debt_token = individual_transfer_event["source"]
             debt_amount = decimal.Decimal(str(individual_transfer_event["amount"]))
             assert debt_amount >= 0
             self.loan_entities[user].debt.increase_value(token=debt_token, value=-debt_amount)
             if user in self.verbose_users:
                 logging.info(
-                    "In block number = {}, debt of amount = {} of token = {} and collateral of amount = {} of token = "
-                    "{} of user = {} were liquidated.".format(
+                    "In block number = {}, user = {} paid liquidation fee amount = {} of token = {}.".format(
                         event["block"].iloc[0],
+                        user,
                         debt_amount,
                         debt_token,
-                        collateral_amount,
-                        collateral_token,
-                        user,
                     )
                 )
