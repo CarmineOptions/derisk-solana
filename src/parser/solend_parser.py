@@ -21,6 +21,8 @@ LOGGER = logging.getLogger(__name__)
 
 
 def snake_to_camel(snake_str):
+    if not snake_str:
+        return ''
     # Split the string into words based on underscores
     components = snake_str.split('_')
     # Capitalize the first letter of each component except the first one
@@ -342,9 +344,9 @@ class SolendTransactionParser:
         token = str(instruction['info']['token']) if 'token' in instruction['info'] else None
         amount = int(instruction['info']['amount'])
         source = instruction['info']['source']
-        source_name = accounts[source]
+        source_name = accounts[source] if source in accounts else None
         destination = instruction['info']['destination']
-        destination_name = accounts[destination]
+        destination_name = accounts[destination] if destination in accounts else None
 
         obligation = next((k for k, v in accounts.items() if v == 'obligation_pubkey'), None)
 
@@ -379,7 +381,7 @@ class SolendTransactionParser:
         token = str(instruction['info']['mint']) if 'mint' in instruction['info'] else None
         amount = int(instruction['info']['amount'])
         destination = instruction['info']['account']
-        destination_name = accounts[destination]
+        destination_name = accounts[destination] if destination in accounts else None
         obligation = next((k for k, v in accounts.items() if v == 'obligation_pubkey'), None)
 
         event_name = f"{instruction['type']}-{snake_to_camel(destination_name)}"
@@ -409,7 +411,7 @@ class SolendTransactionParser:
         token = str(instruction['info']['mint']) if 'mint' in instruction['info'] else None
         amount = int(instruction['info']['amount'])
         source = instruction['info']['account']
-        source_name = accounts[source]
+        source_name = accounts[source] if source in accounts else None
 
         obligation = next((k for k, v in accounts.items() if v == 'obligation_pubkey'), None)
 
@@ -531,7 +533,7 @@ if __name__ == "__main__":
 
     transaction = solana_client.get_transaction(
         Signature.from_string(
-            '5ivfmwS1MqG25mNAH5bsQRYAvSEkwCcfkeNP9XLQoSGyBjacEf5vgk91pmUB9CK1yr7rrMQ5mEavLmo5VjsQWwfc'
+            '4DspdiqxX2NsMYbiLUKjpgJaj3LARZguYWd4RCQMZJUVEf1fmVKbmsEKWTJAytu7rG2ctS6bccntXWL4TLLsuH9Q'
         ),
         'jsonParsed',
         max_supported_transaction_version=0
