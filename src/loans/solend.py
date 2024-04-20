@@ -8,7 +8,6 @@ import src.loans.types
 import src.loans.state
 
 
-
 # Keys are values of the "event_name" column in the database, values are the respective method names.
 EVENTS_METHODS_MAPPING: dict[str, str] = {
     # 'lending_account_borrow': 'process_borrowing_event',
