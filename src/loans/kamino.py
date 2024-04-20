@@ -15,7 +15,7 @@ EVENTS_METHODS_MAPPING: dict[str, str] = {
     'deposit_reserve_liquidity_and_obligation_collateral': 'process_deposit_event',
     'liquidate_obligation_and_redeem_reserve_collateral': 'process_liquidation_event',
     'repay_obligation_liquidity': 'process_repayment_event',
-    'withdraw_obligation_collateral_and_redeem_reserve_collateral': 'process_withdrawal_event', 
+    'withdraw_obligation_collateral_and_redeem_reserve_collateral': 'process_withdrawal_event',
 }
 
 
@@ -68,11 +68,6 @@ class KaminoState(src.loans.state.State):
         assert min_slot >= self.last_slot
         event_name = event["instruction_name"].iloc[0]
         try:  # TODO
-            assert event["instruction_name"].nunique() == 1
-        except:
-            logging.error(f'{event_name} {event}')  # TODO
-        assert event["instruction_name"].nunique() == 1
-        try:  # TODO
             getattr(self, self.EVENTS_METHODS_MAPPING[event_name])(event=event)
         except:
             logging.error(f'{event_name} {event}')  # TODO
@@ -86,22 +81,21 @@ class KaminoState(src.loans.state.State):
             else 'mintTo-reserveDestinationDepositCollateral'
         )
         mint_event = event[event['event_name'] == mint_event_name]
-        assert len(mint_event) == 1  # TODO
-        for _, individual_mint_event in mint_event.iterrows():
-            user = individual_mint_event["obligation"]
-            token = individual_mint_event["token"]
-            amount = decimal.Decimal(str(individual_mint_event["amount"]))
-            assert amount >= 0
-            self.loan_entities[user].collateral.increase_value(token=token, value=amount)
-            if user in self.verbose_users:
-                logging.info(
-                    "In block number = {}, user = {} deposited amount = {} of token = {}.".format(
-                        individual_mint_event["block"],
-                        user,
-                        amount,
-                        token,
-                    )
+        assert len(mint_event) == 1
+        user = mint_event["obligation"].iloc[0]
+        token = mint_event["token"].iloc[0]
+        amount = decimal.Decimal(str(mint_event["amount"].iloc[0]))
+        assert amount >= 0
+        self.loan_entities[user].collateral.increase_value(token=token, value=amount)
+        if user in self.verbose_users:
+            logging.info(
+                "In block number = {}, user = {} deposited amount = {} of token = {}.".format(
+                    mint_event["block"].iloc[0],
+                    user,
+                    amount,
+                    token,
                 )
+            )
 
     def process_withdrawal_event(self, event: pandas.DataFrame) -> None:
         burn_event_name = (
@@ -110,112 +104,109 @@ class KaminoState(src.loans.state.State):
             else 'burn-reserveSourceCollateral'
         )
         burn_event = event[event['event_name'] == burn_event_name]
-        assert len(burn_event) == 1  # TODO
-        for _, individual_burn_event in burn_event.iterrows():
-            user = individual_burn_event["obligation"]
-            token = individual_burn_event["token"]
-            amount = decimal.Decimal(str(individual_burn_event["amount"]))
-            assert amount >= 0
-            self.loan_entities[user].collateral.increase_value(token=token, value=amount)
-            if user in self.verbose_users:
-                logging.info(
-                    "In block number = {}, user = {} withdrew amount = {} of token = {}.".format(
-                        individual_burn_event["block"],
-                        user,
-                        amount,
-                        token,
-                    )
+        assert len(burn_event) == 1
+        user = burn_event["obligation"].iloc[0]
+        token = burn_event["token"].iloc[0]
+        amount = decimal.Decimal(str(burn_event["amount"].iloc[0]))
+        assert amount >= 0
+        self.loan_entities[user].collateral.increase_value(token=token, value=amount)
+        if user in self.verbose_users:
+            logging.info(
+                "In block number = {}, user = {} withdrew amount = {} of token = {}.".format(
+                    burn_event["block"].iloc[0],
+                    user,
+                    amount,
+                    token,
                 )
+            )
 
     def process_borrowing_event(self, event: pandas.DataFrame) -> None:
         transfer_event = event[event['event_name'] == 'transfer-reserveSourceLiquidity-userDestinationLiquidity']
-        assert len(transfer_event) == 1  # TODO
-        for _, individual_transfer_event in transfer_event.iterrows():
-            user = individual_transfer_event["obligation"]
-            token = individual_transfer_event["source"]
-            amount = decimal.Decimal(str(individual_transfer_event["amount"]))
-            assert amount >= 0
-            self.loan_entities[user].debt.increase_value(token=token, value=amount)
-            if user in self.verbose_users:
-                logging.info(
-                    "In block number = {}, user = {} borrowed amount = {} of token = {}.".format(
-                        individual_transfer_event["block"],
-                        user,
-                        amount,
-                        token,
-                    )
+        assert len(transfer_event) == 1
+        user = transfer_event["obligation"].iloc[0]
+        token = transfer_event["source"].iloc[0]
+        amount = decimal.Decimal(str(transfer_event["amount"].iloc[0]))
+        assert amount >= 0
+        self.loan_entities[user].debt.increase_value(token=token, value=amount)
+        if user in self.verbose_users:
+            logging.info(
+                "In block number = {}, user = {} borrowed amount = {} of token = {}.".format(
+                    transfer_event["block"].iloc[0],
+                    user,
+                    amount,
+                    token,
                 )
-        if len(event) == 1:  # TODO: do not remove?
+            )
+
+        # Some of the events have no fee transfer.
+        if len(event) == 1:
             return
         fee_transfer_event = event[event['event_name'] == 'transfer-reserveSourceLiquidity-borrowReserveLiquidityFeeReceiver']
-        assert len(fee_transfer_event) == 1  # TODO
-        for _, individual_fee_transfer_event in fee_transfer_event.iterrows():
-            user = individual_fee_transfer_event["obligation"]
-            token = individual_fee_transfer_event["source"]
-            amount = decimal.Decimal(str(individual_fee_transfer_event["amount"]))
-            assert amount >= 0
-            self.loan_entities[user].debt.increase_value(token=token, value=amount)
-            if user in self.verbose_users:
-                logging.info(
-                    "In block number = {}, user = {} borrowed amount = {} of token = {}.".format(
-                        individual_fee_transfer_event["block"],
-                        user,
-                        amount,
-                        token,
-                    )
+        assert len(fee_transfer_event) == 1
+        user = fee_transfer_event["obligation"].iloc[0]
+        token = fee_transfer_event["source"].iloc[0]
+        amount = decimal.Decimal(str(fee_transfer_event["amount"].iloc[0]))
+        assert amount >= 0
+        self.loan_entities[user].debt.increase_value(token=token, value=amount)
+        if user in self.verbose_users:
+            logging.info(
+                "In block number = {}, user = {} borrowed amount = {} of token = {}.".format(
+                    fee_transfer_event["block"].iloc[0],
+                    user,
+                    amount,
+                    token,
                 )
+            )
 
     def process_repayment_event(self, event: pandas.DataFrame) -> None:
         transfer_event = event[event['event_name'] == 'transfer-userSourceLiquidity-reserveDestinationLiquidity']
-        assert len(transfer_event) == 1  # TODO
-        for _, individual_transfer_event in transfer_event.iterrows():
-            user = individual_transfer_event["obligation"]
-            token = individual_transfer_event["destination"]
-            amount = decimal.Decimal(str(individual_transfer_event["amount"]))
-            assert amount >= 0
-            self.loan_entities[user].debt.increase_value(token=token, value=-amount)
-            if user in self.verbose_users:
-                logging.info(
-                    "In block number = {}, user = {} repayed amount = {} of token = {}.".format(
-                        individual_transfer_event["block"],
-                        user,
-                        amount,
-                        token,
-                    )
+        assert len(transfer_event) == 1
+        user = transfer_event["obligation"].iloc[0]
+        token = transfer_event["destination"].iloc[0]
+        amount = decimal.Decimal(str(transfer_event["amount"].iloc[0]))
+        assert amount >= 0
+        self.loan_entities[user].debt.increase_value(token=token, value=-amount)
+        if user in self.verbose_users:
+            logging.info(
+                "In block number = {}, user = {} repaid amount = {} of token = {}.".format(
+                    transfer_event["block"].iloc[0],
+                    user,
+                    amount,
+                    token,
                 )
+            )
 
     def process_liquidation_event(self, event: pandas.DataFrame) -> None:
         collateral_burn_event = event[event['event_name'] == 'burn-userDestinationCollateral']
-        assert len(collateral_burn_event) == 1  # TODO
-        for _, individual_collateral_burn_event in collateral_burn_event.iterrows():
-            user = individual_collateral_burn_event["obligation"]
-            token = individual_collateral_burn_event["token"]
-            amount = decimal.Decimal(str(individual_collateral_burn_event["amount"]))
-            assert amount >= 0
-            self.loan_entities[user].collateral.increase_value(token=token, value=-amount)
-            if user in self.verbose_users:
-                logging.info(
-                    "In block number = {}, collateral of amount = {} of token = {} of user = {} was liquidated.".format(
-                        individual_collateral_burn_event["block"],
-                        amount,
-                        token,
-                        user,
-                    )
+        assert len(collateral_burn_event) == 1
+        user = collateral_burn_event["obligation"].iloc[0]
+        token = collateral_burn_event["token"].iloc[0]
+        amount = decimal.Decimal(str(collateral_burn_event["amount"].iloc[0]))
+        assert amount >= 0
+        self.loan_entities[user].collateral.increase_value(token=token, value=-amount)
+        if user in self.verbose_users:
+            logging.info(
+                "In block number = {}, collateral of amount = {} of token = {} of user = {} was liquidated.".format(
+                    collateral_burn_event["block"].iloc[0],
+                    amount,
+                    token,
+                    user,
                 )
+            )
+
         debt_transfer_event = event[event['event_name'] == 'transfer-userSourceLiquidity-repayReserveLiquiditySupply']
-        assert len(debt_transfer_event) == 1  # TODO
-        for _, individual_debt_transfer_event in debt_transfer_event.iterrows():
-            user = individual_debt_transfer_event["obligation"]
-            token = individual_debt_transfer_event["destination"]
-            amount = decimal.Decimal(str(individual_debt_transfer_event["amount"]))
-            assert amount >= 0
-            self.loan_entities[user].debt.increase_value(token=token, value=-amount)
-            if user in self.verbose_users:
-                logging.info(
-                    "In block number = {}, debt of amount = {} of token = {} of user = {} was liquidated.".format(
-                        individual_debt_transfer_event["block"],
-                        amount,
-                        token,
-                        user,
-                    )
+        assert len(debt_transfer_event) == 1
+        user = debt_transfer_event["obligation"].iloc[0]
+        token = debt_transfer_event["destination"].iloc[0]
+        amount = decimal.Decimal(str(debt_transfer_event["amount"].iloc[0]))
+        assert amount >= 0
+        self.loan_entities[user].debt.increase_value(token=token, value=-amount)
+        if user in self.verbose_users:
+            logging.info(
+                "In block number = {}, debt of amount = {} of token = {} of user = {} was liquidated.".format(
+                    debt_transfer_event["block"].iloc[0],
+                    amount,
+                    token,
+                    user,
                 )
+            )
