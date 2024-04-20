@@ -4,6 +4,7 @@ Kamino transaction parser.
 from pathlib import Path
 import logging
 import os
+from typing import Iterable
 
 from anchorpy import EventParser
 from anchorpy.program.common import Event
@@ -34,14 +35,15 @@ construct.core.stream_read = stream_read_muted
 
 
 def namedtuple_to_dict(obj):
+    """Recursively convert nested namedtuple to dictionary."""
     if hasattr(obj, "_asdict"):  # Check if it's a namedtuple
         return {key: namedtuple_to_dict(value) for key, value in obj._asdict().items()}
-    elif isinstance(obj, list):  # Extend to list elements if needed
+    elif isinstance(obj, Iterable) and not isinstance(obj, (str, bytes, dict)):
         return [namedtuple_to_dict(item) for item in obj]
-    elif isinstance(obj, dict):  # Extend to dictionary values if needed
+    elif isinstance(obj, dict):  # Process values in the dictionary recursively
         return {key: namedtuple_to_dict(value) for key, value in obj.items()}
     else:
-        return obj
+        return str(obj)
 
 
 class MangoTransactionParserV2(TransactionDecoder):

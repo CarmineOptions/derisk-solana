@@ -600,7 +600,7 @@ class KaminoTransactionsList(TransactionsList):
 
 
 class MangoTransactionsList(Base):
-    __tablename__ = 'mango_hist_transaction_list_v2'
+    __tablename__ = 'mango_hist_transaction_list_v3'
     id = Column(Integer, primary_key=True, autoincrement=True)
     signature = Column(String)
     block_time = Column(BigInteger)
