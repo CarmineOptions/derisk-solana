@@ -22,7 +22,7 @@ def get_events(
             AND
                 block >= {start_block_number}
             ORDER BY
-                block, id ASC;
+                block, transaction_id ASC;
         """,
         con=connection,
     )
