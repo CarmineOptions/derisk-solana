@@ -1,5 +1,5 @@
 """
-Kamino transaction parser.
+Parser for transactions of mango v4
 """
 from pathlib import Path
 import logging
