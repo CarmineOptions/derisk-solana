@@ -16,9 +16,9 @@ from sqlalchemy import (
     Numeric,
     DECIMAL,
     Boolean,
-    inspect
+    inspect,
 )
-
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.types import Enum as SQLEnum
@@ -180,6 +180,22 @@ class MarginfiLendingAccounts(LendingAccounts):
         Index("ix_marginfi_lending_accounts_group", "group"),
         Index("ix_marginfi_lending_accounts_authority", "authority"),
         {"schema": SCHEMA_LENDERS}
+    )
+
+
+############### MANGO V2 ################
+class MangoParsedEvents(Base):
+    __tablename__ = "mango_parsed_transactions_v2"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    transaction_id = Column(String, nullable=True)
+
+    event_name = Column(String, nullable=True, index=True)
+    event_data = Column(JSONB, nullable=True)
+
+    block = Column(BigInteger, nullable=True, index=True)
+    created_at = Column(BigInteger, nullable=True, index=True)
+    __table_args__ = (  # type: ignore
+        {"schema": SCHEMA_LENDERS},
     )
 
 
@@ -584,7 +600,7 @@ class KaminoTransactionsList(TransactionsList):
 
 
 class MangoTransactionsList(Base):
-    __tablename__ = 'mango_hist_transaction_list'
+    __tablename__ = 'mango_hist_transaction_list_v2'
     id = Column(Integer, primary_key=True, autoincrement=True)
     signature = Column(String)
     block_time = Column(BigInteger)
