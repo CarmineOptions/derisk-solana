@@ -75,9 +75,13 @@ class State(abc.ABC):
 
         if self.unprocessed_events.empty:
             return
+
         # Iterate over ordered events to obtain the final state of each user.
         for _, event in self.unprocessed_events.groupby(['transaction_id', 'instruction_name'], sort=False):
-            self.process_event(event=event)
+            try:
+                self.process_event(event=event)
+            except:
+                logging.error('Failed to process event data = {}.'.format(event), exc_info=True)
         self.unprocessed_events = pandas.DataFrame()
 
     @abc.abstractmethod
