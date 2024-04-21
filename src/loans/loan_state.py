@@ -55,18 +55,6 @@ ProtocolFunc = (
 )
 
 
-from src.loans.common import (
-    KAMINO,
-    MANGO,
-    MARGINFI,
-    SOLEND,
-    AnyEvents,
-    AnyProtocolModel,
-    Protocol,
-    ProtocolFunc,
-)
-
-
 def process_marginfi_events(
     events: list[MarginfiParsedTransactions],
 ) -> pandas.DataFrame:
