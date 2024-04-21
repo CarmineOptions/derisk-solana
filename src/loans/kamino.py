@@ -67,11 +67,7 @@ class KaminoState(src.loans.state.State):
         min_slot = event["block"].min()
         assert min_slot >= self.last_slot
         event_name = event["instruction_name"].iloc[0]
-        try:  # TODO
-            getattr(self, self.EVENTS_METHODS_MAPPING[event_name])(event=event)
-        except:
-            logging.error(f'{event_name} {event}')  # TODO
-            getattr(self, self.EVENTS_METHODS_MAPPING[event_name])(event=event)
+        getattr(self, self.EVENTS_METHODS_MAPPING[event_name])(event=event)
         self.last_slot = min_slot
 
     def process_deposit_event(self, event: pandas.DataFrame) -> None:
