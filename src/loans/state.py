@@ -1,5 +1,6 @@
 import abc
 import collections
+import decimal
 import logging
 
 import pandas
@@ -53,10 +54,10 @@ class State(abc.ABC):
             user = loan_state['user']
             for collateral_token, collateral_amount in loan_state['collateral'].items():
                 if collateral_amount:
-                    self.loan_entities[user].collateral[collateral_token] = collateral_amount
+                    self.loan_entities[user].collateral[collateral_token] = decimal.Decimal(str(collateral_amount))
             for debt_token, debt_amount in loan_state['debt'].items():
                 if debt_amount:
-                    self.loan_entities[user].debt[debt_token] = debt_amount
+                    self.loan_entities[user].debt[debt_token] = decimal.Decimal(str(debt_amount))
 
     @abc.abstractmethod
     def get_unprocessed_events(self) -> None:
