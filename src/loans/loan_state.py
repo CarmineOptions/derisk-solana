@@ -18,6 +18,7 @@ from db import (
     get_db_session,
 )
 import src.loans.kamino
+import src.loans.marginfi
 
 
 
@@ -60,6 +61,7 @@ ProtocolFunc = (
 
 
 
+# TODO: these are redundant
 def process_marginfi_events(
     events: list[MarginfiParsedTransactions],
 ) -> pandas.DataFrame:
@@ -90,17 +92,13 @@ def process_solend_events(events: list[SolendParsedTransactions]) -> pandas.Data
     return pandas.DataFrame()
 
 
-def protocol_to_process_func(
+def protocol_to_protocol_class(
     protocol: Protocol,
 ) -> ProtocolFunc:
     if protocol == MARGINFI:
-        return process_marginfi_events
-    if protocol == MANGO:
-        return process_mango_events
+        return src.loans.marginfi.MarginFiState
     if protocol == KAMINO:
-        return process_kamino_events
-    if protocol == SOLEND:
-        return process_solend_events
+        return src.loans.kamino.KaminoState
     # Unreachable
     raise ValueError(f"invalid protocol {protocol}")
 
@@ -232,40 +230,46 @@ def fetch_events(min_slot: int, protocol: Protocol, session: Session) -> AnyEven
 
 def process_events_to_loan_states(
     protocol: Protocol,
-    process_function: Callable[
+    protocol_class: Callable[
         [AnyEvents],
         pandas.DataFrame,
     ],
     session: Session,
 ):
     current_loan_states = fetch_loan_states(protocol, session)
+    min_slot = 0
 
-    state = src.loans.kamino.KaminoState(
+    if len(current_loan_states) > 0:
+        min_slot = int(current_loan_states.iloc[0]["slot"])
+
+    state = protocol_class(
         verbose_users={},
         initial_loan_states=current_loan_states,
     )
     state.get_unprocessed_events()
+    logging.info('The number of unprocessed events = {} for protocol = {}.'.format(len(state.unprocessed_events), protocol))
     state.process_unprocessed_events()
+    logging.info('The number of loan entities = {} for protocol = {}.'.format(len(state.loan_entities), protocol))
     new_loan_state = pandas.DataFrame(
         {
             'protocol': [state.protocol for _ in state.loan_entities.keys()],
             'slot': [state.last_slot for _ in state.loan_entities.keys()],
             'user': [user for user in state.loan_entities],
-            'collateral': [loan.collateral for loan in state.loan_entities.values()],
-            'debt': [loan.debt for loan in state.loan_entities.values()],
+            'collateral': [{token: float(amount) for token, amount in loan.collateral.items()} for loan in state.loan_entities.values()],
+            'debt': [{token: float(amount) for token, amount in loan.collateral.items()} for loan in state.loan_entities.values()],
         }
     )
-
-    # store_loan_states(new_loan_state, protocol, session)  # TODO: temporarily commented
+    if state.last_slot > min_slot:
+        store_loan_states(new_loan_state, protocol, session)
 
 
 def process_events_continuously(protocol: Protocol):
     logging.info("Starting events to loan_states processing.")
     session = get_db_session()
 
-    process_func = protocol_to_process_func(protocol)
+    protocol_class = protocol_to_protocol_class(protocol)
 
     while True:
-        process_events_to_loan_states(protocol, process_func, session)
+        process_events_to_loan_states(protocol, protocol_class, session)
         logging.info("Updated loan_states.")
         time.sleep(120)
