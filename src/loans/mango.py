@@ -70,8 +70,8 @@ class MangoState(src.loans.state.State):
             print('MANGO: Unable to fetch groups')
             time.sleep(20)
             return self.get_groups()
-        info = response.json()['groups']
 
+        info = [i for i in response.json()['groups'] if i['name'] == 'MAINNET.0']
         return [ Pubkey.from_string(i['publicKey']) for i in info]
 
 
