@@ -80,6 +80,47 @@ reserve_to_mint_map = {
     "Hy2S5arXGFgsvze47PCgSjF92ZQCiAfUJnFkqZQMXu4T": "5oVNBeEEQvYi1cX3ir8Dx5n1P7pdxydbGF2X4TxVusJm",
 }
 
+lp_to_mint_map = {
+    "9ucQp7thL38MDDTSER5ou24QnVSTZFLevDsZC1cAFkKy": "J1toso1uCk3RLmjorhTtrVwY9HJ7X8V9yYac6Y7kGCPn",
+    "CXUgxmXQifBHjF6BvD3HQGgxnBEiFFFcbsGr7TUGC7Xn": "USDH1SM1ojwWUga67PGrgFWUHibbjqMvuMaDkRJTgkX",
+    "2UywZrUdyqs5vDchy7fKQJKau2RVyuzBev2XKGPDSiX1": "So11111111111111111111111111111111111111112",
+    "B8zf4kojJbwgCRKA7rLaLhRCZBGhgAJp8wPBVZZHMhSv": "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB",
+    "B4qtzMZF6N755jejmNzuqFpwPTnqjc8zRXWDnTWZKHPQ": "StepAscQoEioFxxWGnh2sLBDFp9d8rvKz2Yp39iDpyT",
+    "FEHJup4WNxmpBUuiRbF3iVdHptUpWNreijXDoh5Nc5HM": "jtojtomepa8beP8AuQc6eXt5FriJwfFMwQx2v2f9mCL",
+    "2vyA7u8xt3m8uESanDeRKqZbeEriQjSzVWgfRNDJQC6v": "xStpgUCss9piqeFUk2iLVcvJEGhAdJxJQuwLkXP555G",
+    "3SET7bMq4ScRZGjZP7NiL2hwTS7SfF9HQPwqPNVD1gL9": "27G8MtK7VtTcCHkpASjSDdkWWYfoqT6ggEuKidVJidD4",
+    "FUrDoTiCfsh6whxFZQRNWa2PYDfzRSLng9ZG59bUQ2Vh": "3Fb5DMRWoBLWD36Lp4BtG41LaFjVeEJNCH9YLNPYdVqj",
+    "9uvxPXzVYWe8qb7S4gUBqsvASmRMVWo5GSAcMmdZ1LQr": "9HB4kAMLSYfGFfN142DKMyPyHyZQ8pXF8M1STbDudodY",
+    "FtLmvJvsGW41fE7hwsp53uv2UqHakZ3QS7UBb5WoZtZg": "bSo13r4TkiE4KumL71LsHTPpL2euBYLFx6h9HP3piy1",
+    "9ArykePzWjizyfYg9eEZXHyqwBccSL5wsqKzsHsXkTQV": "4G9USgnbg6fDTQ5AUfpCjM89zqbzWj32xfqvsaAu66DM",
+    "DdG9rfSuhCYByrJEmJuHMf9BEMRJPBDs9JiZD8tStT5s": "GYiUmJ8reqYAdTQtx6CRFawHqPXx9yzkUFvaUVE8PskP",
+    "H6MFD7kvZ1qtTRtf7SpJzMFAr3wds2vKpQMokNsCfj3R": "HzwqbKZw8HxMN6bF2yFZNrht3c2iXXzpKcFu7uBEDKtr",
+    "2d1aTmJMJozqmTLhKKhQorkj6NZTRtUt69YtAvzjtJVK": "3jsFX1tx2Z8ewmamiwSU851GzyzM2DJMq7KWW5DM8Py3",
+    "3xcWMRiK6hRnBemUrreLt87KGkaKg4gi4io6m26Zhzjs": "7dHbWXmci3dT8UFYWYZweBLXgycu7Y3iL6trKn1Y7ARj",
+    "BE5LqGwfAPYHEGjqR48C8CUu1nCP9BbJwrDUhB141rnL": "7vfCXTUXx5WJV5JADk17DUJ4ksgau7utNKj4b963voxs",
+    "2KNot4k3xygWmByxihBZr2Fm1EHQuWQTAntkVKvh3CM1": "Dk2X1HCbwJae44P7FpqdFoeT6LEw4JVyyHvZMHUzHWbi",
+    "B8V6WVjPxW1UGwVDfxH2d2r8SyT4cqn7dQRK6XneVa7D": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+    "CAcPXMKSKWofmRQzLAJ9HbAPYVHY7UXgQasyyqAhqE3F": "JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN",
+    "37cmWYYdAC88pQ4tGBu5ae28NctvzkNYG7w9xGHNeTPc": "6DNSN2BJsaPFdFFc1zP37kkeNe4Usc1Sqkzr9C9vPWcU",
+    "HTHAb6CigDQXtKuYX1Tad5hoguguRnRmt6DguosVsKWC": "mSoLzYCxHdYgdzU16g5QSh3i5K3z3KZK7ytfqcJm7So",
+    "2Nk9GpQU4BuJB73vag32GUXgyxqSRFNgijXsx8xefkCz": "ZScHuTtqZukUrtZS43teTKGs2VqkKL8k4QCouR2n6Uo",
+    "G9KyXbtRmJ9KBpSVRhW5BAVK4EmNjDYjY8KTMgQ3465P": "7kbnvuGBxxj8AG9qp8Scn56muWGaRaFqxg1FsRp3PaFT",
+    "HQrADJ6m34J6JbAj7EUWMWGcSd37JKBstkVbf325qEMz": "So11111111111111111111111111111111111111112",
+    "G6LBmbbApvCrTGjMsPsxW43AGmzvcXa7P8x9yvHbek1f": "27G8MtK7VtTcCHkpASjSDdkWWYfoqT6ggEuKidVJidD4",
+    "32XLsweyeQwWgLKRVAzS72nxHGU1JmmNQQZ3C3q6fBjJ": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+    "8jSYoEtuhsPiCuP24W9yZdMPiArNfgUbUTJfgxaDQdcQ": "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263",
+    "DCL1fWRdxzj1DE3QKnKLp2zyWDwi7iSBpskeT1GCSvpM": "jtojtomepa8beP8AuQc6eXt5FriJwfFMwQx2v2f9mCL",
+    "AnHnZKxLjgmL67nXYRpF8S3gwXbv3Q8Dc1dPQ8Fuffr5": "TNSRxcUxoT9xBG3de7PiJyTDYu7kskLqcpddxnEJAS6",
+    "Ez9H41XzGjRrc9QfFLpRpeYC1dAsCJDfVNPV62mMX1AV": "85VBFQZC9TZkfaptBWjvUw7YbZjy52A6mjtPGjstQAmQ",
+    "Bjp2ezHaZk2jgSYMSv1zfysEqe4D3wtxVRVRzS4ENaRc": "EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm",
+    "9cTpeBCM5BgLk1U3r9QgjZU3WGxJjdcP9bpg9ZK7oLZh": "USDH1SM1ojwWUga67PGrgFWUHibbjqMvuMaDkRJTgkX",
+    "Cr5krU1ccFsRT3C8vtaKGjUCt3S447hhtyVVYEvp8NVH": "WENWENvqqNya429ubCdR81ZmD69brwQaaBYY6p3LCpk",
+    "HK7wf2yjnE5we5kDW5yoWNK2PFo4gT2P7bz36bkwST6f": "HZ1JovNiVvGrGNiiYvEozEVgZ58xaU3RKwX8eACQBCt3",
+    "BZduJvhYkANBBcoknD3D2RJXG6TSedRzXSkoLEs6b6p9": "5oVNBeEEQvYi1cX3ir8Dx5n1P7pdxydbGF2X4TxVusJm",
+    "ENUD71ji5yR8p2XVyM1Y4NYdzNAAWPRvF2z4jGVdw7rp": "JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN",
+    "A2mcvn3kQXwG9XPUPgjghXJDqvYHTpkCJE3wtKqU1VRn": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+}
+
 
 def kamino_address_to_mint_address(address: str) -> str:
     supply_vault_mint_address = supply_vault_to_mint_map.get(address)
@@ -93,6 +134,12 @@ def kamino_address_to_mint_address(address: str) -> str:
     if reserve_mint_address is not None:
         # if "address" is reserve address return underlying mint
         return reserve_mint_address
+
+    lp_mint_address = lp_to_mint_map.get(address)
+
+    if lp_mint_address is not None:
+        # if "address" is lp address return underlying mint
+        return lp_mint_address
 
     # if neither, assume it is mint address and return original
     return address
