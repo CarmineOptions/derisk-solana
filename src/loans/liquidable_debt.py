@@ -6,10 +6,10 @@ import pandas
 from sqlalchemy import func
 from sqlalchemy.orm.session import Session
 from db import (
-    MangoParsedTransactions,
-    MarginfiParsedTransactions,
-    KaminoParsedTransactions,
-    SolendParsedTransactions,
+    MangoLoanStates,
+    MarginfiLoanStates,
+    KaminoLoanStates,
+    SolendLoanStates,
     MangoLiquidableDebts,
     MarginfiLiquidableDebts,
     KaminoLiquidableDebts,
@@ -17,17 +17,21 @@ from db import (
     get_db_session,
 )
 
+import src.loans.loan_state
+
+
+
 MARGINFI = "marginfi"
 MANGO = "mango"
 KAMINO = "kamino"
 SOLEND = "solend"
 
 Protocol = Literal["marginfi", "mango", "kamino", "solend"]
-AnyEvents = list[
-    MangoParsedTransactions
-    | MarginfiParsedTransactions
-    | KaminoParsedTransactions
-    | SolendParsedTransactions
+AnyLoanState = list[
+    MangoLoanStates,
+    MarginfiLoanStates,
+    KaminoLoanStates,
+    SolendLoanStates,
 ]
 
 AnyProtocolModel = (
@@ -37,10 +41,10 @@ AnyProtocolModel = (
     | Type[SolendLiquidableDebts]
 )
 
-TypeMarginfi = TypeVar("TypeMarginfi", bound=MarginfiParsedTransactions)
-TypeMango = TypeVar("TypeMango", bound=MangoParsedTransactions)
-TypeKamino = TypeVar("TypeKamino", bound=KaminoParsedTransactions)
-TypeSolend = TypeVar("TypeSolend", bound=SolendParsedTransactions)
+TypeMarginfi = TypeVar("TypeMarginfi", bound=MarginfiLoanStates)
+TypeMango = TypeVar("TypeMango", bound=MangoLoanStates)
+TypeKamino = TypeVar("TypeKamino", bound=KaminoLoanStates)
+TypeSolend = TypeVar("TypeSolend", bound=SolendLoanStates)
 
 ProcessFuncTypeMarginfi = Callable[[list[TypeMarginfi]], pandas.DataFrame]
 ProcessFuncTypeMango = Callable[[list[TypeMango]], pandas.DataFrame]
@@ -55,32 +59,32 @@ ProtocolFunc = (
 )
 
 
-def process_marginfi_events(
-    events: list[MarginfiParsedTransactions],
+def process_marginfi_loan_states(
+    loan_states: list[MarginfiLoanStates],
 ) -> pandas.DataFrame:
-    # TODO: process marginfi events
-    print(f"processing {len(events)} Marginfi events")
+    # TODO: process marginfi loan_states
+    print(f"processing {len(loan_states)} Marginfi loan states")
 
     return pandas.DataFrame()
 
 
-def process_mango_events(events: list[MangoParsedTransactions]) -> pandas.DataFrame:
-    # TODO: process mango events
-    print(f"processing {len(events)} Mango events")
+def process_mango_loan_states(loan_states: list[MangoLoanStates]) -> pandas.DataFrame:
+    # TODO: process mango loan_states
+    print(f"processing {len(loan_states)} Mango loan states")
 
     return pandas.DataFrame()
 
 
-def process_kamino_events(events: list[KaminoParsedTransactions]) -> pandas.DataFrame:
-    # TODO: process kamino events
-    print(f"processing {len(events)} Kamino events")
+def process_kamino_loan_states(loan_states: list[KaminoLoanStates]) -> pandas.DataFrame:
+    # TODO: process kamino loan_states
+    print(f"processing {len(loan_states)} Kamino loan states")
 
     return pandas.DataFrame()
 
 
-def process_solend_events(events: list[SolendParsedTransactions]) -> pandas.DataFrame:
-    # TODO: process solend events
-    print(f"processing {len(events)} Solend events", flush=True)
+def process_solend_loan_states(loan_states: list[SolendLoanStates]) -> pandas.DataFrame:
+    # TODO: process solend loan_states
+    print(f"processing {len(loan_states)} Solend loan states", flush=True)
 
     return pandas.DataFrame()
 
@@ -89,13 +93,13 @@ def protocol_to_process_func(
     protocol: Protocol,
 ) -> ProtocolFunc:
     if protocol == MARGINFI:
-        return process_marginfi_events
+        return process_marginfi_loan_states
     if protocol == MANGO:
-        return process_mango_events
+        return process_mango_loan_states
     if protocol == KAMINO:
-        return process_kamino_events
+        return process_kamino_loan_states
     if protocol == SOLEND:
-        return process_solend_events
+        return process_solend_loan_states
     # Unreachable
     raise ValueError(f"invalid protocol {protocol}")
 
@@ -191,76 +195,36 @@ def fetch_liquidable_debts(protocol: Protocol, session: Session) -> pandas.DataF
     return df
 
 
-def fetch_events(min_slot: int, protocol: Protocol, session: Session) -> AnyEvents:
-    """
-    Fetches events with the slot from the DB and returns them as a DataFrame
-
-    Args:
-    - min_slot (int): Slot from which events will be fetched (non-inclusive).
-    - protocol (str): Protocol which events will be fetched.
-    - session (sqlalchemy.orm.session.Session): A SQLAlchemy session object.
-
-    Returns:
-    - df (pandas.DataFrame): Events in a DataFrame
-    """
-    if protocol == "mango":
-        return (
-            session.query(MangoParsedTransactions)
-            .filter(MangoParsedTransactions.block > min_slot)
-            .all()
-        )
-    if protocol == "marginfi":
-        return (
-            session.query(MarginfiParsedTransactions)
-            .filter(MarginfiParsedTransactions.block > min_slot)
-            .all()
-        )
-    if protocol == "kamino":
-        return (
-            session.query(KaminoParsedTransactions)
-            .filter(KaminoParsedTransactions.block > min_slot)
-            .all()
-        )
-
-    if protocol == "solend":
-        return (
-            session.query(SolendParsedTransactions)
-            .filter(SolendParsedTransactions.block > min_slot)
-            .all()
-        )
-
-    # Unreachable
-    raise ValueError(f"invalid protocol {protocol}")
-
-
-def process_events_to_liquidable_debts(
+def process_loan_states_to_liquidable_debts(
     protocol: Protocol,
     process_function: Callable[
-        [AnyEvents],
+        [AnyLoanState],
         pandas.DataFrame,
     ],
     session: Session,
 ):
     current_liquidable_debts = fetch_liquidable_debts(protocol, session)
-    min_slot = 0
-
+    current_liquidable_debts_slot = 0
     if len(current_liquidable_debts) > 0:
-        min_slot = int(current_liquidable_debts.iloc[0]["slot"])
+        current_liquidable_debts_slot = int(current_liquidable_debts.iloc[0]["slot"])
 
-    events: AnyEvents = fetch_events(min_slot, protocol, session)
+    current_loan_states: AnyLoanState = src.loans.loan_state.fetch_loan_states(protocol, session)
+    current_loan_states_slot = 0
+    if len(current_liquidable_debts) > 0:
+        current_loan_states_slot = int(current_loan_states.iloc[0]["slot"])
 
-    new_liquidable_debts = process_function(events)
+    new_liquidable_debts = process_function(current_loan_states)
 
     store_liquidable_debts(new_liquidable_debts, protocol, session)
 
 
-def process_events_continuously(protocol: Protocol):
-    logging.info("Starting events to liquidable_debts processing.")
+def process_loan_states_continuously(protocol: Protocol):
+    logging.info("Starting loan states to liquidable_debts processing.")
     session = get_db_session()
 
     process_func = protocol_to_process_func(protocol)
 
     while True:
-        process_events_to_liquidable_debts(protocol, process_func, session)
+        process_loan_states_to_liquidable_debts(protocol, process_func, session)
         logging.info("Updated liquidable_debts.")
         time.sleep(120)
