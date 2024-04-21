@@ -5,6 +5,7 @@ from typing import Callable, Literal, Type, TypeVar
 import pandas
 from sqlalchemy import func
 from sqlalchemy.orm.session import Session
+
 from db import (
     MangoLoanStates,
     MarginfiLoanStates,
@@ -16,6 +17,9 @@ from db import (
     SolendParsedTransactions,
     get_db_session,
 )
+import src.loans.kamino
+
+
 
 MARGINFI = "marginfi"
 MANGO = "mango"
@@ -53,6 +57,7 @@ ProtocolFunc = (
     | ProcessFuncTypeKamino
     | ProcessFuncTypeSolend
 )
+
 
 
 def process_marginfi_events(
@@ -234,16 +239,24 @@ def process_events_to_loan_states(
     session: Session,
 ):
     current_loan_states = fetch_loan_states(protocol, session)
-    min_slot = 0
 
-    if len(current_loan_states) > 0:
-        min_slot = int(current_loan_states.iloc[0]["slot"])
+    state = src.loans.kamino.KaminoState(
+        verbose_users={},
+        initial_loan_states=current_loan_states,
+    )
+    state.get_unprocessed_events()
+    state.process_unprocessed_events()
+    new_loan_state = pandas.DataFrame(
+        {
+            'protocol': [state.protocol for _ in state.loan_entities.keys()],
+            'slot': [state.last_slot for _ in state.loan_entities.keys()],
+            'user': [user for user in state.loan_entities],
+            'collateral': [loan.collateral for loan in state.loan_entities.values()],
+            'debt': [loan.debt for loan in state.loan_entities.values()],
+        }
+    )
 
-    events: AnyEvents = fetch_events(min_slot, protocol, session)
-
-    new_loan_state = process_function(events)
-
-    store_loan_states(new_loan_state, protocol, session)
+    # store_loan_states(new_loan_state, protocol, session)  # TODO: temporarily commented
 
 
 def process_events_continuously(protocol: Protocol):
