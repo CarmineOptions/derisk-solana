@@ -11,7 +11,6 @@ import requests
 import os
 from solana.rpc.types import MemcmpOpts
 from src.protocols.anchor_clients.mango_client.accounts.mango_account import MangoAccount
-from src.protocols.anchor_clients.mango_client.program_id import PROGRAM_ID
 
 AUTHENTICATED_RPC_URL = os.environ.get("AUTHENTICATED_RPC_URL")
 if AUTHENTICATED_RPC_URL is None:
@@ -38,7 +37,7 @@ def get_group_token_index_to_index_map():
     return m
 
 class MangoLoanEntity(src.loans.state.LoanEntity):
-    """ A class that describes the MarginFi loan entity. """
+    """ A class that describes the Mango loan entity. """
 
     def __init__(self) -> None:
         super().__init__()
