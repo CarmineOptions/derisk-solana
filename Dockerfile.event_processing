@@ -1,8 +1,6 @@
 FROM python:3.10
 
 WORKDIR /app
-# Set PYTHONPATH to include /app so Python knows where to find your modules
-ENV PYTHONPATH=/app
 
 RUN pip install poetry
 COPY pyproject.toml poetry.lock* ./
@@ -13,4 +11,4 @@ COPY ./scripts ./scripts
 COPY ./src ./src
 COPY ./db ./db
 
-CMD ["python3", "scripts/kamino_process_events_to_loan_state.py"]
+CMD python3 scripts/process_events_to_loan_state.py "$PROTOCOL"
