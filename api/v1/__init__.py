@@ -42,7 +42,8 @@ def get_transactions():
     try:
         query = "SELECT * FROM tx_signatures WHERE slot >= :start AND slot <= :end"
         result = db_session.execute(
-            sqlalchemy.text(query), {"start": start_block_number, "end": end_block_number}
+            sqlalchemy.text(query),
+            {"start": start_block_number, "end": end_block_number},
         )
         keys = result.keys()
         data = list(
@@ -59,6 +60,7 @@ def get_transactions():
             500,
             description="failed getting data",
         )
+
 
 @v1.route("/parsed-transactions", methods=["GET"])
 def get_lender_parsed_transactions():
@@ -145,3 +147,65 @@ def get_liquidity():
         )
 
     return result
+
+
+@v1.route("/liquidable-debt", methods=["GET"])
+def get_liquidable_debt():
+    protocol = request.args.get("protocol")
+    collateral_token = request.args.get("collateral_token")
+    debt_token = request.args.get("protocol")
+
+    if protocol is None or collateral_token is None or debt_token is None:
+        abort(
+            400,
+            description='"protocol", "collateral_token" and "debt_token" query parameters must be specified',
+        )
+
+    try:
+        protocol_table = f"lenders.{protocol}_liquidable_debts"
+        query = f"""
+        SELECT *
+        FROM {protocol_table}
+        WHERE collateral_token = {collateral_token} AND debt_token = {debt_token};
+        """
+        result = db_session.execute(sqlalchemy.text(query))
+        keys = result.keys()
+        data = list(
+            map(
+                lambda arr: dict(zip(keys, arr)),
+                result,
+            )
+        )
+        return data
+
+    except ValueError as e:
+        print("Failed:", e)
+        abort(
+            500,
+            description="failed getting data",
+        )
+
+
+@v1.route("/cta", methods=["GET"])
+def get_cta():
+    try:
+        query = """
+        SELECT *
+        FROM lenders.call_to_actions;
+        """
+        result = db_session.execute(sqlalchemy.text(query))
+        keys = result.keys()
+        data = list(
+            map(
+                lambda arr: dict(zip(keys, arr)),
+                result,
+            )
+        )
+        return data
+
+    except ValueError as e:
+        print("Failed:", e)
+        abort(
+            500,
+            description="failed getting data",
+        )
