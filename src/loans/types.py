@@ -20,7 +20,7 @@ class Portfolio(collections.defaultdict):
 
     # TODO: Find a better solution to fix the discrepancies.
     def round_small_value_to_zero(self, token: str):
-        if abs(self[token]) < self.MAX_ROUNDING_ERRORS[token]:
+        if self[token] < self.MAX_ROUNDING_ERRORS[token]:
             self[token] = decimal.Decimal("0")
 
     def increase_value(self, token: str, value: decimal.Decimal):
