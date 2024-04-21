@@ -11,4 +11,4 @@ COPY ./scripts ./scripts
 COPY ./src ./src
 COPY ./db ./db
 
-CMD python3 scripts/process_events_to_liquidable_debt.py "$PROTOCOL"
+CMD python3 scripts/process_loan_states_to_liquidable_debt.py "$PROTOCOL"
