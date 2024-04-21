@@ -21,6 +21,7 @@ import src.visualizations.protocol_stats
 import src.protocols
 import src.visualizations.main_chart
 import src.visualizations.settings
+import src.visualizations.liquidable_debt
 from src.prices import get_prices_for_tokens
 from src.protocols.dexes.amms.utils import get_tokens_address_to_info_map
 
@@ -85,6 +86,16 @@ def main():
         token_pair=selected_tokens, data=main_chart_data, prices=tokens_prices
     )
     st.plotly_chart(figure_or_data=main_chart_figure, use_container_width=True)
+
+
+    # # Load relevant data and plot the liquidable debt against the available supply.
+    liquidable_debt_data = src.visualizations.liquidable_debt.get_aggregated_liquidable_debt_data(
+        protocol="kamino" # TODO: add protocol selection, or fetch data for all at once?
+    )
+    liquidable_debt_figure = src.visualizations.liquidable_debt.get_figure(
+        data=liquidable_debt_data
+    )
+    st.plotly_chart(figure_or_data=liquidable_debt_figure, use_container_width=True)
 
     # # Compute the price at which the liquidable debt to the available supply ratio is dangerous. Create and display the
     # # warning message.
