@@ -7,7 +7,6 @@ import src.loans.helpers
 import src.loans.types
 import src.loans.state
 
-
 # Keys are values of the "event_name" column in the database, values are the respective method names.
 EVENTS_METHODS_MAPPING: dict[str, str] = {
     # 'lending_account_borrow': 'process_borrowing_event',
@@ -114,7 +113,7 @@ class SolendState(src.loans.state.State):
     def process_withdrawal_event(self, event: pandas.DataFrame) -> None:
         transfer_event = event[
             event['event_name'] == 'transfer-sourceCollateralPubkey-destinationCollateralPubkey'
-        ]
+            ]
         assert len(transfer_event) > 0  # TODO
         for _, individual_transfer_event in transfer_event.iterrows():
             user = individual_transfer_event["obligation"]
@@ -163,14 +162,15 @@ class SolendState(src.loans.state.State):
             assert amount >= 0
             self.loan_entities[user].debt.increase_value(token=token, value=-amount)
             paid_interest = 0
-            
+
             if self.loan_entities[user].debt[token] < 0:
                 paid_interest = -self.loan_entities[user].debt[token]
                 amount = amount - paid_interest
                 self.loan_entities[user].debt[token] += paid_interest
             if user in self.verbose_users:
                 logging.info(
-                    "In block number = {}, user = {} repayed amount = {} of token = {}, \n paid interest = {} \n current debt = {}.".format(
+                    "In block number = {}, user = {} repayed amount = {} of "
+                    "token = {}, \n paid interest = {} \n current debt = {}.".format(
                         individual_transfer_event["block"],
                         user,
                         amount,
@@ -182,7 +182,8 @@ class SolendState(src.loans.state.State):
 
     def process_liquidation_event(self, event: pandas.DataFrame) -> None:
         # withdraw collateralprocess_unprocessed_events()
-        transfer_event = event[event['event_name'] == 'transfer-withdrawReserveCollateralSupplyPubkey-destinationCollateralPubkey']
+        transfer_event = event[
+            event['event_name'] == 'transfer-withdrawReserveCollateralSupplyPubkey-destinationCollateralPubkey']
         assert len(transfer_event) > 0
         for _, individual_transfer_event in transfer_event.iterrows():
             user = individual_transfer_event["obligation"]
