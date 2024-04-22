@@ -817,7 +817,7 @@ class MarginfiLiquidableDebts(Base):
     __tablename__ = "marginfi_liquidable_debts"
     __table_args__ = {"schema": SCHEMA_LENDERS}
 
-    timestamp = Column(BigInteger, primary_key=True, nullable=False)
+    slot = Column(BigInteger, primary_key=True, nullable=False)
     protocol = Column(String, primary_key=True, nullable=False)
     collateral_token = Column(String, primary_key=True, nullable=False)
     debt_token = Column(String, primary_key=True, nullable=False)
@@ -827,7 +827,7 @@ class MarginfiLiquidableDebts(Base):
     def __repr__(self):
         return (
             "MarginfiLiquidableDebts("
-            f"timestamp={self.timestamp},"
+            f"slot={self.slot},"
             f"protocol={self.protocol},"
             f"collateral_token={self.collateral_token},"
             f"debt_token={self.debt_token},"
@@ -840,7 +840,7 @@ class KaminoLiquidableDebts(Base):
     __tablename__ = "kamino_liquidable_debts"
     __table_args__ = {"schema": SCHEMA_LENDERS}
 
-    timestamp = Column(BigInteger, primary_key=True, nullable=False)
+    slot = Column(BigInteger, primary_key=True, nullable=False)
     protocol = Column(String, primary_key=True, nullable=False)
     collateral_token = Column(String, primary_key=True, nullable=False)
     debt_token = Column(String, primary_key=True, nullable=False)
@@ -850,7 +850,7 @@ class KaminoLiquidableDebts(Base):
     def __repr__(self):
         return (
             "KaminoLiquidableDebts("
-            f"timestamp={self.timestamp},"
+            f"slot={self.slot},"
             f"protocol={self.protocol},"
             f"collateral_token={self.collateral_token},"
             f"debt_token={self.debt_token},"
@@ -863,7 +863,7 @@ class MangoLiquidableDebts(Base):
     __tablename__ = "mango_liquidable_debts"
     __table_args__ = {"schema": SCHEMA_LENDERS}
 
-    timestamp = Column(BigInteger, primary_key=True, nullable=False)
+    slot = Column(BigInteger, primary_key=True, nullable=False)
     protocol = Column(String, primary_key=True, nullable=False)
     collateral_token = Column(String, primary_key=True, nullable=False)
     debt_token = Column(String, primary_key=True, nullable=False)
@@ -873,7 +873,7 @@ class MangoLiquidableDebts(Base):
     def __repr__(self):
         return (
             "MangoLiquidableDebts("
-            f"timestamp={self.timestamp},"
+            f"slot={self.slot},"
             f"protocol={self.protocol},"
             f"collateral_token={self.collateral_token},"
             f"debt_token={self.debt_token},"
@@ -886,7 +886,7 @@ class SolendLiquidableDebts(Base):
     __tablename__ = "solend_liquidable_debts"
     __table_args__ = {"schema": SCHEMA_LENDERS}
 
-    timestamp = Column(BigInteger, primary_key=True, nullable=False)
+    slot = Column(BigInteger, primary_key=True, nullable=False)
     protocol = Column(String, primary_key=True, nullable=False)
     collateral_token = Column(String, primary_key=True, nullable=False)
     debt_token = Column(String, primary_key=True, nullable=False)
@@ -896,7 +896,7 @@ class SolendLiquidableDebts(Base):
     def __repr__(self):
         return (
             "SolendLiquidableDebts("
-            f"timestamp={self.timestamp},"
+            f"slot={self.slot},"
             f"protocol={self.protocol},"
             f"collateral_token={self.collateral_token},"
             f"debt_token={self.debt_token},"
