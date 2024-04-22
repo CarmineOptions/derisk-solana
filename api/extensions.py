@@ -1,0 +1,7 @@
+from flask_caching import Cache
+from flask_sqlalchemy import SQLAlchemy
+
+from db import Base
+
+cache = Cache(config={'CACHE_TYPE': 'SimpleCache'})
+db = SQLAlchemy(model_class=Base)

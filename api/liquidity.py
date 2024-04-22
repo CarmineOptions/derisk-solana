@@ -1,6 +1,6 @@
 from flask import abort
 import sqlalchemy
-from api.cache import cache
+from api.extensions import cache
 from api.db import db_session
 
 def fetch_data_from_database():
