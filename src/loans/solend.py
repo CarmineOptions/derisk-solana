@@ -60,7 +60,7 @@ class SolendState(src.loans.state.State):
     ) -> None:
         self.where = 0
         super().__init__(
-            protocol='Solend',
+            protocol='solend',
             loan_entity_class=SolendLoanEntity,
             verbose_users=verbose_users,
             initial_loan_states=initial_loan_states,
