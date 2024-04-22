@@ -3,7 +3,6 @@ from decimal import Decimal
 import pandas as pd
 import sqlalchemy
 
-import src.protocols.state
 import src.protocols.addresses
 import db
 
