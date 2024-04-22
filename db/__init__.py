@@ -917,7 +917,7 @@ class CallToActions(Base):
 
     def __repr__(self):
         return (
-            "SolendLiquidableDebts("
+            "CallToActions("
             f"timestamp={self.timestamp},"
             f"collateral_token={self.collateral_token},"
             f"debt_token={self.debt_token},"
