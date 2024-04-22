@@ -81,7 +81,8 @@ class CurrentTXCollector(TXFromBlockCollector):
             ))
 
             for protocol in protocols:
-                protocol.last_block_collected = max(self.assignment) if self.assignment else None
+                if self.assignment:
+                    protocol.last_block_collected = max(self.assignment)
 
             session.commit()
         LOGGER.info(f"Assignment completed: {self.assignment}")
