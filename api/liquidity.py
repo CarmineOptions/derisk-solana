@@ -1,38 +1,45 @@
 from flask import abort
 import sqlalchemy
-from api.cache import cache
-from api.db import db_session
+from api.extensions import cache
+from api.extensions import db
+from db import DexNormalizedLiquidity
+
 
 def fetch_data_from_database():
     try:
-        query = """
-        WITH MaxValue AS (
-            SELECT MAX(timestamp) AS max_timestamp
-            FROM public.dex_normalized_liquidity
-        )
-        SELECT *
-        FROM public.dex_normalized_liquidity, MaxValue
-        WHERE timestamp = max_timestamp;
-        """
-        result = db_session.execute(sqlalchemy.text(query))
-        keys = result.keys()
-        data = list(
-            map(
-                lambda arr: dict(zip(keys, arr)),
-                result,
+        # Subquery to find the maximum timestamp
+        max_timestamp_subquery = db.session.query(
+            sqlalchemy.func.max(DexNormalizedLiquidity.timestamp).label("max_timestamp")
+        ).subquery()
+
+        # Main query to fetch all records with the maximum timestamp
+        result = (
+            db.session.query(DexNormalizedLiquidity)
+            .join(
+                max_timestamp_subquery,
+                DexNormalizedLiquidity.timestamp
+                == max_timestamp_subquery.c.max_timestamp,
             )
+            .all()
         )
+
+        # Serialize the result into a list of dictionaries
+        data = [
+            {
+                column.name: getattr(record, column.name)
+                for column in DexNormalizedLiquidity.__table__.columns
+            }
+            for record in result
+        ]
         return data
 
-    except ValueError as e:
-        print("Failed:", e)
-        abort(
-            500,
-            description="failed getting data",
-        )
+    except ValueError:
+        abort(500, description="Failed getting data")
+
 
 def get_pair_key(x: str, y: str) -> str:
     return f"{x}-{y}"
+
 
 @cache.cached(timeout=300, key_prefix="liquidity_map")
 def get_cached_liquidity():
