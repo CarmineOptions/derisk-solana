@@ -3,8 +3,7 @@ import sqlalchemy
 from sqlalchemy.orm import load_only
 
 from api.liquidity import get_cached_liquidity, get_pair_key
-from api.utils import parse_int, to_dict
-from api.db import db_session
+from api.utils import to_dict
 from api.extensions import db
 
 from db import (
@@ -12,6 +11,11 @@ from db import (
     KaminoParsedTransactions,
     MangoParsedTransactions,
     MarginfiParsedTransactions,
+    SolendParsedTransactions,
+    MarginfiLiquidableDebts,
+    MangoLiquidableDebts,
+    KaminoLiquidableDebts,
+    SolendLiquidableDebts,
     TransactionStatusWithSignature,
 )
 
@@ -25,6 +29,14 @@ protocols_parsed_transactions_model_map = {
     "marginfi": MarginfiParsedTransactions,
     "mango": MangoParsedTransactions,
     "kamino": KaminoParsedTransactions,
+    "solend": SolendParsedTransactions,
+}
+
+protocols_liquidable_debt_model_map = {
+    "marginfi": MarginfiLiquidableDebts,
+    "mango": MangoLiquidableDebts,
+    "kamino": KaminoLiquidableDebts,
+    "solend": SolendLiquidableDebts,
 }
 
 
@@ -122,65 +134,63 @@ def get_liquidity():
             description="Missing token_y",
         )
 
-    key = get_pair_key(token_x_address, token_y_address)
-
-    result = get_cached_liquidity().get(key)
-
-    if result is None:
-        abort(
-            400,
-            description=f"No data for the pair {token_x_address}, {token_y_address}",
-        )
-
-    return result
-
-
-@v1.route("/liquidable-debt", methods=["GET"])
-def get_liquidable_debt():
-    protocol = request.args.get("protocol")
-    collateral_token = request.args.get("collateral_token")
-    debt_token = request.args.get("protocol")
-
-    if protocol is None or collateral_token is None or debt_token is None:
-        abort(
-            400,
-            description='"protocol", "collateral_token" and "debt_token" query parameters must be specified',
-        )
-
     try:
-        protocol_table = f"lenders.{protocol}_liquidable_debts"
-        query = f"""
-        SELECT *
-        FROM {protocol_table}
-        WHERE collateral_token = {collateral_token} AND debt_token = {debt_token};
-        """
-        result = db_session.execute(sqlalchemy.text(query))
-        keys = result.keys()
-        data = list(
-            map(
-                lambda arr: dict(zip(keys, arr)),
-                result,
-            )
-        )
-        return data
+        key = get_pair_key(token_x_address, token_y_address)
 
-    except ValueError as e:
-        print("Failed:", e)
+        result = get_cached_liquidity().get(key)
+
+        if result is None:
+            empty_response = [{"asks": [], "bids": []}]
+            return jsonify(empty_response)
+
+        return jsonify(result)
+    except ValueError:
         abort(
             500,
             description="failed getting data",
         )
 
 
+@v1.route("/liquidable-debt", methods=["GET"])
+def get_liquidable_debt():
+    protocol = request.args.get("protocol")
+    collateral_token = request.args.get("collateral_token")
+    debt_token = request.args.get("debt_token")
+
+    protocol = request.args.get("protocol")
+    collateral_token = request.args.get("collateral_token")
+    debt_token = request.args.get("debt_token")
+
+    if not (protocol and collateral_token and debt_token):
+        abort(
+            400,
+            description='"protocol", "collateral_token" and "debt_token" must be specified',
+        )
+
+    model = protocols_liquidable_debt_model_map.get(protocol)
+
+    if model is None:
+        abort(400, description=f"{protocol} is not a valid protocol")
+
+    try:
+        result = (
+            db.session.query(model)
+            .filter(
+                model.collateral_token == collateral_token,
+                model.debt_token == debt_token,
+            )
+            .all()
+        )
+
+        data = [to_dict(row) for row in result]
+
+        return jsonify(data)
+
+    except ValueError:
+        abort(500, description="Failed getting data")
+
+
 @v1.route("/cta", methods=["GET"])
 def get_cta():
     call_to_actions = CallToActions.query.all()
-    return [
-        {
-            "timestamp": cta.timestamp,
-            "collateral_token": cta.collateral_token,
-            "debt_token": cta.debt_token,
-            "message": cta.message,
-        }
-        for cta in call_to_actions
-    ]
+    return [to_dict(cta) for cta in call_to_actions]
