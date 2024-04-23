@@ -1,4 +1,4 @@
-
+import traceback
 import time
 import pandas as pd
 import src.loans.state 
@@ -87,8 +87,9 @@ class MangoState(src.loans.state.State):
                 encoding='base64',
                 filters=filters
             )
-        except SolanaRpcException as e:
-            print(f'Received SolanaRpcException when fetching Mango accounts.')
+        except SolanaRpcException as err:
+            err_msg = "".join(traceback.format_exception(err))
+            print(f'Received SolanaRpcException when fetching Mango accounts:\n {err_msg}')
             time.sleep(10)
             return self.get_all_accounts_for_group(mango_group)
 
@@ -126,6 +127,7 @@ class MangoState(src.loans.state.State):
                     continue
 
                 mint = self.group_token_index_map.get(mango_group)
+
                 if not mint:
                     print(f'Unable to find token index map for group {mango_group}')
                     continue
