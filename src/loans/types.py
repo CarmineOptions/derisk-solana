@@ -30,3 +30,6 @@ class Portfolio(collections.defaultdict):
     def set_value(self, token: str, value: decimal.Decimal):
         self[token] = value
         self.round_small_value_to_zero(token=token)
+
+    def is_zero(self):
+        return all([i == 0 for i in self.values()])

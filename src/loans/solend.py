@@ -9,11 +9,6 @@ import src.loans.state
 
 # Keys are values of the "event_name" column in the database, values are the respective method names.
 EVENTS_METHODS_MAPPING: dict[str, str] = {
-    # 'lending_account_borrow': 'process_borrowing_event',
-    # 'lending_account_deposit': 'process_deposit_event',
-    # 'lending_account_liquidate': 'process_liquidation_event',
-    # 'lending_account_repay': 'process_repayment_event',
-    # 'lending_account_withdraw': 'process_withdrawal_event',
     'borrow_obligation_liquidity': 'process_borrowing_event',
     'deposit_obligation_collateral': 'process_deposit_event',
     # 'deposit_reserve_liquidity': 'process_deposit_event',  # do not affect collateral or debt
@@ -92,7 +87,10 @@ class SolendState(src.loans.state.State):
             logging.info("Processing {} slot.".format(self.last_slot))
 
     def process_deposit_event(self, event: pandas.DataFrame) -> None:
-        transfer_event = event[event['event_name'] == 'transfer-userCollateralPubkey-destinationDepositCollateralPubkey']
+        transfer_event = event[event['event_name'].isin([
+            'transfer-sourceCollateralPubkey-destinationCollateralPubkey',
+            'transfer-userCollateralPubkey-destinationDepositCollateralPubkey'
+        ])]
         assert len(transfer_event) > 0
         for _, individual_transfer_event in transfer_event.iterrows():
             user = individual_transfer_event["obligation"]
