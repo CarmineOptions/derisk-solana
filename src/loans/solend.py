@@ -3,6 +3,7 @@ import logging
 
 import pandas
 
+import src.database
 import src.loans.helpers
 import src.loans.types
 import src.loans.state
@@ -54,12 +55,53 @@ class SolendState(src.loans.state.State):
         initial_loan_states: pandas.DataFrame = pandas.DataFrame(),
     ) -> None:
         self.where = 0
+        self.reserves = SolendState._fetch_reserves()
         super().__init__(
             protocol='solend',
             loan_entity_class=SolendLoanEntity,
             verbose_users=verbose_users,
             initial_loan_states=initial_loan_states,
         )
+
+    @staticmethod
+    def _fetch_reserves() -> pandas.DataFrame:
+        connection = src.database.establish_connection()
+        reserves = pandas.read_sql(
+            sql=f"""
+                select 
+                    reserve_pubkey,
+                    reserve_liquidity_mint_pubkey, 
+                    reserve_liquidity_supply_pubkey,
+                    reserve_collateral_mint_pubkey,
+                    reserve_collateral_supply_pubkey
+                from lenders.solend_reserves_v2;
+                """,
+            con=connection,
+        )
+        connection.close()
+        return reserves
+
+    # def get_
+
+    def get_token_for_liquidity_supply(self, reserve_pubkey):
+        return self.reserves[
+            self.reserves['reserve_liquidity_supply_pubkey'] == reserve_pubkey
+        ].reserve_liquidity_mint_pubkey.values[0]
+
+    def get_token_for_collateral_supply(self, reserve_pubkey):
+        return self.reserves[
+            self.reserves['reserve_collateral_supply_pubkey'] == reserve_pubkey
+        ].reserve_collateral_mint_pubkey.values[0]
+
+    def get_reserve_for_liquidity_supply(self, reserve_pubkey):
+        return self.reserves[
+            self.reserves['reserve_liquidity_supply_pubkey'] == reserve_pubkey
+        ].reserve_pubkey.values[0]
+
+    def get_reserve_for_collateral_supply(self, reserve_pubkey):
+        return self.reserves[
+            self.reserves['reserve_collateral_supply_pubkey'] == reserve_pubkey
+        ].reserve_pubkey.values[0]
 
     def get_unprocessed_events(self) -> None:
         self.unprocessed_events = src.loans.helpers.get_events(
