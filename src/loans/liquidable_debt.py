@@ -4,6 +4,7 @@ import logging
 import time
 from typing import Callable, Literal, Type, TypeVar
 
+
 import pandas
 from sqlalchemy import func
 from sqlalchemy.orm.session import Session
@@ -24,7 +25,12 @@ import src.loans.loan_state
 import src.prices
 import src.protocols
 import src.visualizations.main_chart
+import src.protocols.dexes.amms.utils
+import src.loans.mango
+import src.mango_token_params_map
 
+from warnings import simplefilter
+simplefilter(action="ignore", category=pandas.errors.PerformanceWarning)
 
 
 MARGINFI = "marginfi"
@@ -74,12 +80,110 @@ def process_marginfi_loan_states(
     return pandas.DataFrame()
 
 
-def process_mango_loan_states(loan_states: list[MangoLoanStates]) -> pandas.DataFrame:
-    # TODO: process mango loan_states
-    print(f"processing {len(loan_states)} Mango loan states")
+def process_mango_loan_states(loan_states: pandas.DataFrame) -> pandas.DataFrame:
+    print(f"processing {len(loan_states)} mango loan states")
+    protocol = 'mango'
+    collateral_tokens = {token for collateral in loan_states['collateral'] for token in collateral}
+    debt_tokens = {token for debt in loan_states['debt'] for token in debt}
 
-    return pandas.DataFrame()
+    for collateral_token in collateral_tokens:
+        loan_states[f'collateral_{collateral_token}'] = (
+            loan_states['collateral'].apply(lambda x: x[collateral_token] if collateral_token in x else decimal.Decimal('0'))
+    )
+    for debt_token in debt_tokens:
+        loan_states[f'debt_{debt_token}'] = (
+            loan_states['debt'].apply(lambda x: x[debt_token] if debt_token in x else decimal.Decimal('0'))
+        )
 
+    underlying_collateral_tokens: set = collateral_tokens
+    underlying_debt_tokens: set = debt_tokens
+
+    token_prices = src.prices.get_prices_for_tokens(list(underlying_collateral_tokens | underlying_debt_tokens))
+    token_parameters = src.mango_token_params_map.token_parameters
+    tokens_info = src.protocols.dexes.amms.utils.get_tokens_address_to_info_map()
+
+
+    for collateral_token in collateral_tokens:
+
+        if not token_parameters.get(collateral_token):
+            print(f'No token parameters found for {collateral_token}')
+            continue
+        if not tokens_info.get(collateral_token):
+            print(f'No token info found for {collateral_token}')
+            continue
+        if not tokens_info[collateral_token].get('decimals'):
+            print(f'No decimals found for {collateral_token}')
+            continue
+
+        decimals = tokens_info[collateral_token]['decimals']
+        asset_maint_w = token_parameters[collateral_token]['maint_asset_weight']
+        loan_states[f'collateral_usd_{collateral_token}'] = (
+            loan_states[f'collateral_{collateral_token}'].astype(float)
+            / (10**decimals)
+            * float(asset_maint_w)
+            * token_prices[collateral_token]
+        )
+
+    for debt_token in debt_tokens:
+
+        if not token_parameters.get(debt_token):
+            print(f'No token parameters found for {debt_token}')
+            continue
+        if not tokens_info.get(debt_token):
+            print(f'No token info found for {debt_token}')
+            continue
+        if not tokens_info[debt_token].get('decimals'):
+            print(f'No decimals found for {debt_token}')
+            continue
+        
+        decimals = tokens_info[debt_token]['decimals']
+        liab_maint_w = token_parameters[debt_token]['maint_liab_weight']
+        loan_states[f'debt_usd_{debt_token}'] = (
+            loan_states[f'debt_{debt_token}'].astype(float)
+            / (10**decimals)
+            * float(liab_maint_w)
+            * token_prices[debt_token]
+        )
+        
+    all_data = []
+
+    for collateral_token, debt_token in itertools.product(collateral_tokens, debt_tokens):
+        if collateral_token == debt_token:
+            continue
+
+        logging.info(
+            'Computing liquidable debt for protocol = {}, collateral token = {} and debt token = {}.'.format(
+                protocol,
+                collateral_token,
+                debt_token,
+            )
+        )
+        collateral_token_price = token_prices[collateral_token]
+        
+        data = pandas.DataFrame(
+            {
+                "collateral_token_price": src.visualizations.main_chart.get_token_range(collateral_token_price),
+            }
+        )
+        liquidable_debt = data['collateral_token_price'].apply(
+            lambda x: src.loans.mango.compute_liquidable_debt_at_price(
+                loan_states = loan_states.copy(),
+                token_prices = token_prices,
+                collateral_token = collateral_token,
+                target_collateral_token_price = x,
+                debt_token = debt_token,
+            )
+        )
+        data['amount'] = liquidable_debt.diff().abs()
+        data['protocol'] = protocol
+        data['slot'] = loan_states['slot'].max()
+        data['collateral_token'] = collateral_token
+        data['debt_token'] = debt_token
+        data = data.dropna()
+        
+        all_data.append(data)
+        
+    return pandas.concat(all_data)
 
 def process_kamino_loan_states(loan_states: list[KaminoLoanStates]) -> pandas.DataFrame:
     PROTOCOL = 'kamino'

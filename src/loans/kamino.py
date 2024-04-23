@@ -219,6 +219,7 @@ def compute_liquidable_debt_at_price(
     target_collateral_token_price: decimal.Decimal,
     debt_token: str,
 ) -> decimal.Decimal:
+
     if not debt_token in mint_to_supply_map:
         return decimal.Decimal('0')
     lp_collateral_tokens = mint_to_lp_map[collateral_token]
