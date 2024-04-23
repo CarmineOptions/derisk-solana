@@ -193,4 +193,4 @@ def get_liquidable_debt():
 @v1.route("/cta", methods=["GET"])
 def get_cta():
     call_to_actions = CallToActions.query.all()
-    return [to_dict(cta) for cta in call_to_actions]
+    return jsonify([to_dict(cta) for cta in call_to_actions])
