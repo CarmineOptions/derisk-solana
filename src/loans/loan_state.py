@@ -169,7 +169,11 @@ def fetch_loan_states(protocol: Protocol, session: Session) -> pandas.DataFrame:
     max_slot_subquery = session.query(func.max(model.slot)).subquery()
 
     # Retrieve entries from the loan_states table where slot equals the maximum slot value
-    query_result = session.query(model).filter(model.slot == max_slot_subquery).all()
+    try:
+        query_result = session.query(model).filter(model.slot == max_slot_subquery).all()
+    except:
+        session.rollback()
+        query_result = session.query(model).filter(model.slot == max_slot_subquery).all()
 
     df = pandas.DataFrame(
         [
@@ -256,7 +260,7 @@ def process_events_to_loan_states(
             'slot': [state.last_slot for _ in state.loan_entities.keys()],
             'user': [user for user in state.loan_entities],
             'collateral': [{token: float(amount) for token, amount in loan.collateral.items()} for loan in state.loan_entities.values()],
-            'debt': [{token: float(amount) for token, amount in loan.collateral.items()} for loan in state.loan_entities.values()],
+            'debt': [{token: float(amount) for token, amount in loan.debt.items()} for loan in state.loan_entities.values()],
         }
     )
     if state.last_slot > min_slot:
