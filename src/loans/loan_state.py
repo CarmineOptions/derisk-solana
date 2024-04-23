@@ -5,6 +5,7 @@ from typing import Callable, Literal, Type, TypeVar
 import pandas
 from sqlalchemy import func
 from sqlalchemy.orm.session import Session
+
 from db import (
     MangoLoanStates,
     MarginfiLoanStates,
@@ -16,6 +17,10 @@ from db import (
     SolendParsedTransactions,
     get_db_session,
 )
+import src.loans.kamino
+import src.loans.marginfi
+
+
 
 MARGINFI = "marginfi"
 MANGO = "mango"
@@ -55,24 +60,10 @@ ProtocolFunc = (
 )
 
 
-def process_marginfi_events(
-    events: list[MarginfiParsedTransactions],
-) -> pandas.DataFrame:
-    # TODO: process marginfi events
-    print(events)
 
-    return pandas.DataFrame()
-
-
+# TODO: these are redundant
 def process_mango_events(events: list[MangoParsedTransactions]) -> pandas.DataFrame:
     # TODO: process mango events
-    print(events)
-
-    return pandas.DataFrame()
-
-
-def process_kamino_events(events: list[KaminoParsedTransactions]) -> pandas.DataFrame:
-    # TODO: process kamino events
     print(events)
 
     return pandas.DataFrame()
@@ -85,17 +76,13 @@ def process_solend_events(events: list[SolendParsedTransactions]) -> pandas.Data
     return pandas.DataFrame()
 
 
-def protocol_to_process_func(
+def protocol_to_protocol_class(
     protocol: Protocol,
 ) -> ProtocolFunc:
     if protocol == MARGINFI:
-        return process_marginfi_events
-    if protocol == MANGO:
-        return process_mango_events
+        return src.loans.marginfi.MarginFiState
     if protocol == KAMINO:
-        return process_kamino_events
-    if protocol == SOLEND:
-        return process_solend_events
+        return src.loans.kamino.KaminoState
     # Unreachable
     raise ValueError(f"invalid protocol {protocol}")
 
@@ -166,7 +153,11 @@ def fetch_loan_states(protocol: Protocol, session: Session) -> pandas.DataFrame:
     max_slot_subquery = session.query(func.max(model.slot)).subquery()
 
     # Retrieve entries from the loan_states table where slot equals the maximum slot value
-    query_result = session.query(model).filter(model.slot == max_slot_subquery).all()
+    try:
+        query_result = session.query(model).filter(model.slot == max_slot_subquery).all()
+    except:
+        session.rollback()
+        query_result = session.query(model).filter(model.slot == max_slot_subquery).all()
 
     df = pandas.DataFrame(
         [
@@ -227,7 +218,7 @@ def fetch_events(min_slot: int, protocol: Protocol, session: Session) -> AnyEven
 
 def process_events_to_loan_states(
     protocol: Protocol,
-    process_function: Callable[
+    protocol_class: Callable[
         [AnyEvents],
         pandas.DataFrame,
     ],
@@ -239,20 +230,34 @@ def process_events_to_loan_states(
     if len(current_loan_states) > 0:
         min_slot = int(current_loan_states.iloc[0]["slot"])
 
-    events: AnyEvents = fetch_events(min_slot, protocol, session)
-
-    new_loan_state = process_function(events)
-
-    store_loan_states(new_loan_state, protocol, session)
+    state = protocol_class(
+        verbose_users={},
+        initial_loan_states=current_loan_states,
+    )
+    state.get_unprocessed_events()
+    logging.info('The number of unprocessed events = {} for protocol = {}.'.format(len(state.unprocessed_events), protocol))
+    state.process_unprocessed_events()
+    logging.info('The number of loan entities = {} for protocol = {}.'.format(len(state.loan_entities), protocol))
+    new_loan_state = pandas.DataFrame(
+        {
+            'protocol': [state.protocol for _ in state.loan_entities.keys()],
+            'slot': [state.last_slot for _ in state.loan_entities.keys()],
+            'user': [user for user in state.loan_entities],
+            'collateral': [{token: float(amount) for token, amount in loan.collateral.items()} for loan in state.loan_entities.values()],
+            'debt': [{token: float(amount) for token, amount in loan.debt.items()} for loan in state.loan_entities.values()],
+        }
+    )
+    if state.last_slot > min_slot:
+        store_loan_states(new_loan_state, protocol, session)
 
 
 def process_events_continuously(protocol: Protocol):
     logging.info("Starting events to loan_states processing.")
     session = get_db_session()
 
-    process_func = protocol_to_process_func(protocol)
+    protocol_class = protocol_to_protocol_class(protocol)
 
     while True:
-        process_events_to_loan_states(protocol, process_func, session)
+        process_events_to_loan_states(protocol, protocol_class, session)
         logging.info("Updated loan_states.")
         time.sleep(120)
