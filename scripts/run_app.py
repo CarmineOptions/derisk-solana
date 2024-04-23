@@ -51,7 +51,7 @@ def main():
     col1, col2, col3 = st.columns(3)
 
     with col1:
-        _protocols = st.multiselect(
+        protocols = st.multiselect(
             label="Select protocols",
             options=["Kamino", "Mango", "Solend", "MarginFi"],
             default=["Kamino", "Mango", "Solend", "MarginFi"],
@@ -78,6 +78,7 @@ def main():
 
     # # Load relevant data and plot the liquidable debt against the available supply.
     main_chart_data = src.visualizations.main_chart.get_main_chart_data(
+        protocols=protocols,
         token_selection=selected_tokens,  # type: ignore
         prices=tokens_prices,
     )
@@ -85,6 +86,7 @@ def main():
         token_pair=selected_tokens, data=main_chart_data, prices=tokens_prices
     )
     st.plotly_chart(figure_or_data=main_chart_figure, use_container_width=True)
+
 
     # # Compute the price at which the liquidable debt to the available supply ratio is dangerous. Create and display the
     # # warning message.

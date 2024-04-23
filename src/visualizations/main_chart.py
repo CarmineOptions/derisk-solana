@@ -105,6 +105,70 @@ def token_addresses_to_Token_list( # pylint: disable=C0103
     return tokens
 
 
+def protocol_to_model(
+    protocol: str,
+) -> (
+    db.MarginfiLiquidableDebts
+    | db.MangoLiquidableDebts
+    | db.KaminoLiquidableDebts
+    | db.SolendLiquidableDebts
+):
+    protocol = protocol.lower()
+    if protocol == "marginfi":
+        return db.MarginfiLiquidableDebts
+    if protocol == "mango":
+        return db.MangoLiquidableDebts
+    if protocol == "kamino":
+        return db.KaminoLiquidableDebts
+    if protocol == "solend":
+        return db.SolendLiquidableDebts
+    raise ValueError(f"invalid protocol {protocol}")
+
+
+def get_liquidable_debt(
+    protocols: list[str],
+    token_pair: TokensSelected,
+) -> pd.DataFrame:
+    # db models of all selected protocols
+    db_models = [protocol_to_model(protocol) for protocol in protocols]
+
+    with db.get_db_session() as session:
+        data = []
+        for db_model in db_models:
+            try:
+                # data over all protocols
+                data += (
+                    session.query(db_model)
+                    .filter(
+                        db_model.collateral_token == token_pair.collateral.address
+                    )
+                    .filter(db_model.debt_token == token_pair.loan.address)
+                    .all()
+                )
+            except ValueError:
+                print(f"no data for {db_model}")
+
+        df = pd.DataFrame(
+            [
+                {
+                    "collateral_token": d.collateral_token,
+                    "debt_token": d.debt_token,
+                    "collateral_token_price": d.collateral_token_price,
+                    "amount": d.amount,
+                }
+                for d in data
+            ]
+        )
+
+        aggregated_data = (
+            df.groupby(["collateral_token", "debt_token", "collateral_token_price"])
+            .agg({"amount": "sum"})
+            .reset_index()
+        )
+
+    return aggregated_data
+
+
 def get_normalized_liquidity(tokens: TokensSelected) -> list[db.DexNormalizedLiquidity]:
 
     with db.get_db_session() as session:
@@ -294,7 +358,7 @@ def get_debt_token_supply_at_price_point(
 
 
 def get_main_chart_data(
-    # protocols: list[str], # TODO: Uncomment once loans available
+    protocols: list[str],
     token_selection: TokensSelected,
     prices: dict[str, float | None],
 ) -> pd.DataFrame:
@@ -316,15 +380,16 @@ def get_main_chart_data(
         lambda x: get_debt_token_supply_at_price_point(adjusted_entries, x)
     )
 
-    # TODO: Compute liqidable debt.
-    # data['liquidable_debt'] = data['collateral_token_price'].apply(
-    #     lambda x: get_liquidable_debt(
-    # 		protocols=protocols,
-    # 		token_pair=token_pair,
-    # 		prices=prices,
-    # 		collateral_token_price=x,
-    # 	)
-    # )
+    # TODO: use protocols
+    liquidable_dept = get_liquidable_debt(protocols=protocols, token_pair=token_selection)
+    data = pd.merge(
+        data,
+        liquidable_dept[['collateral_token_price', 'amount']],
+        left_on='collateral_token_price',
+        right_on='collateral_token_price',
+        how='left',
+    )
+    data['amount'] = data['amount'].fillna(0)
 
     return data
 
@@ -335,19 +400,31 @@ def get_figure(
     prices: dict[str, float | None],
 ) -> plotly.graph_objs.Figure:
 
+    df_long = data.melt(id_vars=["collateral_token_price"], 
+                  value_vars=["debt_token_supply", "amount"],
+                  var_name="Type", value_name="Value")
+
+    color_discrete_map = {
+        "debt_token_supply": "#636EFA",  # Blue color for debt_token_supply
+        "amount": "#50C878"             # Red color for amount
+    }
+
     figure = plotly.express.bar(
-        data_frame=data,
+        data_frame=df_long,
         x="collateral_token_price",
         # TODO: Add `liquidable_debt_at_interval`.
-        y="debt_token_supply",
+        y="Value",
         title=f"Liquidable debt and the corresponding supply of {token_pair.loan.symbol} at various price intervals of "
         f"{token_pair.collateral.symbol}",
+        color="Type",
         barmode="overlay",
+        color_discrete_map=color_discrete_map,
         opacity=0.65,
         # TODO: Align colors with the rest of the app.
         # color_discrete_map={"liquidable_debt_at_interval": "#ECD662", "debt_token_supply": "#4CA7D0"},
     )
-    figure.update_traces(hovertemplate="<b>Price:</b> %{x}<br>" "<b>Volume:</b> %{y}")
+
+    figure.update_traces(hovertemplate="<b>Price:</b> %{x}<br><b>%{data.name}:</b> %{y}")
     figure.update_traces(
         selector={"name": "liquidable_debt_at_interval"},
         name=f"Liquidable {token_pair.collateral.symbol} debt",
