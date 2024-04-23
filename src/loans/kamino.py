@@ -244,9 +244,9 @@ def compute_liquidable_debt_at_price(
     loan_states['liquidable'] = loan_states['loan_to_value'] < liquidation_threshold
     # 20% of the debt value is liquidated.
     liquidable_debt_ratio = 0.2 * (
-        liquidation_parameters['min_liquidation_bonus_bps']
+        1 + liquidation_parameters['min_liquidation_bonus_bps'] / 10_000
         if liquidation_parameters
-        else 0.02
+        else 1.02
     )
     loan_states['debt_to_be_liquidated'] = liquidable_debt_ratio * loan_states['debt_usd'] * loan_states['liquidable']
     return loan_states['debt_to_be_liquidated'].sum()
