@@ -219,8 +219,12 @@ def compute_liquidable_debt_at_price(
     target_collateral_token_price: decimal.Decimal,
     debt_token: str,
 ) -> decimal.Decimal:
+
+    if not debt_token in mint_to_supply_map:
+        return decimal.Decimal('0')
     lp_collateral_tokens = mint_to_lp_map[collateral_token]
     supply_collateral_tokens = mint_to_supply_map[collateral_token]
+    supply_debt_tokens = mint_to_supply_map[debt_token]
 
     price_ratio = target_collateral_token_price / token_prices[collateral_token]
     for lp_collateral_token in lp_collateral_tokens:
@@ -233,9 +237,9 @@ def compute_liquidable_debt_at_price(
             loan_states[supply_collateral_column] = loan_states[supply_collateral_column] * price_ratio
     loan_states['collateral_usd'] = loan_states[[x for x in loan_states.columns if 'collateral_usd_' in x]].sum(axis = 1)
     loan_states['debt_usd'] = loan_states[[x for x in loan_states.columns if 'debt_usd_' in x]].sum(axis = 1)
-
     loan_states['loan_to_value'] = loan_states['debt_usd'] / loan_states['collateral_usd']
-    liquidation_parameters = debt_token_parameters.get(supply_collateral_tokens[0], None)
+
+    liquidation_parameters = debt_token_parameters.get(supply_debt_tokens[0], None)
     liquidation_threshold = (
         liquidation_parameters['liquidation_threshold_pct'] / 100
         if liquidation_parameters

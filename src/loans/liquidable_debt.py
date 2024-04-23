@@ -32,6 +32,7 @@ import src.mango_token_params_map
 from warnings import simplefilter
 simplefilter(action="ignore", category=pandas.errors.PerformanceWarning)
 
+
 MARGINFI = "marginfi"
 MANGO = "mango"
 KAMINO = "kamino"
@@ -183,7 +184,6 @@ def process_mango_loan_states(loan_states: pandas.DataFrame) -> pandas.DataFrame
         all_data.append(data)
         
     return pandas.concat(all_data)
-
 
 def process_kamino_loan_states(loan_states: list[KaminoLoanStates]) -> pandas.DataFrame:
     PROTOCOL = 'kamino'
