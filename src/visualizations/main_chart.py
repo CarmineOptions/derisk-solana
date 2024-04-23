@@ -358,7 +358,7 @@ def get_debt_token_supply_at_price_point(
 
 
 def get_main_chart_data(
-    # protocols: list[str], # TODO: Uncomment once loans available
+    protocols: list[str],
     token_selection: TokensSelected,
     prices: dict[str, float | None],
 ) -> pd.DataFrame:
@@ -381,7 +381,7 @@ def get_main_chart_data(
     )
 
     # TODO: use protocols
-    liquidable_dept = get_liquidable_debt(protocols=["Kamino"], token_pair=token_selection)
+    liquidable_dept = get_liquidable_debt(protocols=protocols, token_pair=token_selection)
     data = pd.merge(
         data,
         liquidable_dept[['collateral_token_price', 'amount']],
@@ -400,9 +400,14 @@ def get_figure(
     prices: dict[str, float | None],
 ) -> plotly.graph_objs.Figure:
 
-    df_long = data.melt(id_vars=['collateral_token_price'], 
-                  value_vars=['debt_token_supply', 'amount'],
-                  var_name='Type', value_name='Value')
+    df_long = data.melt(id_vars=["collateral_token_price"], 
+                  value_vars=["debt_token_supply", "amount"],
+                  var_name="Type", value_name="Value")
+
+    color_discrete_map = {
+        "debt_token_supply": "#636EFA",  # Blue color for debt_token_supply
+        "amount": "#50C878"             # Red color for amount
+    }
 
     figure = plotly.express.bar(
         data_frame=df_long,
@@ -411,8 +416,9 @@ def get_figure(
         y="Value",
         title=f"Liquidable debt and the corresponding supply of {token_pair.loan.symbol} at various price intervals of "
         f"{token_pair.collateral.symbol}",
-        color='Type',
+        color="Type",
         barmode="overlay",
+        color_discrete_map=color_discrete_map,
         opacity=0.65,
         # TODO: Align colors with the rest of the app.
         # color_discrete_map={"liquidable_debt_at_interval": "#ECD662", "debt_token_supply": "#4CA7D0"},
