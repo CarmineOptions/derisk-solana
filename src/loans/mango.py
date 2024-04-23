@@ -1,4 +1,5 @@
 import traceback
+import itertools
 import time
 import pandas as pd
 import src.loans.state 
@@ -121,6 +122,7 @@ class MangoState(src.loans.state.State):
             mango_group = str(account.group)
             mango_account = str(account_pubkey)
 
+            # TODO: Add perps, serum3
             for token in account.tokens:
                 if token.token_index == 65535:
                     # Disabled position
@@ -153,3 +155,63 @@ class MangoState(src.loans.state.State):
                     continue
         self.last_slot = int(time.time())
                 
+
+
+def liq_debt(x: pd.Series, collateral_collumn: str, debt_collumn: str) -> float:
+    if x['health'] > 0:
+        return 0
+    coll_debt_diff = x[collateral_collumn] - x[debt_collumn]
+
+    if coll_debt_diff < 0:
+        # Means debt was higher than collateral, so the maximum that
+        # can be liquidated is all of collateral
+        return x[collateral_collumn]
+
+    # In this case the collateral is higher than debt we need to liquidate
+    # the amount that would bring the overall health above 0 
+
+    # assets / borrows - 1 = health ie -> 100 / 150 - 1 = -0.33
+    # we need to bring borrows to 100 -> multiply borrows by health
+    # so we get abs(150 * -0.33) -> 50 and that's amount that need to be 
+    # liquidated to bring borrows back to 100 (so health will be >=0)
+    liquidation_needed_for_good_health = abs(x['debt_usd'] * x['health'])
+
+    # if liquidation needed is higher then debt then return debt as that the 
+    # max that can be liquidated in current loan, else just liquidation needed
+    if liquidation_needed_for_good_health > x[debt_collumn]:
+        return x[debt_collumn]
+    
+    return liquidation_needed_for_good_health
+
+
+def compute_liquidable_debt_at_price(
+    loan_states: pd.DataFrame,
+    token_prices: dict[str, float],
+    collateral_token: str,
+    target_collateral_token_price: Decimal,
+    debt_token: str,
+) -> Decimal:
+
+    # collateral_token_price = token_prices[collateral_token]
+    # debt_token_price = token_prices[debt_token]
+    price_ratio = target_collateral_token_price / token_prices[collateral_token]
+
+    collateral_collumn = f'collateral_usd_{collateral_token}'
+    debt_collumn = f'debt_usd_{debt_token}'
+
+    if collateral_collumn in loan_states.columns:
+        loan_states[collateral_collumn] = loan_states[collateral_collumn] * price_ratio
+
+    # if debt_collumn in loan_states.columns:
+    #     loan_states[debt_collumn] = loan_states[debt_collumn] * price_ratio
+
+    loan_states['collateral_usd'] = loan_states[[x for x in loan_states.columns if 'collateral_usd_' in x]].sum(axis = 1)
+    loan_states['debt_usd'] = loan_states[[x for x in loan_states.columns if 'debt_usd_' in x]].sum(axis = 1)
+
+    loan_states['health'] = (loan_states['collateral_usd'] / loan_states['debt_usd']) - 1
+    loan_states.loc[loan_states['health'] > 1, 'health'] = 1
+
+    loan_states['to_be_liquidated'] = loan_states.apply(lambda x: liq_debt(x, collateral_collumn, debt_collumn), axis = 1)
+
+    return loan_states['to_be_liquidated'].sum()
+
