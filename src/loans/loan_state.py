@@ -62,24 +62,8 @@ ProtocolFunc = (
 
 
 # TODO: these are redundant
-def process_marginfi_events(
-    events: list[MarginfiParsedTransactions],
-) -> pandas.DataFrame:
-    # TODO: process marginfi events
-    print(events)
-
-    return pandas.DataFrame()
-
-
 def process_mango_events(events: list[MangoParsedTransactions]) -> pandas.DataFrame:
     # TODO: process mango events
-    print(events)
-
-    return pandas.DataFrame()
-
-
-def process_kamino_events(events: list[KaminoParsedTransactions]) -> pandas.DataFrame:
-    # TODO: process kamino events
     print(events)
 
     return pandas.DataFrame()
