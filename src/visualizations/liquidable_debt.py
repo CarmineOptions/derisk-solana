@@ -3,6 +3,7 @@ import plotly.express
 import plotly.graph_objs
 
 import db
+from . import main_chart
 
 
 def protocol_to_model(
@@ -13,6 +14,7 @@ def protocol_to_model(
     | db.KaminoLiquidableDebts
     | db.SolendLiquidableDebts
 ):
+    protocol = protocol.lower()
     if protocol == "marginfi":
         return db.MarginfiLiquidableDebts
     if protocol == "mango":
@@ -24,14 +26,27 @@ def protocol_to_model(
     raise ValueError(f"invalid protocol {protocol}")
 
 
-def get_aggregated_liquidable_debt_data(protocol: str) -> pd.DataFrame:
-
-    db_model = protocol_to_model(protocol)
+def get_aggregated_liquidable_debt_data(
+    protocols: list[str], selected_tokens: main_chart.TokensSelected
+) -> pd.DataFrame:
+    # db models of all selected protocols
+    db_models = [protocol_to_model(protocol) for protocol in protocols]
 
     with db.get_db_session() as session:
-        data = session.query(db_model).all()
-
-        print(data, flush=True)
+        data = []
+        for db_model in db_models:
+            try:
+                # data over all protocols
+                data += (
+                    session.query(db_model)
+                    .filter(
+                        db_model.collateral_token == selected_tokens.collateral.address
+                    )
+                    .filter(db_model.debt_token == selected_tokens.loan.address)
+                    .all()
+                )
+            except ValueError:
+                print(f"no data for {db_model}")
 
         df = pd.DataFrame(
             [
@@ -59,16 +74,15 @@ def get_figure(
 ) -> plotly.graph_objs.Figure:
     figure = plotly.express.bar(
         data,
-        x="collateral_token",
+        x="collateral_token_price",
         y="amount",
         color="debt_token",  # Different bars for each debt_token
         barmode="group",  # Group bars for each collateral_token
-        facet_col="collateral_token_price",  # Create a subplot for each price point
+        # facet_col="collateral_token_price",  # Create a subplot for each price point
         title="Sum of Amounts by Collateral and Debt Tokens at Various Prices",
         labels={
             "amount": "Total Amount",
             "collateral_token": "Collateral Token",
-            "debt_token": "Debt Token",
         },
     )
 

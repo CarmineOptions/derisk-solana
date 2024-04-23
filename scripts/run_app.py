@@ -90,7 +90,7 @@ def main():
 
     # # Load relevant data and plot the liquidable debt against the available supply.
     liquidable_debt_data = src.visualizations.liquidable_debt.get_aggregated_liquidable_debt_data(
-        protocol="kamino" # TODO: add protocol selection, or fetch data for all at once?
+        protocols=_protocols, selected_tokens=selected_tokens
     )
     liquidable_debt_figure = src.visualizations.liquidable_debt.get_figure(
         data=liquidable_debt_data
