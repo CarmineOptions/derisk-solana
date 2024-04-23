@@ -28,7 +28,6 @@ from src.protocols.dexes.amms.utils import get_tokens_address_to_info_map
 
 def main():
     st.title("DeRisk Solana")
-    st.header("Hello, World!")
 
     tokens_available = src.visualizations.protocol_stats.get_unique_token_supply_mints()
     if not tokens_available:
@@ -54,8 +53,8 @@ def main():
     with col1:
         _protocols = st.multiselect(
             label="Select protocols",
-            options=["Kamino", "Mango", "Solend"],
-            default=["Kamino", "Mango", "Solend"],
+            options=["Kamino", "Mango", "Solend", "MarginFi"],
+            default=["Kamino", "Mango", "Solend", "MarginFi"],
         )
 
     with col2:
@@ -69,7 +68,7 @@ def main():
         loan_token = st.selectbox(
             label="Select loan token:",
             options=tokens,
-            index=0,
+            index=2,
         )
 
     selected_tokens = src.visualizations.main_chart.TokensSelected(
