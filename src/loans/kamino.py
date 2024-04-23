@@ -252,5 +252,9 @@ def compute_liquidable_debt_at_price(
         if liquidation_parameters
         else 1.02
     )
-    loan_states['debt_to_be_liquidated'] = liquidable_debt_ratio * loan_states['debt_usd'] * loan_states['liquidable']
+    loan_states['debt_to_be_liquidated'] = (
+        liquidable_debt_ratio
+        * loan_states[f'debt_usd_{supply_debt_tokens[0]}']
+        * loan_states['liquidable']
+    )
     return loan_states['debt_to_be_liquidated'].sum()
