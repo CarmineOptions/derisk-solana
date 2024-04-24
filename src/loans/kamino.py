@@ -318,12 +318,7 @@ def get_kamino_user_stats_df(loan_states: pandas.DataFrame) -> pandas.DataFrame:
             * token_prices[underlying_token]
         )
         
-        loan_states[f'risk_adj_collateral_usd_{token}'] = (
-            loan_states[f'collateral_{token}'].astype(float)
-            / (10**decimals)
-            * (ltv/100)
-            * token_prices[underlying_token]
-        )
+        loan_states[f'risk_adj_collateral_usd_{token}'] = loan_states[f'collateral_usd_{token}'] * (ltv/100)
     
     for debt_token in debt_tokens:
         if not debt_token_parameters[debt_token]:
@@ -338,13 +333,8 @@ def get_kamino_user_stats_df(loan_states: pandas.DataFrame) -> pandas.DataFrame:
             / (10**decimals)
             * token_prices[underlying_token]
         )
-
-        loan_states[f'risk_adj_debt_usd_{debt_token}'] = (
-            loan_states[f'debt_{debt_token}'].astype(float)
-            / (10**decimals)
-            * (1/(ltv/100) if ltv else 1)
-            * token_prices[underlying_token]
-        )
+        loan_states[f'risk_adj_debt_usd_{debt_token}'] = loan_states[f'debt_usd_{debt_token}'] * (1/(ltv/100) if ltv else 1)
+        
     loan_states['risk_adj_debt_usd'] = loan_states[[i for i in loan_states.columns if i.startswith('risk_adj_debt_usd_')]].sum(axis=1)
     loan_states['debt_usd'] = loan_states[[i for i in loan_states.columns if i.startswith('debt_usd_')]].sum(axis=1)
 
