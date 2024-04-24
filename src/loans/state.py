@@ -20,6 +20,9 @@ class LoanEntity(abc.ABC):
         self.collateral: src.loans.types.Portfolio = src.loans.types.Portfolio()
         self.debt: src.loans.types.Portfolio = src.loans.types.Portfolio()
 
+    def is_zero_debt(self):
+        return self.debt.is_zero()
+
 
 class State(abc.ABC):
     """

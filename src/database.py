@@ -18,11 +18,16 @@ POSTGRES_DB = os.environ.get("POSTGRES_DB")
 if POSTGRES_DB is None:
     raise ValueError("no POSTGRES_DB env var")
 
-PG_CONNECTION_STRING = f"postgresql+psycopg2://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_HOST}/{POSTGRES_DB}"
+PG_CONNECTION_STRING = f"dbname={POSTGRES_DB} user={POSTGRES_USER} password={POSTGRES_PASSWORD} host={POSTGRES_HOST}"
 
 if PG_CONNECTION_STRING is None:
     raise ValueError("No PG connection string, aborting.")
 
 
 def establish_connection() -> psycopg2.extensions.connection:
-    return psycopg2.connect(PG_CONNECTION_STRING)
+    return psycopg2.connect(
+        dbname=POSTGRES_DB,
+        user=POSTGRES_USER,
+        password=POSTGRES_PASSWORD,
+        host=POSTGRES_HOST
+    )

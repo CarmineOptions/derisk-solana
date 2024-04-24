@@ -20,6 +20,8 @@ from db import (
 import src.loans.kamino
 import src.loans.marginfi
 import src.loans.mango
+import src.loans.solend
+
 
 
 
@@ -86,6 +88,8 @@ def protocol_to_protocol_class(
         return src.loans.kamino.KaminoState
     if protocol == MANGO:
         return src.loans.mango.MangoState
+    if protocol == SOLEND:
+        return src.loans.solend.SolendState
     # Unreachable
     raise ValueError(f"invalid protocol {protocol}")
 
