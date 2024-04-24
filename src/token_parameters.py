@@ -17,7 +17,7 @@ from src.protocols.dexes.amms.utils import get_tokens_address_to_info_map
 
 
 @dataclass
-class MarginfyBankParameters:
+class MarginFiBankParameters:
     liability_weight_initial: Decimal
     liability_weight_maintain: Decimal
     asset_weight_initial: Decimal
@@ -35,13 +35,13 @@ client = AsyncClient(AUTHENTICATED_RPC_URL)
 tokens = get_tokens_address_to_info_map()
 
 
-async def get_single_marginfy_parameters(bank: str) -> MarginfyBankParameters | None:
+async def get_single_marginfi_parameters(bank: str) -> MarginFiBankParameters | None:
     b = await Bank.fetch(client, Pubkey.from_string(bank))
 
     if b is None:
         return None
 
-    return MarginfyBankParameters(
+    return MarginFiBankParameters(
         Decimal(b.config.liability_weight_init.value) / BASE,
         Decimal(b.config.liability_weight_maint.value) / BASE,
         Decimal(b.config.asset_weight_init.value) / BASE,
@@ -49,9 +49,9 @@ async def get_single_marginfy_parameters(bank: str) -> MarginfyBankParameters | 
     )
 
 
-async def get_marginfy_loan_parameters(
+async def get_marginfi_loan_parameters(
     mints: list[str],
-) -> dict[str, MarginfyBankParameters | None]:
+) -> dict[str, MarginFiBankParameters | None]:
     """
     Fetches Marginfi configuration and parses loan parameters from it
 
@@ -59,7 +59,7 @@ async def get_marginfy_loan_parameters(
       mint_address (str): Address of the token for which we need the data
 
     Returns:
-      MarginfyBankParameters | None: DataClass with liability and asset data or None if bank for token does not exist
+      MarginFiBankParameters | None: DataClass with liability and asset data or None if bank for token does not exist
     """
     banks: list[dict] = get(
         "https://storage.googleapis.com/mrgn-public/mrgn-bank-metadata-cache.json",
@@ -77,7 +77,7 @@ async def get_marginfy_loan_parameters(
         if bank is not None:
             mint_bank_map[mint] = bank
 
-    tasks = [get_single_marginfy_parameters(bank) for bank in mint_bank_map.values()]
+    tasks = [get_single_marginfi_parameters(bank) for bank in mint_bank_map.values()]
     results = await asyncio.gather(*tasks)
     processed_results = dict(zip(mint_bank_map.keys(), results))
 
