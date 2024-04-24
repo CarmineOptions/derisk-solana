@@ -197,11 +197,143 @@ Parsing of collected transactions is dockerized.
 - `Dockerfile.marginfi-parserV2` for MarginFi
 - `Dockerfile.kamino-parser` for Kamino
 
-The orchestration of data parsing is managed by `Dockerfile.parsing-pipeline`. To run the pipelines, an environment variable `PROTOCOL` must be set, specifying which protocol's parser to execute.
+Example:
+```bash
+docker build -t mango-parser -f Dockerfile.mango-parser .
+docker run -e POSTGRES_USER=<db_user> \
+    -e POSTGRES_PASSWORD=<db_password> -e POSTGRES_HOST=<db_host> \
+    -e POSTGRES_DB=<db_name> mango-parser
+```
+
+The orchestration of data parsing is managed by `Dockerfile.parsing-pipeline`. To run the pipelines, an environment variable `PROTOCOL` must be set, specifying which protocol's parser to execute. Example of usage can be find below.
+
+Transaction parsing are handled in the following classes:
+#### KaminoTransactionParserV2 Class
+
+##### Overview
+`KaminoTransactionParserV2` is a class designed to parse transactions for the Kamino protocol.
+It decodes transaction instructions, associates them with corresponding log messages, and stores relevant data in a database.
+
+##### Responsibilities
+- **Transaction Decoding:** Decodes and validates transaction instructions against the Kamino program ID.
+- **Event Handling:** Parses specific transaction types (events) and stores structured data for each recognized instruction.
+- **Data Storage:** Saves parsed data to database models designed for different aspects of transaction data.
+
+##### Parsed Events
+This parser specifically handles the following types of events within the Kamino protocol:
+- `initObligation`: Initializes a new lending obligation.
+- `initReserve`: Sets up a new reserve.
+- Transactional events such as:
+  - `depositObligationCollateral`
+  - `withdrawObligationCollateral`
+  - `depositReserveLiquidity`
+  - `redeemReserveCollateral`
+  - `borrowObligationLiquidity`
+  - `repayObligationLiquidity`
+  - `depositReserveLiquidityAndObligationCollateral`
+  - `withdrawObligationCollateralAndRedeemReserveCollateral`
+  - `liquidateObligationAndRedeemReserveCollateral`
+  - `flashRepayReserveLiquidity`
+  - `flashBorrowReserveLiquidity`
+- These events handle the collateral and debt change within the Kamino ecosystem.
+
+##### Database Storage
+The parser stores data in the following database tables:
+- `kamino_obligation_v2`: Stores information about lending obligations.
+- `kamino_reserve_v2`: Contains details about liquidity reserves.
+- `kamino_parsed_transactions_v2`: Logs detailed transaction data including the type of event, associated accounts, amounts, and other transaction metadata.
+
+#### MangoTransactionParserV2 Class
+
+##### Overview
+`MangoTransactionParserV2` is designed to parse and decode 
+transaction events specifically for the Mango protocol.
+It handles various log events related to trading and lending activities affecting size of debt and its collateralization on the MangoV4 platform.
+
+##### Responsibilities
+- **Transaction Decoding:** Decodes transaction events using a predefined IDL (Interface Description Language) and associates them with the Mango program ID.
+- **Event Handling:** Identifies and processes all relevant event types within the Mango ecosystem.
+
+##### Parsed Events
+This parser handles numerous event types, including but not limited to:
+- Trading events like `FillLog`, `FillLogV2`, `FillLogV3`, and `PerpTakerTradeLog`.
+- Loan and collateral events such as `WithdrawLoanLog`, `DepositLog`, `WithdrawLog`, and `TokenCollateralFeeLog`.
+- Perpetual and futures related logs like `PerpUpdateFundingLog`, `PerpLiqBaseOrPositivePnlLog`, `PerpLiqNegativePnlOrBankruptcyLog`, and `PerpForceClosePositionLog`.
+- Flash loan events such as `FlashLoanLog`, `FlashLoanLogV2`, `FlashLoanLogV3`.
+- Logs related to conditional swaps, including `TokenConditionalSwapCreateLog`, `TokenConditionalSwapTriggerLog`, and `TokenConditionalSwapCancelLog`.
+
+##### Database Storage
+Parsed events are stored in the `MangoParsedEvents` table, which includes fields like:
+- `transaction_id`: Unique identifier of the transaction.
+- `event_name`: Name of the event parsed.
+- `event_data`: Detailed structured data associated with the event.
+
+#### MarginfiTransactionParserV2 Class
+
+##### Overview
+`MarginfiTransactionParserV2` is a specialized class designed to decode and parse transaction instructions associated with the Marginfi protocol.
+
+##### Responsibilities
+- **Transaction Decoding:** Decodes transaction instructions that match the Marginfi program ID using the provided IDL.
+- **Event Handling:** Parses a defined set of transaction events related to Marginfi operations, ensuring that each is correctly interpreted and processed.
+- **Data Storage:** Structures and stores parsed transaction data in relevant database tables, facilitating further analysis and record-keeping.
+
+##### Parsed Events
+The parser recognizes and handles:
+- Account initialization and management: `marginfiAccountInitialize`, `lendingPoolAddBank`
+- Lending operations: `lendingAccountDeposit`, `lendingAccountWithdraw`, `lendingAccountBorrow`, `lendingAccountRepay`
+- Account and position management: `lendingAccountCloseBalance`, `lendingAccountLiquidate`
+- Emission-related transactions: `lendingAccountWithdrawEmissions`, `lendingAccountSettleEmissions`
+- Flashloan transactions: `lendingAccountStartFlashloan`, `lendingAccountEndFlashloan`
+
+##### Database Storage
+Parsed data is saved to several database models tailored for different aspects of transaction data:
+- `MarginfiLendingAccountsV2`: Captures data about lending accounts.
+- `MarginfiBankV2`: Stores information about banks within the Marginfi protocol.
+- `MarginfiParsedTransactionsV2`: Logs comprehensive details about each parsed transaction event, including transaction identifiers, event names, and associated data.
+
+##### Usage
+To utilize this parser, instantiate it with the path to the Marginfi IDL and the program's public key.
+
+#### SolendTransactionParser Class
+
+##### Overview
+The `SolendTransactionParser` is designed to parse and decode transaction instructions associated with the Solend protocol.
+
+##### Responsibilities
+- **Transaction Decoding:** Decodes transaction instructions based on a predefined set of instruction types using Solend's program ID.
+- **Event Handling:** Identifies and processes a wide range of financial operations such as deposits, withdrawals, loans, and repayments.
+
+##### Parsed Events
+This parser handles several types of events linked to the core functionality of Solend, including:
+- Market and reserve initialization: `init_lending_market`, `init_reserve`
+- Liquidity management: `deposit_reserve_liquidity`, `redeem_reserve_collateral`, `withdraw_obligation_collateral_and_redeem_reserve_liquidity`
+- Obligation management: `init_obligation`, `deposit_obligation_collateral`, `withdraw_obligation_collateral`, `refresh_obligation`
+- Loan operations: `borrow_obligation_liquidity`, `repay_obligation_liquidity`, `liquidate_obligation`
+- Flash loan operations: `flash_loan`, `flash_borrow_reserve_liquidity`, `flash_repay_reserve_liquidity`
+- Other relevant transactions like `forgive_debt` and `redeem_fee`
+
+##### Database Storage
+The parsed data is stored in tables such as `solend_reserves` and `solend_sbligations`:
+
+##### Usage
+Instantiate the parser with the Solend program's public key.
+
+
 
 ### Parsing pipelines
 Data parsing orchestration is assured by `Dockerfile.parsing-pipeline`. 
 To run pipelines ENV variable `PROTOCOL' is required. 
+
+Example:
+
+```bash
+docker build -t parsing-pipeline -f Dockerfile.parsing-pipeline .
+docker run -e PROTOCOL=,protocol_name. POSTGRES_USER=<db_user> \
+    -e POSTGRES_PASSWORD=<db_password> -e POSTGRES_HOST=<db_host> \
+    -e POSTGRES_DB=<db_name> parsing-pipeline
+```
+Allowed protocol names: `mango`, `kamino`, `marginfi` and `solend`.
 
 ### Available Liquidity
 
