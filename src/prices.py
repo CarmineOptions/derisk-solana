@@ -26,6 +26,7 @@ def split_into_chunks(lst: list[T], n: int) -> list[list[T]]:
     return [lst[i : i + n] for i in range(0, len(lst), n)]
 
 
+@streamlit.cache_data(ttl=datetime.timedelta(minutes=1))
 def get_prices_for_tokens(tokens: list[str]) -> dict[str, float | None]:
     """
     Fetches prices for the list of tokens

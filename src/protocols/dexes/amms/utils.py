@@ -3,7 +3,8 @@ from decimal import Decimal
 import requests
 
 import numpy as np
-
+import streamlit as st
+import datetime
 from solana.rpc.async_api import AsyncClient
 from solders.account_decoder import ParsedAccount
 from solders.pubkey import Pubkey
@@ -149,7 +150,7 @@ def convert_amm_reserves_to_bids_asks(
 
     return {"asks": diff_price_levels(asks), "bids": diff_price_levels(bids)}
 
-
+@st.cache_data(ttl=datetime.timedelta(minutes=1))
 def get_tokens_address_to_info_map() -> dict[str, dict[str, str | int]]:
     """
     Retrieves list of solana tokens obtained via Jupiter api and returns a map
