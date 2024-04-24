@@ -7,7 +7,7 @@ from db import get_db_session
 from src.protocols.addresses import MANGO_ADDRESS, MARGINFI_ADDRESS, KAMINO_ADDRESS, SOLEND_ADDRESS
 
 LOGGER = logging.getLogger(__name__)
-BATCH_SIZE = 10
+BATCH_SIZE = 200
 
 
 def data_pipeline(protocol):
@@ -75,10 +75,11 @@ def data_pipeline(protocol):
                  ORDER BY MIN(block_time);
              """))
             session.commit()
-        LOGGER.info(f"Transactions from block {min(blocks_batch)} up to block {max(blocks_batch)} ready to be parsed.")
+        LOGGER.info(f"Transactions for {protocol} from block {min(blocks_batch)} up to block {max(blocks_batch)} ready to be parsed.")
 
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
     protocol = sys.argv[1]
     valid_protocols = {"marginfi", "mango", "kamino", "solend"}
     if protocol not in valid_protocols:
