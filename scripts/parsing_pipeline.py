@@ -28,7 +28,7 @@ def data_pipeline(protocol):
         raise Exception(f"Wrong protocol selection: {protocol}")
 
     while True:
-
+        LOGGER.info('Getting new batch...')
         with get_db_session() as session:
             last_record = session.execute(text(f"""
                  SELECT * FROM lenders.{transaction_reporting_table} ORDER BY id DESC limit 1;
@@ -56,6 +56,8 @@ def data_pipeline(protocol):
                  ORDER BY slot
                  LIMIT {BATCH_SIZE};
              """)).fetchall()
+            if not batch_to_collect:
+                continue
             blocks_batch = [r.slot for r in batch_to_collect]
 
         with get_db_session() as session:
@@ -73,6 +75,7 @@ def data_pipeline(protocol):
                  ORDER BY MIN(block_time);
              """))
             session.commit()
+        LOGGER.info(f"Transactions from block {min(blocks_batch)} up to block {max(blocks_batch)} ready to be parsed.")
 
 
 if __name__ == "__main__":
