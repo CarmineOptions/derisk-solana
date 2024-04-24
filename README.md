@@ -186,8 +186,22 @@ For running the data processing pipeline, run the following commands:
 docker build -t data-processing -f Dockerfile.data-processing .
 docker run data-processing
 ```
-
 Currently, the script outlines all of the above-mentioned steps, but their implementation is part of the future milestones.
+
+### Transaction Parsers
+Parsing of collected transactions is dockerized. 
+ Each protocol has a dedicated Dockerfile:
+
+- `Dockerfile.mango-parser` for Mango Markets
+- `Dockerfile.solend-parser` for Solend
+- `Dockerfile.marginfi-parserV2` for MarginFi
+- `Dockerfile.kamino-parser` for Kamino
+
+The orchestration of data parsing is managed by `Dockerfile.parsing-pipeline`. To run the pipelines, an environment variable `PROTOCOL` must be set, specifying which protocol's parser to execute.
+
+### Parsing pipelines
+Data parsing orchestration is assured by `Dockerfile.parsing-pipeline`. 
+To run pipelines ENV variable `PROTOCOL' is required. 
 
 ### Available Liquidity
 
