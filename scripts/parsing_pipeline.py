@@ -71,6 +71,10 @@ def data_pipeline(protocol):
                  WHERE source = '{protocol_pubkey}' 
                  AND slot >= {min(blocks_batch)}
                  AND slot <= {max(blocks_batch)}
+                 AND NOT EXISTS (
+                    SELECT 1 FROM lenders.{transaction_reporting_table} t
+                    WHERE t.signature = lenders.transactions.signature
+                )
                  GROUP BY signature
                  ORDER BY MIN(block_time);
              """))
