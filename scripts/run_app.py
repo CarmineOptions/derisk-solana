@@ -10,12 +10,12 @@ import streamlit as st
 sys.path.append(".")
 
 import plotly.express as px
+import numpy as np
 
 # import src.data_processing
 # import src.persistent_state
 # import src.prices
 # import src.visualizations.histogram
-# import src.visualizations.loans_table
 import src.prices
 import src.visualizations.protocol_stats
 import src.protocols
@@ -23,7 +23,7 @@ import src.visualizations.main_chart
 import src.visualizations.settings
 from src.prices import get_prices_for_tokens
 from src.protocols.dexes.amms.utils import get_tokens_address_to_info_map
-
+import src.visualizations.loans_table
 
 
 def main():
@@ -53,8 +53,8 @@ def main():
     with col1:
         protocols = st.multiselect(
             label="Select protocols",
-            options=["Kamino", "Mango", "Solend", "MarginFi"],
-            default=["Kamino", "Mango", "Solend", "MarginFi"],
+            options=["kamino", "mango", "solend", "marginfi"],
+            default=["mango"],
         )
 
     with col2:
@@ -126,10 +126,15 @@ def main():
 
     # # Display comparison stats for all lending protocols.
     st.header("Comparison of lending protocols")
-    # streamlit.dataframe(src.visualizations.protocol_stats.load_general_stats())
+
+    st.subheader("Token utilizations")
     utilizations_df = src.visualizations.protocol_stats.get_token_utilizations_df(tokens_prices, tokens_info)
     st.dataframe(utilizations_df, use_container_width=True)
-    # st.write(utilizations_df, True)
+
+    st.subheader("User healths")
+    user_stats_df = src.visualizations.loans_table.load_user_stats_data(protocols)
+    st.dataframe(user_stats_df.sort_values('std_health', ascending=True).replace(np.inf, 'inf'), use_container_width=True)
+    
 
     token_supplies_df = src.visualizations.protocol_stats.get_top_12_lending_supplies_df(
         tokens_prices, tokens_info
