@@ -33,7 +33,13 @@ def process_transactions(signature_list_table: Type[SolendTransactionsList]):
         # Minimize the DB session scope to only fetching necessary data
         with get_db_session() as session:
             if not (START_INDEX and END_INDEX):
-                transactions = session.query(SolendTransactionsList).filter_by(is_parsed=False).limit(BATCH_SIZE).all()
+                transactions = session.query(
+                    SolendTransactionsList
+                ).filter_by(
+                    is_parsed=False
+                ).order_by(
+                    SolendTransactionsList.id
+                ).limit(BATCH_SIZE).all()
             else:
                 LOGGER.info(f"Processing transactions {START_INDEX} - {END_INDEX}")
                 transactions = (
@@ -46,6 +52,8 @@ def process_transactions(signature_list_table: Type[SolendTransactionsList]):
                     .all()
                 )
             LOGGER.info(f"Fetched {len(transactions)} transactions for processing.")
+            if not transactions:
+                continue
 
             for transaction in transactions:
                 tx_data = session.query(

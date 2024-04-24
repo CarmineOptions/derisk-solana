@@ -575,14 +575,6 @@ class TransactionsList(Base):
     is_parsed = Column(Boolean, default=False)
 
 
-class MarginfiTransactionsList(TransactionsList):
-    __tablename__ = 'marginfi_hist_transaction_list'
-    __table_args__ = (  # type: ignore
-        Index('idx_marginfi_transaction_list_signature', 'signature'),
-        {"schema": SCHEMA_LENDERS},
-    )
-
-
 class MarginfiTransactionsListV2(TransactionsList):
     __tablename__ = 'marginfi_hist_transaction_list_v2'
     __table_args__ = (  # type: ignore
