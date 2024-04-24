@@ -334,11 +334,13 @@ def adjust_liquidity(liq: list[db.DexNormalizedLiquidity], token: Token):
 
 
 def get_debt_token_supply_at_price_point(
-    entries: list[db.DexNormalizedLiquidity], price_point: float
+    entries: list[db.DexNormalizedLiquidity], price_point: float, debt_token_price
 ) -> float:
+    """
+    Returns supply of debt token for given price point.
+    """
     # Price points are in terms of collateral/debt, but entries should now be adjusted
     # to debt/collateral so take inverse of price
-    price = 1 / price_point
     supply = 0
 
     for entry in entries:
@@ -350,9 +352,9 @@ def get_debt_token_supply_at_price_point(
             continue
 
         for level in list(entry.bids) + list(entry.asks):
-
-            if (level[0] > price) and (level[0] < price * 1.05):
-                supply += level[1]
+            level_price = (1/level[0] * debt_token_price)
+            if (level_price > price_point) and (level_price < price_point * 1.05):
+                supply += level[1] * debt_token_price
 
     return supply
 
@@ -369,6 +371,7 @@ def get_main_chart_data(
     adjusted_entries = adjust_liquidity(liquidity_entries, token_selection.loan)
 
     collateral_token_price = prices.get(token_selection.collateral.address)
+    debt_token_price = prices.get(token_selection.loan.address)
 
     data = pd.DataFrame(
         {
@@ -377,7 +380,7 @@ def get_main_chart_data(
     )
 
     data["debt_token_supply"] = data["collateral_token_price"].apply(
-        lambda x: get_debt_token_supply_at_price_point(adjusted_entries, x)
+        lambda x: get_debt_token_supply_at_price_point(adjusted_entries, x, debt_token_price)
     )
 
     # TODO: use protocols

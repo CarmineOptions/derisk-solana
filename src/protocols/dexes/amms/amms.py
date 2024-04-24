@@ -92,26 +92,29 @@ class RaydiumAMM(Amm):
         self.get_token_list()
         for pool in self.pools:
             self.store_pool(pool)
+            break
 
     def store_pool(self, pool: Dict[str, Any]) -> None:
         """
         Save pool data to database.
         """
-        market_address = pool.get("id", "Unknown")
 
         # Create a new AmmLiquidity record
         with get_db_session() as session:
-            liquidity_entry = AmmLiquidity(
-                timestamp=self.timestamp,
-                dex=self.DEX_NAME,
-                market_address=market_address,
-                token_x_address= pool['mintA'],
-                token_y_address= pool['mintB'],
-                additional_info=json.dumps(pool),
-            )
+            for pool in self.pools:
+                market_address = pool.get("id", "Unknown")
+            
+                liquidity_entry = AmmLiquidity(
+                    timestamp=self.timestamp,
+                    dex=self.DEX_NAME,
+                    market_address=market_address,
+                    token_x_address= pool['mintA'],
+                    token_y_address= pool['mintB'],
+                    additional_info=json.dumps(pool),
+                )
+                session.add(liquidity_entry)
 
             # Add the new record to the session and commit
-            session.add(liquidity_entry)
             session.commit()
 
 
@@ -436,25 +439,25 @@ class FluxBeam(Amm):
 
 async def update_amm_dex_data_continuously():
     LOG.info("Start collecting AMM pools.")
-    while True:
-        try:
-            amms = Amms(
-                [
-                    OrcaAMM(),
-                    RaydiumAMM(),
-                    MeteoraAMM(),
-                    BonkAMM(),
-                    DooarAMM(),
-                    FluxBeam(),
-                ]
-            )
-            await amms.update_pools()
-            LOG.info(
-                "Successfully processed all pools. Waiting 5 minutes before next update."
-            )
-            time.sleep(300)
-        except Exception as e:  # pylint: disable=broad-exception-caught
-            tb_str = traceback.format_exc()
-            # Log the error message along with the traceback
-            LOG.error(f"An error occurred: {e}\nTraceback:\n{tb_str}")
-            time.sleep(300)
+    # while True:
+    try:
+        amms = Amms(
+            [
+                # OrcaAMM(),
+                MeteoraAMM(),
+                BonkAMM(),
+                DooarAMM(),
+                FluxBeam(),
+                RaydiumAMM(),
+            ]
+        )
+        await amms.update_pools()
+        LOG.info(
+            "Successfully processed all pools. Waiting 5 minutes before next update."
+        )
+        # time.sleep(300)
+    except Exception as e:  # pylint: disable=broad-exception-caught
+        tb_str = traceback.format_exc()
+        # Log the error message along with the traceback
+        LOG.error(f"An error occurred: {e}\nTraceback:\n{tb_str}")
+        # time.sleep(300)
