@@ -275,40 +275,54 @@ class SolendState(src.loans.state.State):
 
 
 def compute_liquidable_debt_at_price(
-    state: Any,
-    loan_states: pandas.DataFrame,
-    token_prices: dict[str, float],
-    debt_token_parameters: dict[str, float],
-    collateral_token: str,
-    target_collateral_token_price: decimal.Decimal,
-    mint_to_lp_map: dict[str, str],
-    mint_to_supply_map: dict[str, str]
+        state,
+        loan_states: pandas.DataFrame,
+        target_collateral_token_price: decimal.Decimal,
+        collateral_token: str,
+        debt_token: str,
+        debt_data: list,
+        collateral_data: list
 ) -> decimal.Decimal:
-    lp_collateral_tokens = mint_to_lp_map[collateral_token]
-    supply_collateral_tokens = mint_to_supply_map[collateral_token]
+    # get current token price and liquidation params
+    account = next(i for i in collateral_data if i['underlying_token'] == collateral_token)
+    collateral_token_price = account['price']
+    liquidation_threshold = account['config']['reserve']['config']['liquidationThreshold'] / 100
+    liquidation_bonus = account['config']['reserve']['config']['liquidationBonus'] / 100
+    # compute price ratio
+    price_ratio = target_collateral_token_price / collateral_token_price
 
-    price_ratio = target_collateral_token_price / token_prices[collateral_token]
-    for lp_collateral_token in lp_collateral_tokens:
-        lp_collateral_column = f'collateral_usd_{lp_collateral_token}'
-        if lp_collateral_column in loan_states.columns:
-            loan_states[lp_collateral_column] = loan_states[lp_collateral_column] * price_ratio
-    for supply_collateral_token in supply_collateral_tokens:
-        supply_collateral_column = f'debt_usd_{supply_collateral_token}'
-        if supply_collateral_column in loan_states.columns:
-            loan_states[supply_collateral_column] = loan_states[supply_collateral_column] * price_ratio
-    loan_states['collateral_usd'] = loan_states[[x for x in loan_states.columns if 'collateral_usd_' in x]].sum(axis = 1)
-    loan_states['debt_usd'] = loan_states[[x for x in loan_states.columns if 'debt_usd_' in x]].sum(axis = 1)
+    # re-adjust price of collateral
+    for supply_data in collateral_data:
+        if supply_data['underlying_token'] == collateral_token:
+            related_collateral_column = f"collateral_usd_{supply_data['supply_account']}"
+            if related_collateral_column in loan_states.columns:
+                loan_states[related_collateral_column] = loan_states[related_collateral_column] * price_ratio
+                # re-adjust price of debt
+    for supply_data in debt_data:
+        if supply_data['token'] == collateral_token:
+            related_debt_column = f"debt_usd_{supply_data['supply_account']}"
+            if related_debt_column in loan_states.columns:
+                loan_states[related_debt_column] = loan_states[related_debt_column] * price_ratio
 
-    loan_states['loan_to_value'] = loan_states['debt_usd'] / loan_states['collateral_usd']
+    loan_states['total_collateral_usd'] = loan_states[[x for x in loan_states.columns if 'collateral_usd_' in x]].sum(
+        axis=1)
+    loan_states['total_debt_usd'] = loan_states[[x for x in loan_states.columns if 'debt_usd_' in x]].sum(axis=1)
 
-    liquidation_parameters = debt_token_parameters[state.get_reserve_for_liquidity_supply(supply_collateral_tokens[0])]
-
-    liquidation_threshold = liquidation_parameters['liquidationThreshold'] / 100
+    loan_states['loan_to_value'] = loan_states['total_debt_usd'] / loan_states['total_collateral_usd']
     loan_states['liquidable'] = loan_states['loan_to_value'] > liquidation_threshold
 
     # 20% of the debt value is liquidated.
-    liquidable_debt_ratio = 0.2 + 0.05
-    loan_states['debt_to_be_liquidated'] = liquidable_debt_ratio * loan_states['debt_usd'] * loan_states['liquidable']
+    liquidable_debt_ratio = 0.2 + liquidation_bonus
+
+    affected_debt_supply_accounts = [sa['supply_account'] for sa in debt_data if sa['token'] == debt_token]
+    affected_debt_columns = [f"debt_usd_{account}" for account in affected_debt_supply_accounts]
+
+    loan_states['affected_debt'] = loan_states[[
+        x for x in loan_states.columns if x in affected_debt_columns
+    ]].sum(axis=1)
+    loan_states['debt_to_be_liquidated'] = liquidable_debt_ratio * loan_states['affected_debt'] * loan_states[
+        'liquidable']
+
     return loan_states['debt_to_be_liquidated'].sum()
 
 

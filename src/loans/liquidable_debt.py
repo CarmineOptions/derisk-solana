@@ -3,6 +3,7 @@ import decimal
 import itertools
 import logging
 import time
+import traceback
 import warnings
 from typing import Callable, Literal, Type, TypeVar
 
@@ -338,194 +339,163 @@ def process_solend_loan_states(loan_states: pd.DataFrame) -> pandas.DataFrame:
     print(f"processing {len(loan_states)} Solend loan states", flush=True)
 
     state = src.loans.solend.SolendState(initial_loan_states=loan_states)
-    # get collateral supply accounts
+    # get collateral and debt supply accounts from loan states data
     collateral = [x.collateral for x in state.loan_entities.values()]
     collateral_per_token = collections.defaultdict(decimal.Decimal)
     for user_collateral in collateral:
         for token, amount in user_collateral.items():
             collateral_per_token[token] += amount
+
     collateral_supply_accounts = {x for x in collateral_per_token.keys()}
 
-    # get debt supply accounts
     debt = [x.debt for x in state.loan_entities.values()]
     debt_per_token = collections.defaultdict(decimal.Decimal)
     for user_debt in debt:
         for token, amount in user_debt.items():
             debt_per_token[token] += amount
+
     debt_supply_accounts = {x for x in debt_per_token.keys()}
 
-    # fetch reserve configs
-    collateral_tokens_to_reserves = {}
-    reserve_configs = {}
-    for collateral_supply_account in collateral_supply_accounts:
-        collateral_tokens_to_reserves[collateral_supply_account] = state.get_reserve_for_collateral_supply(collateral_supply_account)
-        url = f'https://api.solend.fi/v1/reserves/?ids={collateral_tokens_to_reserves[collateral_supply_account]}'
+    # fetch relevant data for each collateral reserve
+    collateral_complete_data = [
+        {
+            'supply_account': r,  # supply account
+            'reserve': state.get_reserve_for_collateral_supply(r),  # reserve
+            'lp_token': state.get_token_for_collateral_supply(r),  # lp token
+            'underlying_token': src.solend_lp_tokens.lp_token_map[state.get_token_for_collateral_supply(r)]
+            if state.get_token_for_collateral_supply(r) in src.solend_lp_tokens.lp_token_map else None
+            # underlying token
+        } for r in collateral_supply_accounts
+    ]
+    # fetch collateral prices
+    set_of_underlying_tokens = {t['underlying_token'] for t in collateral_complete_data if t['underlying_token']} | {
+        'So11111111111111111111111111111111111111112'}
+    collateral_token_prices = src.prices.get_prices_for_tokens(
+        list(set_of_underlying_tokens)
+    )
+    collateral_token_prices.update({'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v': 1})
+
+    for supply_data in collateral_complete_data:
+        # price
+        if not supply_data['underlying_token']:
+            supply_data['price'] = None
+        else:
+            supply_data['price'] = collateral_token_prices[supply_data['underlying_token']]
+        # config
+        url = f"https://api.solend.fi/v1/reserves/?ids={supply_data['reserve']}"
         response = requests.get(url, timeout=15)
         result = response.json()['results'][0]
-        reserve_configs[collateral_tokens_to_reserves[collateral_supply_account]] = result
+        supply_data['config'] = result
+        # decimals
+        supply_data['decimals'] = src.loans.helpers.get_decimals(supply_data['lp_token'])
 
-    debt_tokens_to_reserves = {}
-    for debt_supply_account in debt_supply_accounts:
-        debt_tokens_to_reserves[debt_supply_account] = state.get_reserve_for_liquidity_supply(debt_supply_account)
-        url = f'https://api.solend.fi/v1/reserves/?ids={debt_tokens_to_reserves[debt_supply_account]}'
-        response = requests.get(url, timeout=15)
-        result = response.json()['results'][0]
-        reserve_configs[debt_tokens_to_reserves[debt_supply_account]] = result
-
-    # Put collateral and debt token holdings into the loan states df.
-    for collateral_supply_account in collateral_supply_accounts:
-        underlying_token = reserve_configs[
-            collateral_tokens_to_reserves[collateral_supply_account]
-        ]['reserve']['collateral']['mintPubkey']
-
-        loan_states[f'collateral_{underlying_token}'] = loan_states['collateral'].apply(
-            lambda x: x[collateral_supply_account] if collateral_supply_account in x else decimal.Decimal('0'))
-
-    for debt_supply_account in debt_supply_accounts:
-        underlying_token = state.get_token_for_liquidity_supply(debt_supply_account)
-
-        loan_states[f'debt_{underlying_token}'] = loan_states['debt'].apply(
-            lambda x: x[debt_supply_account] if debt_supply_account in x else decimal.Decimal('0'))
-
-    # get prices
-    underlying_collateral_tokens = [
-        state.get_token_for_collateral_supply(x)
-        for x in collateral_supply_accounts
+    debt_complete_data = [
+        {
+            'supply_account': r,  # supply account
+            'reserve': state.get_reserve_for_liquidity_supply(r),  # reserve
+            'token': state.get_token_for_liquidity_supply(r),  # token
+        } for r in debt_supply_accounts
     ]
-    underlying_debt_tokens = [
-        state.get_token_for_liquidity_supply(x)
-        for x in debt_supply_accounts
-    ]
-
+    # fetch debt prices
+    set_of_debt_tokens = {t['token'] for t in debt_complete_data} | {'So11111111111111111111111111111111111111112'}
     debt_token_prices = src.prices.get_prices_for_tokens(
-        underlying_debt_tokens
+        list(set_of_debt_tokens)
     )
-    # obtain underlying tokens for collateral lp tokens
-    collateral_original_tokens = [
-        src.solend_lp_tokens.lp_token_map[tkn] if tkn in src.solend_lp_tokens.lp_token_map else tkn
-        for tkn in underlying_collateral_tokens
-    ]
-    # get prices for underlying tokens
-    collateral_underlying_token_prices_ = src.prices.get_prices_for_tokens(
-        collateral_original_tokens
-    )
-    # map prices of underlying tokens to lp tokens
-    collateral_token_prices = {
-        token: collateral_underlying_token_prices_[
-            src.solend_lp_tokens.lp_token_map[token] if token in src.solend_lp_tokens.lp_token_map else token]
-        for token in underlying_collateral_tokens
-    }
+    debt_token_prices.update({'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v': 1})
+    for supply_data in debt_complete_data:
+        # price
+        if not supply_data['token']:
+            supply_data['price'] = None
+        else:
+            supply_data['price'] = debt_token_prices[supply_data['token']]
+        # decimals
+        supply_data['decimals'] = src.loans.helpers.get_decimals(supply_data['token'])
 
-    # Compute the USD value of collateral and debt token holdings.
-    for collateral_supply_account in collateral_supply_accounts:
-        underlying_token = reserve_configs[collateral_tokens_to_reserves[collateral_supply_account]]['reserve']['collateral'][
-            'mintPubkey']
-        decimals = src.loans.helpers.get_decimals(underlying_token)
-        ltv = reserve_configs[collateral_tokens_to_reserves[collateral_supply_account]]['reserve']['config']['loanToValueRatio']
-        price = collateral_token_prices[underlying_token]
+    for supply_data in collateral_complete_data:
+        loan_states[f"collateral_{supply_data['supply_account']}"] = loan_states['collateral'].apply(
+            lambda x: x[supply_data['supply_account']] if supply_data['supply_account'] in x else decimal.Decimal('0'))
+
+        ltv = supply_data['config']['reserve']['config']['loanToValueRatio']
+        price = supply_data['price']
+        decimals = supply_data['decimals']
+
         if price:
-            loan_states[f'collateral_usd_{underlying_token}'] = (
-                    loan_states[f'collateral_{underlying_token}'].astype(float)
+            loan_states[f"collateral_usd_{supply_data['supply_account']}"] = (
+                    loan_states[f"collateral_{supply_data['supply_account']}"].astype(float)
                     / (10 ** decimals)
                     * (ltv / 100)
                     * price
             )
 
-    for debt_supply_account in debt_supply_accounts:
-        underlying_token = state.get_token_for_liquidity_supply(debt_supply_account)
-        decimals = src.loans.helpers.get_decimals(underlying_token)
-        # ltv = reserve_configs[debt_tokens_to_reserves[debt_token]]['reserve']['config']['loanToValueRatio']
-        price = debt_token_prices[underlying_token]
+    for supply_data in debt_complete_data:
+        loan_states[f"debt_{supply_data['supply_account']}"] = loan_states['debt'].apply(
+            lambda x: x[supply_data['supply_account']] if supply_data['supply_account'] in x else decimal.Decimal('0'))
+
+        price = supply_data['price']
+        decimals = supply_data['decimals']
         if price:
-            loan_states[f'debt_usd_{underlying_token}'] = (
-                loan_states[f'debt_{underlying_token}'].astype(float)
-                / (10 ** decimals)
-                * price
+            loan_states[f"debt_usd_{supply_data['supply_account']}"] = (
+                    loan_states[f"debt_{supply_data['supply_account']}"].astype(float)
+                    / (10 ** decimals)
+                    * price
             )
 
-    # rearrange parameters
-    parameters_per_supply_account = {}
-    for supply_acc, config in reserve_configs.items():
-        parameters_per_supply_account[supply_acc] = config['reserve']['config']
-
-    lp_to_mint = src.solend_lp_tokens.lp_token_map
-    mint_to_lp_map = {}
-    for lp, mint in lp_to_mint.items():
-        if mint not in mint_to_lp_map:
-            mint_to_lp_map[mint] = []
-        mint_to_lp_map[mint].append(lp)
-
-    mint_to_supply_map = {}
-    for supply in debt_supply_accounts:
-        token = state.get_token_for_liquidity_supply(supply)
-        if token not in mint_to_supply_map:
-            mint_to_supply_map[token] = []
-        mint_to_supply_map[token].append(supply)
-
-    # COLLATERAL_TOKENS = {
-    #     collateral_underlying_token_prices_.keys()
-    # }
-    #
-    # DEBT_TOKENS = {debt_token_prices.keys()}
-    COLLATERAL_TOKENS = [
-        'So11111111111111111111111111111111111111112',
-        'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
-        'J1toso1uCk3RLmjorhTtrVwY9HJ7X8V9yYac6Y7kGCPn',
-        'bSo13r4TkiE4KumL71LsHTPpL2euBYLFx6h9HP3piy1',
-        '27G8MtK7VtTcCHkpASjSDdkWWYfoqT6ggEuKidVJidD4',
-    ]
-    DEBT_TOKENS = [
-        'So11111111111111111111111111111111111111112',
-        'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
-        'bSo13r4TkiE4KumL71LsHTPpL2euBYLFx6h9HP3piy1,',
-        'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB',
-        'J1toso1uCk3RLmjorhTtrVwY9HJ7X8V9yYac6Y7kGCPn',
-    ]
-
-    debt_token_prices.update(collateral_underlying_token_prices_)
+    COLLATERAL_TOKENS = {i['underlying_token'] for i in collateral_complete_data if i['underlying_token']}
+    DEBT_TOKENS = {i['token'] for i in debt_complete_data}
+    # COLLATERAL_TOKENS = [
+    #     'So11111111111111111111111111111111111111112',
+    #     'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
+    #     'J1toso1uCk3RLmjorhTtrVwY9HJ7X8V9yYac6Y7kGCPn',
+    #     'bSo13r4TkiE4KumL71LsHTPpL2euBYLFx6h9HP3piy1',
+    #     '27G8MtK7VtTcCHkpASjSDdkWWYfoqT6ggEuKidVJidD4',
+    # ]
+    # DEBT_TOKENS = [
+    #     'So11111111111111111111111111111111111111112',
+    #     'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
+    #     'bSo13r4TkiE4KumL71LsHTPpL2euBYLFx6h9HP3piy1,',
+    #     'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB',
+    #     'J1toso1uCk3RLmjorhTtrVwY9HJ7X8V9yYac6Y7kGCPn',
+    # ]
 
     all_data = pandas.DataFrame()
     for collateral_token, debt_token in itertools.product(COLLATERAL_TOKENS, DEBT_TOKENS):
-        if collateral_token == debt_token:
+        try:
+            if collateral_token == debt_token:
+                continue
+            print(f"processing liquidable debt for {collateral_token} - {debt_token}")
+            account = next(i for i in collateral_complete_data if i['underlying_token'] == collateral_token)
+            collateral_token_price = account['price']
+            # Compute liquidable debt.
+            data = pandas.DataFrame(
+                {
+                    "collateral_token_price": src.visualizations.main_chart.get_token_range(collateral_token_price),
+                }
+            )
+            liquidable_debt = data['collateral_token_price'].apply(
+                lambda x: src.loans.solend.compute_liquidable_debt_at_price(
+                    state,
+                    loan_states=loan_states.copy(),
+                    target_collateral_token_price=x,
+                    collateral_token=collateral_token,
+                    debt_token=debt_token,
+                    debt_data=debt_complete_data,
+                    collateral_data=collateral_complete_data
+                )
+            )
+            data['amount'] = liquidable_debt.diff().abs()
+            data['protocol'] = 'solend'
+            data['slot'] = loan_states['slot'].max()
+            data['collateral_token'] = collateral_token
+            data['debt_token'] = debt_token
+            data.dropna(inplace=True)
+            all_data = pandas.concat([all_data, data])
+        except Exception as e:
+            # Log the error with traceback
+            logging.error("An error occurred: %s", traceback.format_exc())
+            # Also print the traceback to the console or standard output
+            print("Caught an exception:")
+            traceback.print_exc()
             continue
-
-        logging.info(
-            'Computing liquidable debt for protocol = {}, collateral token = {} and debt token = {}.'.format(
-                'solend',
-                collateral_token,
-                debt_token,
-            )
-        )
-
-        collateral_token_price = collateral_token_prices[mint_to_lp_map[collateral_token][0]]
-        # The price is usually not found for unused tokens.
-        if not collateral_token_price:
-            return
-        # Compute liqidable debt.
-        data = pandas.DataFrame(
-            {
-                "collateral_token_price": src.visualizations.main_chart.get_token_range(collateral_token_price),
-            }
-        )
-        liquidable_debt = data['collateral_token_price'].apply(
-            lambda x: src.loans.solend.compute_liquidable_debt_at_price(
-                state,
-                loan_states=loan_states.copy(),
-                token_prices=debt_token_prices,
-                debt_token_parameters=parameters_per_supply_account,
-                mint_to_lp_map=mint_to_lp_map,
-                mint_to_supply_map=mint_to_supply_map,
-                collateral_token=collateral_token,
-                target_collateral_token_price=x,
-            )
-        )
-        data['amount'] = liquidable_debt.diff().abs()
-        data['protocol'] = 'solend'
-        data['slot'] = loan_states['slot'].max()
-        data['collateral_token'] = collateral_token
-        data['debt_token'] = debt_token
-        data.dropna(inplace=True)
-        all_data = pandas.concat([all_data, data])
     return all_data
 
 
