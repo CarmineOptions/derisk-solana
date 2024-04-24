@@ -1,7 +1,31 @@
+import os
+import time
+
 import pandas
+import solana.rpc.api
+from solana.exceptions import SolanaRpcException
 
 import src.database
 
+
+solana_client = solana.rpc.api.Client(os.getenv('RPC_URL'))
+
+
+def get_account_info(pubkey):
+    try:
+        response = solana_client.get_account_info_json_parsed(
+            solana.rpc.api.Pubkey.from_string(pubkey)
+        )
+        return response
+    except SolanaRpcException as e:
+        time.sleep(0.1)
+        return get_account_info(pubkey)
+
+
+def get_decimals(pubkey):
+    response = get_account_info(pubkey)
+#     print(response)
+    return response.value.data.parsed['info']['decimals']
 
 
 def get_events(

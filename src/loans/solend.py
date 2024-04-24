@@ -1,5 +1,7 @@
 import decimal
 import logging
+import warnings
+from typing import Any
 
 import pandas
 
@@ -7,6 +9,11 @@ import src.database
 import src.loans.helpers
 import src.loans.types
 import src.loans.state
+
+
+# Ignore all warnings
+warnings.filterwarnings('ignore')
+
 
 # Keys are values of the "event_name" column in the database, values are the respective method names.
 EVENTS_METHODS_MAPPING: dict[str, str] = {
@@ -265,6 +272,44 @@ class SolendState(src.loans.state.State):
                     self.loan_entities[user].debt[debt_token]
                 )
             )
+
+
+def compute_liquidable_debt_at_price(
+    state: Any,
+    loan_states: pandas.DataFrame,
+    token_prices: dict[str, float],
+    debt_token_parameters: dict[str, float],
+    collateral_token: str,
+    target_collateral_token_price: decimal.Decimal,
+    mint_to_lp_map: dict[str, str],
+    mint_to_supply_map: dict[str, str]
+) -> decimal.Decimal:
+    lp_collateral_tokens = mint_to_lp_map[collateral_token]
+    supply_collateral_tokens = mint_to_supply_map[collateral_token]
+
+    price_ratio = target_collateral_token_price / token_prices[collateral_token]
+    for lp_collateral_token in lp_collateral_tokens:
+        lp_collateral_column = f'collateral_usd_{lp_collateral_token}'
+        if lp_collateral_column in loan_states.columns:
+            loan_states[lp_collateral_column] = loan_states[lp_collateral_column] * price_ratio
+    for supply_collateral_token in supply_collateral_tokens:
+        supply_collateral_column = f'debt_usd_{supply_collateral_token}'
+        if supply_collateral_column in loan_states.columns:
+            loan_states[supply_collateral_column] = loan_states[supply_collateral_column] * price_ratio
+    loan_states['collateral_usd'] = loan_states[[x for x in loan_states.columns if 'collateral_usd_' in x]].sum(axis = 1)
+    loan_states['debt_usd'] = loan_states[[x for x in loan_states.columns if 'debt_usd_' in x]].sum(axis = 1)
+
+    loan_states['loan_to_value'] = loan_states['debt_usd'] / loan_states['collateral_usd']
+
+    liquidation_parameters = debt_token_parameters[state.get_reserve_for_liquidity_supply(supply_collateral_tokens[0])]
+
+    liquidation_threshold = liquidation_parameters['liquidationThreshold'] / 100
+    loan_states['liquidable'] = loan_states['loan_to_value'] > liquidation_threshold
+
+    # 20% of the debt value is liquidated.
+    liquidable_debt_ratio = 0.2 + 0.05
+    loan_states['debt_to_be_liquidated'] = liquidable_debt_ratio * loan_states['debt_usd'] * loan_states['liquidable']
+    return loan_states['debt_to_be_liquidated'].sum()
 
 
 if __name__ == '__main__':
