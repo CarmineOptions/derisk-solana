@@ -1,17 +1,14 @@
 FROM python:3.10
 
 WORKDIR /app
-# Set PYTHONPATH to include /app so Python knows where to find your modules
-ENV PYTHONPATH=/app
 
 RUN pip install poetry
 COPY pyproject.toml poetry.lock* ./
 RUN poetry config virtualenvs.create false \
   && poetry install --no-interaction --no-ansi
-RUN python3 -m pip install anchorpy==0.19.1
 
 COPY ./scripts ./scripts
 COPY ./src ./src
 COPY ./db ./db
 
-CMD ["python3", "scripts/marginfi_transaction_parser.py"]
+CMD python3 scripts/parsing_pipeline.py "$PROTOCOL"
