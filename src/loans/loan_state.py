@@ -19,11 +19,9 @@ from db import (
 )
 import src.loans.kamino
 import src.loans.marginfi
-<<<<<<< HEAD
 import src.loans.mango
-=======
 import src.loans.solend
->>>>>>> 1e31d07 (liquidable debt for solend)
+
 
 
 
