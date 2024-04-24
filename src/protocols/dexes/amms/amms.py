@@ -439,25 +439,25 @@ class FluxBeam(Amm):
 
 async def update_amm_dex_data_continuously():
     LOG.info("Start collecting AMM pools.")
-    # while True:
-    try:
-        amms = Amms(
-            [
-                # OrcaAMM(),
-                MeteoraAMM(),
-                BonkAMM(),
-                DooarAMM(),
-                FluxBeam(),
-                RaydiumAMM(),
-            ]
-        )
-        await amms.update_pools()
-        LOG.info(
-            "Successfully processed all pools. Waiting 5 minutes before next update."
-        )
-        # time.sleep(300)
-    except Exception as e:  # pylint: disable=broad-exception-caught
-        tb_str = traceback.format_exc()
-        # Log the error message along with the traceback
-        LOG.error(f"An error occurred: {e}\nTraceback:\n{tb_str}")
-        # time.sleep(300)
+    while True:
+        try:
+            amms = Amms(
+                [
+                    OrcaAMM(),
+                    MeteoraAMM(),
+                    BonkAMM(),
+                    DooarAMM(),
+                    FluxBeam(),
+                    RaydiumAMM(),
+                ]
+            )
+            await amms.update_pools()
+            LOG.info(
+                "Successfully processed all pools. Waiting 5 minutes before next update."
+            )
+            time.sleep(300)
+        except Exception as e:  # pylint: disable=broad-exception-caught
+            tb_str = traceback.format_exc()
+            # Log the error message along with the traceback
+            LOG.error(f"An error occurred: {e}\nTraceback:\n{tb_str}")
+            time.sleep(300)
