@@ -28,6 +28,7 @@ import src.kamino_vault_map
 import src.loans.helpers
 import src.loans.kamino
 import src.loans.loan_state
+import src.marginfi_map
 import src.prices
 import src.protocols
 import src.solend_lp_tokens
@@ -84,10 +85,120 @@ ProtocolFunc = (
 def process_marginfi_loan_states(
     loan_states: list[MarginfiLoanStates],
 ) -> pandas.DataFrame:
-    # TODO: process marginfi loan_states
-    print(f"processing {len(loan_states)} Marginfi loan states")
+    PROTOCOL = 'marginfi'
+    logging.info("Processing = {} loan states for protocol = {}.".format(len(loan_states), PROTOCOL))
 
-    return pandas.DataFrame()
+    # Get mappings between mint and LP tokens and mint and supply vaults.
+    MINT_TO_LIQUIDITY_VAULT_MAPPING = {x['mint']: [] for x in src.marginfi_map.liquidity_vault_to_info_mapping.values()}
+    for x, y in src.marginfi_map.liquidity_vault_to_info_mapping.items():
+        MINT_TO_LIQUIDITY_VAULT_MAPPING[y['mint']].append(x)
+
+    # Extract a set of collateral and debt tokens used.
+    collateral_tokens = {token for collateral in loan_states['collateral'] for token in collateral}
+    debt_tokens = {token for debt in loan_states['debt'] for token in debt}
+
+    # Get token parameters.
+    collateral_token_parameters = {
+        token: src.marginfi_map.liquidity_vault_to_info_mapping[token]
+        for token in collateral_tokens
+        if token in src.marginfi_map.liquidity_vault_to_info_mapping
+    }
+    debt_token_parameters = {
+        token: src.marginfi_map.liquidity_vault_to_info_mapping[token]
+        for token in debt_tokens
+        if token in src.marginfi_map.liquidity_vault_to_info_mapping
+    }
+
+    # Get underlying token prices.
+    underlying_collateral_tokens = [
+        x['mint']
+        for x in collateral_token_parameters.values()
+    ]
+    underlying_debt_tokens = [
+        x['mint']
+        for x in debt_token_parameters.values()
+    ]
+    token_prices = src.prices.get_prices_for_tokens(underlying_collateral_tokens + underlying_debt_tokens)
+
+    # Put collateral and debt token holdings into the loan states df.
+    for token in collateral_tokens:
+        loan_states[f'collateral_{token}'] = loan_states['collateral'].apply(
+            lambda x: x[token] if token in x else decimal.Decimal('0')
+        )
+    for token in debt_tokens:
+        loan_states[f'debt_{token}'] = loan_states['debt'].apply(
+            lambda x: x[token] if token in x else decimal.Decimal('0')
+        )
+
+    # Compute the USD value of collateral and debt token holdings.
+    for token in collateral_tokens:
+        if not token in collateral_token_parameters:
+            continue
+        decimals = collateral_token_parameters[token]['decs']
+        collateral_factor = collateral_token_parameters[token]['asset_weight_maint'] / 2**48
+        underlying_token = collateral_token_parameters[token]['mint']
+        loan_states[f'collateral_usd_{token}'] = (
+            loan_states[f'collateral_{token}'].astype(float)
+            / (10**decimals)
+            * (collateral_factor)
+            * token_prices[underlying_token]
+        )
+    for token in debt_tokens:
+        if not token in debt_token_parameters:
+            continue
+        decimals = debt_token_parameters[token]['decs']
+        debt_factor = debt_token_parameters[token]['liability_weight_maint'] / 2**48
+        underlying_token = debt_token_parameters[token]['mint']
+        loan_states[f'debt_usd_{token}'] = (
+            loan_states[f'debt_{token}'].astype(float)
+            / (10**decimals)
+            * (1/debt_factor)
+            * token_prices[underlying_token]
+        )
+
+    all_data = pandas.DataFrame()
+    for collateral_token, debt_token in itertools.product(underlying_collateral_tokens, underlying_debt_tokens):
+        if collateral_token == debt_token:
+            continue
+
+        logging.info(
+            'Computing liquidable debt for protocol = {}, collateral token = {} and debt token = {}.'.format(
+                PROTOCOL,
+                collateral_token,
+                debt_token,
+            )
+        )
+
+        collateral_token_price = token_prices[collateral_token]
+        # The price is usually not found for unused tokens.
+        if not collateral_token_price:
+            return
+
+        # Compute liqidable debt.
+        data = pandas.DataFrame(
+            {
+                "collateral_token_price": src.visualizations.main_chart.get_token_range(collateral_token_price),
+            }
+        )
+        liquidable_debt = data['collateral_token_price'].apply(
+            lambda x: src.loans.marginfi.compute_liquidable_debt_at_price(
+                loan_states = loan_states.copy(),
+                token_prices = token_prices,
+                debt_token_parameters = debt_token_parameters,
+                mint_to_liquidity_vault_map=MINT_TO_LIQUIDITY_VAULT_MAPPING,
+                collateral_token = collateral_token,
+                target_collateral_token_price = x,
+                debt_token = debt_token,
+            )
+        )
+        data['amount'] = liquidable_debt.diff().abs()
+        data['protocol'] = PROTOCOL
+        data['slot'] = loan_states['slot'].max()
+        data['collateral_token'] = collateral_token
+        data['debt_token'] = debt_token
+        data.dropna(inplace = True)
+        all_data = pandas.concat([all_data, data])
+    return all_data
 
 
 def process_mango_loan_states(loan_states: pandas.DataFrame) -> pandas.DataFrame:
