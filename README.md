@@ -211,6 +211,15 @@ Query parameters:
 
 Returns an array of liquidable debt for given protocol, collateral token and debt token.
 
+##### `/v1/loan-states`
+
+Query parameters:
+ - `protocol` - name of the protocol
+ - `start_block_number` - start of the block range
+ - `end_block_number` - end of the block range
+
+Returns an array of loan states within block range.
+
 ##### `/v1/cta`
 
 Query parameters:
