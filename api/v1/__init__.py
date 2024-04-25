@@ -259,7 +259,7 @@ def get_loan_states():
     loan_states = model.query.filter(
         model.slot >= start_block_number,
         model.slot <= end_block_number,
-    ).all()
+    ).limit(1000).all()
 
     # Serialize the query results
     data = [to_dict(loan_state) for loan_state in loan_states]
