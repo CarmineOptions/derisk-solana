@@ -147,25 +147,70 @@ The amm_liquidity table is structured to accommodate data from multiple DEXes ef
 
 The API exposes an endpoint that allows access to data in the database.
 
-##### Endpoints
-
-Currently, there is only one endpoint:
-
-- `/v1/get-transactions?start_block_number=<start>&end_block_number=<end>` returns transactions within the block range
-
-##### Deployment
-
-To run the API, build and run the Docker image with relevant ENV variables.
+To run the API, the following environmental variables are required:
 
 - `POSTGRES_USER` name of the database user
 - `POSTGRES_PASSWORD` database user's password
 - `POSTGRES_HOST` host address, IP address or DNS of the database
 - `POSTGRES_DB` database name
 
+Then, run the following commands:
+
 ```sh
-docker build -t api -f Dockerfile.api .
-docker run -e POSTGRES_USER=<username> -e POSTGRES_PASSWORD=<password> -e POSTGRES_HOST=<host> -e POSTGRES_DB=<db_name> -p 3000:3000 api
+docker build --file ./Dockerfile.api -t api .
+docker run -d --name api -e POSTGRES_USER=$POSTGRES_USER -e POSTGRES_PASSWORD=$POSTGRES_PASSWORD -e POSTGRES_HOST=$POSTGRES_HOST -e POSTGRES_DB=$POSTGRES_DB -p 3000:3000 api
 ```
+
+The API exposes endpoints that allows access to data in the database.
+
+#### Endpoints
+
+##### `/v1/readiness`
+
+Query parameters:
+ - none
+
+Readiness probe, if the request succeeds, the API is ready to accept requests.
+
+##### `/v1/transactions`
+
+Query parameters:
+ - `start_block_number` - start of the block range
+ - `end_block_number` - end of the block range
+
+Returns an array of raw transactions within block range.
+
+##### `/v1/parsed-transactions`
+
+Query parameters:
+ - `limit` - number of last blocks from which parsed transactions should be retrieved
+ - `protocol` - name of the protocol
+
+Returns an array of parsed transactions within block range for the given protocol.
+
+##### `/v1/liquidity`
+
+Query parameters:
+ - `token_x` - address of the first token
+ - `token_y` - address of the second token
+
+Returns bids and asks for the given token pair.
+
+##### `/v1/liquidable-debt`
+
+Query parameters:
+ - `protocol` - name of the protocol
+ - `collateral_token` - collateral token address
+ - `debt_token` - debt token address
+
+Returns an array of liquidable debt for given protocol, collateral token and debt token.
+
+##### `/v1/cta`
+
+Query parameters:
+ - none
+
+Returns an array of call-to-action items.
 
 ### Raw Data Processing
 
