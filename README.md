@@ -163,6 +163,12 @@ docker run -d --name api -e POSTGRES_USER=$POSTGRES_USER -e POSTGRES_PASSWORD=$P
 
 The API exposes endpoints that allows access to data in the database.
 
+Since some response may be large, the API uses `Gzip` for compression of the responses. It is advised to use the accept encoding header:
+```sh
+Accept-Encoding: gzip
+```
+This will speed up the resolution of requests.
+
 #### Endpoints
 
 ##### `/v1/readiness`
