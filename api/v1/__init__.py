@@ -2,12 +2,12 @@ from flask import Blueprint, jsonify, request, abort
 import sqlalchemy
 from sqlalchemy.orm import load_only
 
-from api.liquidity import get_cached_liquidity, get_pair_key
 from api.utils import to_dict
 from api.extensions import db
 
 from db import (
     CallToActions,
+    DexNormalizedLiquidity,
     KaminoParsedTransactions,
     MangoParsedTransactions,
     MarginfiParsedTransactions,
@@ -135,15 +135,26 @@ def get_liquidity():
         )
 
     try:
-        key = get_pair_key(token_x_address, token_y_address)
-
-        result = get_cached_liquidity().get(key)
+        result = (
+            db.session.query(DexNormalizedLiquidity)
+            .filter(
+                DexNormalizedLiquidity.timestamp
+                == db.session.query(
+                    sqlalchemy.func.max(DexNormalizedLiquidity.timestamp)
+                ),
+                DexNormalizedLiquidity.token_x_address == token_x_address,
+                DexNormalizedLiquidity.token_y_address == token_y_address,
+            )
+            .all()
+        )
 
         if result is None:
             empty_response = [{"asks": [], "bids": []}]
             return jsonify(empty_response)
 
-        return jsonify(result)
+        data = [to_dict(row) for row in result]
+
+        return jsonify(data)
     except ValueError:
         abort(
             500,
