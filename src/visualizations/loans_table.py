@@ -46,6 +46,8 @@ def load_user_stats_data(protocols) -> pandas.DataFrame:
 
 	with db.get_db_session() as sesh:
 		for protocol in protocols:
+			if protocol == SOLEND:
+				continue
 			state_handler = get_loan_states_handler(protocol)
 			loan_states = fetch_loan_states(protocol, sesh)
 
