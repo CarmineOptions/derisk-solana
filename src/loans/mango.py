@@ -12,8 +12,9 @@ import requests
 import os
 from solana.rpc.types import MemcmpOpts
 from src.protocols.anchor_clients.mango_client.accounts.mango_account import MangoAccount
-
-
+from src.prices import get_prices_for_tokens
+import src.mango_token_params_map
+import numpy as np
 AUTHENTICATED_RPC_URL = os.environ.get("AUTHENTICATED_RPC_URL")
 if AUTHENTICATED_RPC_URL is None:
     raise ValueError("No AUTHENTICATED_RPC_URL env var")
@@ -214,4 +215,106 @@ def compute_liquidable_debt_at_price(
     loan_states['to_be_liquidated'] = loan_states.apply(lambda x: liq_debt(x, collateral_collumn, debt_collumn), axis = 1)
 
     return loan_states['to_be_liquidated'].sum()
+
+
+def get_mango_user_stats_df(loan_states: pd.DataFrame) -> pd.DataFrame:
+
+    collateral_tokens = {token for collateral in loan_states['collateral'] for token in collateral}
+    debt_tokens = {token for debt in loan_states['debt'] for token in debt}
+
+    for collateral_token in collateral_tokens:
+        loan_states[f'collateral_{collateral_token}'] = (
+            loan_states['collateral'].apply(lambda x: x[collateral_token] if collateral_token in x else Decimal('0'))
+        )
+    for debt_token in debt_tokens:
+        loan_states[f'debt_{debt_token}'] = (
+            loan_states['debt'].apply(lambda x: x[debt_token] if debt_token in x else Decimal('0'))
+        )
+
+
+    underlying_collateral_tokens: set = collateral_tokens
+    underlying_debt_tokens: set = debt_tokens
+    token_prices = get_prices_for_tokens(list(underlying_collateral_tokens | underlying_debt_tokens))
+    token_parameters = src.mango_token_params_map.token_parameters
+    tokens_info = src.protocols.dexes.amms.utils.get_tokens_address_to_info_map()
+
+
+    for collateral_token in collateral_tokens:
+
+        if not token_parameters.get(collateral_token):
+            print(f'No token parameters found for {collateral_token}')
+            continue
+        if not tokens_info.get(collateral_token):
+            print(f'No token info found for {collateral_token}')
+            continue
+        if not tokens_info[collateral_token].get('decimals'):
+            print(f'No decimals found for {collateral_token}')
+            continue
+
+        decimals = tokens_info[collateral_token]['decimals']
+        asset_maint_w = token_parameters[collateral_token]['maint_asset_weight']
+
+        loan_states[f'collateral_usd_{collateral_token}'] = (
+            loan_states[f'collateral_{collateral_token}'].astype(float)
+            / (10**decimals)
+            * token_prices[collateral_token]
+        )
+
+        loan_states[f'risk_adj_collateral_usd_{collateral_token}'] = (
+            loan_states[f'collateral_{collateral_token}'].astype(float)
+            / (10**decimals)
+            * float(asset_maint_w)
+            * token_prices[collateral_token]
+        )
+    
+    for debt_token in debt_tokens:
+
+        if not token_parameters.get(debt_token):
+            print(f'No token parameters found for {debt_token}')
+            continue
+        if not tokens_info.get(debt_token):
+            print(f'No token info found for {debt_token}')
+            continue
+        if not tokens_info[debt_token].get('decimals'):
+            print(f'No decimals found for {debt_token}')
+            continue
+        
+        decimals = tokens_info[debt_token]['decimals']
+        liab_maint_w = token_parameters[debt_token]['maint_liab_weight']
+
+        loan_states[f'debt_usd_{debt_token}'] = (
+            loan_states[f'debt_{debt_token}'].astype(float)
+            / (10**decimals)
+            * token_prices[debt_token]
+        )
+        
+
+        loan_states[f'risk_adj_debt_usd_{debt_token}'] = (
+            loan_states[f'debt_{debt_token}'].astype(float)
+            / (10**decimals)
+            * float(liab_maint_w)
+            * token_prices[debt_token]
+        )
+
+    loan_states['risk_adj_debt_usd'] = loan_states[[i for i in loan_states.columns if i.startswith('risk_adj_debt_usd_')]].sum(axis=1)
+    loan_states['debt_usd'] = loan_states[[i for i in loan_states.columns if i.startswith('debt_usd_')]].sum(axis=1)
+
+    loan_states['risk_adj_collateral_usd'] = loan_states[[i for i in loan_states.columns if i.startswith('risk_adj_collateral_usd_')]].sum(axis=1)
+    loan_states['collateral_usd'] = loan_states[[i for i in loan_states.columns if i.startswith('collateral_usd_')]].sum(axis=1)
+
+    loan_states['std_health'] = (loan_states['risk_adj_collateral_usd'] / loan_states['risk_adj_debt_usd'])
+
+    wanted_cols = [
+        'protocol', 
+        'user', 
+        'std_health',
+        'collateral_usd', 
+        'risk_adj_collateral_usd',
+        'debt_usd', 
+        'risk_adj_debt_usd',
+        'collateral',
+        'debt',
+    ]
+
+    return loan_states[wanted_cols]
 

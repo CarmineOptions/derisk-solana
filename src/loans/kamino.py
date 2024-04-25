@@ -258,3 +258,101 @@ def compute_liquidable_debt_at_price(
         * loan_states['liquidable']
     )
     return loan_states['debt_to_be_liquidated'].sum()
+
+def get_kamino_user_stats_df(loan_states: pandas.DataFrame) -> pandas.DataFrame:
+
+    MINT_TO_LP_MAPPING = {x: [] for x in src.kamino_vault_map.lp_to_mint_map.values()}
+    for x, y in src.kamino_vault_map.lp_to_mint_map.items():
+        MINT_TO_LP_MAPPING[y].append(x)
+    MINT_TO_SUPPLY_MAPPING = {x: [] for x in src.kamino_vault_map.supply_vault_to_mint_map.values()}
+    for x, y in src.kamino_vault_map.supply_vault_to_mint_map.items():
+        MINT_TO_SUPPLY_MAPPING[y].append(x)
+
+    collateral_tokens = {token for collateral in loan_states['collateral'] for token in collateral}
+    debt_tokens = {token for debt in loan_states['debt'] for token in debt}
+
+    underlying_collateral_tokens = [
+        src.kamino_vault_map.lp_to_mint_map[x]
+        for x in collateral_tokens
+        if x in src.kamino_vault_map.lp_to_mint_map
+    ]
+    underlying_debt_tokens = [
+        src.kamino_vault_map.supply_vault_to_mint_map[x]
+        for x in debt_tokens
+        if x in src.kamino_vault_map.supply_vault_to_mint_map
+    ]
+    token_prices = src.prices.get_prices_for_tokens(underlying_collateral_tokens + underlying_debt_tokens)
+
+    collateral_token_parameters = {
+        token: src.kamino_vault_map.lp_to_info_map.get(token, None)
+        for token
+        in collateral_tokens
+    }
+    debt_token_parameters = {
+        debt_token: src.kamino_vault_map.supply_to_info_map.get(debt_token, None)
+        for debt_token
+        in debt_tokens
+    }
+
+    for token in collateral_tokens:
+        loan_states[f'collateral_{token}'] = loan_states['collateral'].apply(
+            lambda x: x[token] if token in x else decimal.Decimal('0')
+        )
+    for token in debt_tokens:
+        loan_states[f'debt_{token}'] = loan_states['debt'].apply(
+            lambda x: x[token] if token in x else decimal.Decimal('0')
+        )
+    
+    for token in collateral_tokens:
+        if not collateral_token_parameters[token]:
+            continue
+        if not collateral_token_parameters[token]['underlying_decs']:
+            continue
+        decimals = collateral_token_parameters[token]['underlying_decs']
+        ltv = collateral_token_parameters[token]['ltv']
+        underlying_token = src.kamino_vault_map.lp_to_mint_map[token]
+
+        loan_states[f'collateral_usd_{token}'] = (
+            loan_states[f'collateral_{token}'].astype(float)
+            / (10**decimals)
+            * token_prices[underlying_token]
+        )
+        
+        loan_states[f'risk_adj_collateral_usd_{token}'] = loan_states[f'collateral_usd_{token}'] * (ltv/100)
+    
+    for debt_token in debt_tokens:
+        if not debt_token_parameters[debt_token]:
+            continue
+        if not debt_token_parameters[debt_token]['underlying_decs']:
+            continue
+        decimals = debt_token_parameters[debt_token]['underlying_decs']
+        ltv = debt_token_parameters[debt_token]['ltv']
+        underlying_token = src.kamino_vault_map.supply_vault_to_mint_map[debt_token]
+        loan_states[f'debt_usd_{debt_token}'] = (
+            loan_states[f'debt_{debt_token}'].astype(float)
+            / (10**decimals)
+            * token_prices[underlying_token]
+        )
+        loan_states[f'risk_adj_debt_usd_{debt_token}'] = loan_states[f'debt_usd_{debt_token}'] * (1/(ltv/100) if ltv else 1)
+        
+    loan_states['risk_adj_debt_usd'] = loan_states[[i for i in loan_states.columns if i.startswith('risk_adj_debt_usd_')]].sum(axis=1)
+    loan_states['debt_usd'] = loan_states[[i for i in loan_states.columns if i.startswith('debt_usd_')]].sum(axis=1)
+
+    loan_states['risk_adj_collateral_usd'] = loan_states[[i for i in loan_states.columns if i.startswith('risk_adj_collateral_usd_')]].sum(axis=1)
+    loan_states['collateral_usd'] = loan_states[[i for i in loan_states.columns if i.startswith('collateral_usd_')]].sum(axis=1)
+
+    loan_states['std_health'] = (loan_states['risk_adj_collateral_usd'] / loan_states['risk_adj_debt_usd']).fillna(np.inf)
+
+
+    wanted_cols = [
+        'protocol', 
+        'user', 
+        'std_health',
+        'collateral_usd', 
+        'risk_adj_collateral_usd',
+        'debt_usd', 
+        'risk_adj_debt_usd',
+        'collateral',
+        'debt',
+    ]
+    return loan_states[wanted_cols]
