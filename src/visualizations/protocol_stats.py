@@ -12,7 +12,7 @@ import db
 # TODO: Make sth like ProtocolStats class that will hold the info
 #       rn the same info is fetched from db multiple times
 
-@st.cache_data(ttl=datetime.timedelta(minutes=1))
+@st.cache_data(ttl=datetime.timedelta(minutes=10))
 def get_unique_token_supply_mints() -> list[str] | None:
     with db.get_db_session() as sesh:
         addresses = (
@@ -24,7 +24,7 @@ def get_unique_token_supply_mints() -> list[str] | None:
 
     return [i[0] for i in addresses]
 
-@st.cache_data(ttl=datetime.timedelta(minutes=1))
+@st.cache_data(ttl=datetime.timedelta(minutes=10))
 def get_lending_tokens_with_tvl(prices, tokens) -> list[tuple[str, Decimal]]:
 
     with db.get_db_session() as session:

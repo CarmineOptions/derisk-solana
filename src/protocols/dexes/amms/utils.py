@@ -150,7 +150,7 @@ def convert_amm_reserves_to_bids_asks(
 
     return {"asks": diff_price_levels(asks), "bids": diff_price_levels(bids)}
 
-@st.cache_data(ttl=datetime.timedelta(minutes=1))
+@st.cache_data(ttl=datetime.timedelta(minutes=10))
 def get_tokens_address_to_info_map() -> dict[str, dict[str, str | int]]:
     """
     Retrieves list of solana tokens obtained via Jupiter api and returns a map
@@ -182,7 +182,7 @@ ADDITIONAL_TOKENS = {
     'WETH': {'symbol': 'WETH', 'name': 'Wrapped Ether (Wormhole)', 'decimals': 8, 'address': 'CSD6JQMvLi46psjHdpfFdr826mF336pEVMJgjwcoS1m4'}
 }
 
-@st.cache_data(ttl=datetime.timedelta(minutes=1))
+@st.cache_data(ttl=datetime.timedelta(minutes=10))
 def get_tokens_symbol_to_info_map() -> dict[str, dict[str, str | int]]:
     """
     Retrieves list of solana tokens obtained via Jupiter api and returns a map
