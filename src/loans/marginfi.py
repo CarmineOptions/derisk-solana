@@ -2,6 +2,7 @@ import decimal
 import logging
 
 import pandas
+import numpy as np
 
 import src.loans.helpers
 import src.loans.types
@@ -194,3 +195,101 @@ def compute_liquidable_debt_at_price(
         * loan_states['liquidable']
     ).clip(lower = 0)
     return loan_states['debt_to_be_liquidated'].sum()
+
+
+def get_marginfi_user_stats_df(loan_states: pandas.DataFrame) -> pandas.DataFrame:
+
+    MINT_TO_LIQUIDITY_VAULT_MAPPING = {x['mint']: [] for x in src.marginfi_map.liquidity_vault_to_info_mapping.values()}
+    for x, y in src.marginfi_map.liquidity_vault_to_info_mapping.items():
+        MINT_TO_LIQUIDITY_VAULT_MAPPING[y['mint']].append(x)
+
+
+    collateral_tokens = {token for collateral in loan_states['collateral'] for token in collateral}
+    debt_tokens = {token for debt in loan_states['debt'] for token in debt}
+
+
+    collateral_token_parameters = {
+        token: src.marginfi_map.liquidity_vault_to_info_mapping[token]
+        for token in collateral_tokens
+        if token in src.marginfi_map.liquidity_vault_to_info_mapping
+    }
+    debt_token_parameters = {
+        token: src.marginfi_map.liquidity_vault_to_info_mapping[token]
+        for token in debt_tokens
+        if token in src.marginfi_map.liquidity_vault_to_info_mapping
+    }
+
+
+    underlying_collateral_tokens = [
+        x['mint']
+        for x in collateral_token_parameters.values()
+    ]
+    underlying_debt_tokens = [
+        x['mint']
+        for x in debt_token_parameters.values()
+    ]
+    token_prices = src.prices.get_prices_for_tokens(underlying_collateral_tokens + underlying_debt_tokens)
+
+
+    for token in collateral_tokens:
+        loan_states[f'collateral_{token}'] = loan_states['collateral'].apply(
+            lambda x: x[token] if token in x else decimal.Decimal('0')
+        )
+    for token in debt_tokens:
+        loan_states[f'debt_{token}'] = loan_states['debt'].apply(
+            lambda x: x[token] if token in x else decimal.Decimal('0')
+        )
+
+
+    for token in collateral_tokens:
+        if not token in collateral_token_parameters:
+            continue
+        decimals = collateral_token_parameters[token]['decs']
+        collateral_factor = collateral_token_parameters[token]['asset_weight_maint'] / 2**48
+        underlying_token = collateral_token_parameters[token]['mint']
+        loan_states[f'collateral_usd_{token}'] = (
+            loan_states[f'collateral_{token}'].astype(float)
+            / (10**decimals)
+            * token_prices[underlying_token]
+        )
+        loan_states[f'risk_adj_collateral_usd_{token}'] = loan_states[f'collateral_usd_{token}'] * (collateral_factor)
+
+    for token in debt_tokens:
+        if not token in debt_token_parameters:
+            continue
+        decimals = debt_token_parameters[token]['decs']
+        debt_factor = debt_token_parameters[token]['liability_weight_maint'] / 2**48
+        underlying_token = debt_token_parameters[token]['mint']
+        loan_states[f'debt_usd_{token}'] = (
+            loan_states[f'debt_{token}'].astype(float)
+            / (10**decimals)
+            * token_prices[underlying_token]
+        )
+
+        loan_states[f'risk_adj_debt_usd_{token}'] = (
+            loan_states[f'debt_usd_{token}'] * (1/debt_factor)
+        )
+
+
+    loan_states['risk_adj_debt_usd'] = loan_states[[i for i in loan_states.columns if i.startswith('risk_adj_debt_usd_')]].sum(axis=1)
+    loan_states['debt_usd'] = loan_states[[i for i in loan_states.columns if i.startswith('debt_usd_')]].sum(axis=1)
+
+    loan_states['risk_adj_collateral_usd'] = loan_states[[i for i in loan_states.columns if i.startswith('risk_adj_collateral_usd_')]].sum(axis=1)
+    loan_states['collateral_usd'] = loan_states[[i for i in loan_states.columns if i.startswith('collateral_usd_')]].sum(axis=1)
+
+    loan_states['std_health'] = (loan_states['risk_adj_collateral_usd'] / loan_states['risk_adj_debt_usd']).fillna(np.inf)
+
+
+    wanted_cols = [
+        'protocol', 
+        'user', 
+        'std_health',
+        'collateral_usd', 
+        'risk_adj_collateral_usd',
+        'debt_usd', 
+        'risk_adj_debt_usd',
+        'collateral',
+        'debt',
+    ]
+    return loan_states[wanted_cols]
+

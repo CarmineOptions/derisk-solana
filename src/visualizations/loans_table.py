@@ -3,6 +3,7 @@ from typing import Literal, Callable
 import pandas
 import src.loans.mango
 import src.loans.kamino
+import src.loans.marginfi
 
 from src.loans.loan_state import fetch_loan_states
 import db
@@ -32,7 +33,7 @@ def get_loan_states_handler(protocol: Protocol) -> Callable:
 		return src.loans.kamino.get_kamino_user_stats_df
 
 	if protocol == MARGINFI:
-		raise ValueError('IMLEMENT ME')
+		return src.loans.marginfi.get_marginfi_user_stats_df
 		
 	if protocol == SOLEND:
 		raise ValueError('IMLEMENT ME')
