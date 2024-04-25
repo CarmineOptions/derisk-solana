@@ -168,10 +168,6 @@ def get_liquidable_debt():
     collateral_token = request.args.get("collateral_token")
     debt_token = request.args.get("debt_token")
 
-    protocol = request.args.get("protocol")
-    collateral_token = request.args.get("collateral_token")
-    debt_token = request.args.get("debt_token")
-
     if not (protocol and collateral_token and debt_token):
         abort(
             400,
