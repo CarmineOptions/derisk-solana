@@ -22,7 +22,7 @@ def get_authenticated_rpc_url() -> str:
         raise ValueError("No AUTHENTICATED_RPC_URL env var")
     return authenticated_rpc_url
 
-def get_group_token_index_to_index_map()
+def get_group_token_index_to_index_map():
     r = requests.get('https://api.mngo.cloud/data/v4/group-metadata')
     if r.status_code != 200:
         raise ValueError('Unable to fetch group -> token index -> mint info map')
