@@ -88,20 +88,14 @@ def main():
     st.plotly_chart(figure_or_data=main_chart_figure, use_container_width=True)
 
 
-    # # Compute the price at which the liquidable debt to the available supply ratio is dangerous. Create and display the
-    # # warning message.
-    # dangerous_price_level_data = src.visualizations.main_chart.get_dangerous_price_level_data(data=main_chart_data)
-    # if not dangerous_price_level_data.empty:
-    # 	streamlit.subheader(
-    # 		f":warning: At price of {dangerous_price_level_data['collateral_token_price']}, the risk of acquiring bad "
-    # 		f"debt for lending protocols is {src.visualizations.main_chart.get_risk(data=dangerous_price_level_data)}."
-    # 	)
-    # 	streamlit.write(
-    # 		f"The ratio of liquidated debt to available supply is "
-    # 		f"{dangerous_price_level_data['debt_to_supply_ratio'] * 100}%. Debt worth of "
-    # 		f"{dangerous_price_level_data['liquidable_debt_at_interval']} USD will be liquidated while the AMM swaps "
-    # 		f"capacity will be {dangerous_price_level_data['debt_token_supply']} USD."
-    # 	)
+    # Compute the price at which the liquidable debt to the available supply ratio is dangerous. Create and display the
+    # warning message.
+    cta_message = src.visualizations.main_chart.get_cta_message(
+        data=main_chart_data,
+        collateral_token=selected_tokens.collateral.address,
+        debt_token=selected_tokens.loan.address,
+    )
+    st.write(cta_message)
 
     # # Select the range of debt in USD and display individual loans with the lowest health factors.
     # streamlit.header("Loans with low health factor")
