@@ -323,7 +323,7 @@ Instantiate the parser with the Solend program's public key.
 
 ### Parsing pipelines
 Data parsing orchestration is assured by `Dockerfile.parsing-pipeline`. 
-To run pipelines ENV variable `PROTOCOL' is required. 
+To run pipelines ENV variable `PROTOCOL` is required. 
 
 Example:
 
@@ -334,6 +334,35 @@ docker run -e PROTOCOL=,protocol_name. POSTGRES_USER=<db_user> \
     -e POSTGRES_DB=<db_name> parsing-pipeline
 ```
 Allowed protocol names: `mango`, `kamino`, `marginfi` and `solend`.
+
+### Loan states
+
+Loans states relevant for the slot witch the last available parsed transactions are computed utilizing `Dockerfile.event_processing`. To run the container, an ENV variable `PROTOCOL` is required. The loan state for the given protocol will then be computed and saved to the database. The computation is achieved by "replaying" all historical transactions that adjust the holdings of tokens of the given protocol. Deposit events increase the users' collateral, the withdrawal events decrease it. Borrowing events increase the users' debt, the repayment events decrease it. Liquidation events decrease both the users' collateral and debt.
+
+#### Database Schema
+
+The `kamino_loan_states`, `mango_loan_states`, `marginfi_loan_states` and `solend_loan_states` tables are structured in the following way:
+
+- `slot`: Stores the slot for which the data is relevant.
+- `protocol`: Identifies the protocol, i.e. `kamino`, `mango`, `marginfi`, or `solend`.
+- `user`: Identifies the user.
+- `collateral`: Contains information about the user's collateral in a dictionary format where the keys are token addresses and values are amounts.
+- `debt`: Contains information about the user's debt in a dictionary format where the keys are token addresses and values are amounts.
+
+### Liquidable debts
+
+Liquidable debts relevant for the slot witch the last available loan states are computed utilizing `Dockerfile.liquidable_debt_processing`. To run the container, an ENV variable `PROTOCOL` is required. The liquidable debts for the given protocol will then be computed and saved to the database. The computation is achieved by taking all loan states of the given protocol and simulating liquidations that would occur had the collateral token price reached any price level in a range from 0 to the current price + 30%. We then sum (accross all users of the given lending protocol) all debt that the liquidators would need to repay in order to liquidate all liquidable loans at the given price level. This way, we obtain the total liquidable debt at the given price for the given protocol. Then, we take the differences between individual price levels, these differences represent the amounts of debt liquidated at the given price level, subject to the assumption that all loans that were liquidable at higher collateral token prices were in fact liquidated. These amounts are then stored in the database.
+
+#### Database Schema
+
+The `kamino_liquidable_debts`, `mango_liquidable_debts`, `marginfi_liquidable_debts` and `solend_liquidable_debts` tables are structured in the following way:
+
+- `slot`: Stores the slot for which the data is relevant.
+- `protocol`: Identifies the protocol, i.e. `kamino`, `mango`, `marginfi`, or `solend`.
+- `collateral_token`: Denotes the token taking the role of collateral in the potential liquidations.
+- `debt_token`: Denotes the token taking the role of debt in the potential liquidations.
+- `collateral_token_price`: Hypothetical price of the collateral token for which we compute hypothetical amounts of liquidable debt.
+- `amount`: Amount of debt that would have to be repayed by liquidators in order to liquidate all loans liquidable had the collateral token price reached the given price.
 
 ### Available Liquidity
 
