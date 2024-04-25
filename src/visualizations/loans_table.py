@@ -4,6 +4,7 @@ import pandas
 import src.loans.mango
 import src.loans.kamino
 import src.loans.marginfi
+import src.loans.solend
 
 from src.loans.loan_state import fetch_loan_states
 import db
@@ -36,8 +37,7 @@ def get_loan_states_handler(protocol: Protocol) -> Callable:
 		return src.loans.marginfi.get_marginfi_user_stats_df
 		
 	if protocol == SOLEND:
-		raise ValueError('IMLEMENT ME')
-
+		return src.loans.solend.get_solend_user_stats_df
 		
 		
 def load_user_stats_data(protocols) -> pandas.DataFrame:
@@ -46,8 +46,6 @@ def load_user_stats_data(protocols) -> pandas.DataFrame:
 
 	with db.get_db_session() as sesh:
 		for protocol in protocols:
-			if protocol == SOLEND:
-				continue
 			state_handler = get_loan_states_handler(protocol)
 			loan_states = fetch_loan_states(protocol, sesh)
 
