@@ -15,11 +15,14 @@ from src.protocols.anchor_clients.mango_client.accounts.mango_account import Man
 from src.prices import get_prices_for_tokens
 import src.mango_token_params_map
 import numpy as np
-AUTHENTICATED_RPC_URL = os.environ.get("AUTHENTICATED_RPC_URL")
-if AUTHENTICATED_RPC_URL is None:
-    raise ValueError("No AUTHENTICATED_RPC_URL env var")
 
-def get_group_token_index_to_index_map():
+def get_authenticated_rpc_url() -> str:
+    authenticated_rpc_url = os.environ.get("AUTHENTICATED_RPC_URL")
+    if authenticated_rpc_url is None:
+        raise ValueError("No AUTHENTICATED_RPC_URL env var")
+    return authenticated_rpc_url
+
+def get_group_token_index_to_index_map()
     r = requests.get('https://api.mngo.cloud/data/v4/group-metadata')
     if r.status_code != 200:
         raise ValueError('Unable to fetch group -> token index -> mint info map')
@@ -63,7 +66,7 @@ class MangoState(src.loans.state.State):
             verbose_users=verbose_users,
             initial_loan_states=initial_loan_states,
         )
-        self.client = Client(AUTHENTICATED_RPC_URL)
+        self.client = Client(get_authenticated_rpc_url())
         self.group_token_index_map = get_group_token_index_to_index_map()
 
     def get_groups(self) -> list[Pubkey]:
