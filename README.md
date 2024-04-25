@@ -218,7 +218,7 @@ Query parameters:
  - `start_block_number` - start of the block range
  - `end_block_number` - end of the block range
 
-Returns an array of loan states within block range.
+Returns an array of loan states within block range with limit of 1000 entries.
 
 ##### `/v1/cta`
 
