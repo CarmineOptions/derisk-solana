@@ -8,9 +8,13 @@ from api.extensions import db
 from db import (
     CallToActions,
     DexNormalizedLiquidity,
+    KaminoLoanStates,
     KaminoParsedTransactions,
+    MangoLoanStates,
     MangoParsedTransactions,
+    MarginfiLoanStates,
     MarginfiParsedTransactions,
+    SolendLoanStates,
     SolendParsedTransactions,
     MarginfiLiquidableDebts,
     MangoLiquidableDebts,
@@ -37,6 +41,13 @@ protocols_liquidable_debt_model_map = {
     "mango": MangoLiquidableDebts,
     "kamino": KaminoLiquidableDebts,
     "solend": SolendLiquidableDebts,
+}
+
+protocols_loan_states_model_map = {
+    "marginfi": MarginfiLoanStates,
+    "mango": MangoLoanStates,
+    "kamino": KaminoLoanStates,
+    "solend": SolendLoanStates,
 }
 
 
@@ -103,7 +114,7 @@ def get_lender_parsed_transactions():
                 description=f"Bad protocol. Allowed protocols are {list(protocols_parsed_transactions_model_map.keys())}",
             )
 
-        model = protocols_parsed_transactions_model_map[protocol]
+        model = protocols_parsed_transactions_model_map[protocol.lower()]
 
         # Example of a more idiomatic query assuming some common schema
         max_block = db.session.query(sqlalchemy.func.max(model.block)).scalar()
@@ -174,7 +185,7 @@ def get_liquidable_debt():
             description='"protocol", "collateral_token" and "debt_token" must be specified',
         )
 
-    model = protocols_liquidable_debt_model_map.get(protocol)
+    model = protocols_liquidable_debt_model_map.get(protocol.lower())
 
     if model is None:
         abort(400, description=f"{protocol} is not a valid protocol")
@@ -201,3 +212,56 @@ def get_liquidable_debt():
 def get_cta():
     call_to_actions = CallToActions.query.all()
     return jsonify([to_dict(cta) for cta in call_to_actions])
+
+
+@v1.route("/loan-states", methods=["GET"])
+def get_loan_states():
+    protocol = request.args.get("protocol")
+
+    if protocol is None:
+        abort(
+            400,
+            description='"protocol" query parameter must be specified.',
+        )
+
+    model = protocols_loan_states_model_map.get(protocol.lower())
+
+    if model is None:
+        abort(
+            400,
+            description=f'"{protocol}" is not a valid protocol.',
+        )
+
+    try:
+        start_block_number = int(request.args.get("start_block_number"))
+        end_block_number = int(request.args.get("end_block_number"))
+    except TypeError:
+        abort(
+            400,
+            description='"start_block_number" and "end_block_number" must be specified and valid integers.',
+        )
+
+    if start_block_number is None or end_block_number is None:
+        abort(
+            400,
+            description='"start_block_number" and "end_block_number" must be specified',
+        )
+
+    if start_block_number > end_block_number:
+        abort(
+            400,
+            description='"end_block_number" must be greater than "start_block_number"',
+        )
+
+    if end_block_number - start_block_number > MAX_BLOCK_AMOUNT:
+        abort(400, description="cannot fetch more than 50 blocks at a time")
+
+    loan_states = model.query.filter(
+        model.slot >= start_block_number,
+        model.slot <= end_block_number,
+    ).all()
+
+    # Serialize the query results
+    data = [to_dict(loan_state) for loan_state in loan_states]
+
+    return jsonify(data)
