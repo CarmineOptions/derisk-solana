@@ -1,3 +1,6 @@
+import logging
+import time
+
 import sqlalchemy
 from sqlalchemy.orm.session import Session
 
@@ -20,7 +23,8 @@ def generate_message(
     ratio = round(liquidable_debt / supply, 2)
     return f"""
     At price of {price}, the risk of acquiring bad debt for lending protocols is very high.
-    The ratio of liquidated debt to available supply is {ratio}%.Debt worth of {liquidable_debt} USD will be liquidated while the AMM swaps capacity will be {supply} USD.
+    The ratio of liquidated debt to available supply is {ratio}%.Debt worth of {round(liquidable_debt)} 
+    USD will be liquidated while the dex capacity will be {round(supply)} USD.
     """
 
 
@@ -56,3 +60,12 @@ def calculate_cta(collateral_token: str, debt_token: str):
         )
 
     print(result)
+
+
+def generate_cta_continuously():
+    logging.info("Starting CTAs generation.")
+    session = get_db_session()
+
+    while True:
+        logging.info("Generated CTAs.")
+        time.sleep(3600)
