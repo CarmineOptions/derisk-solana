@@ -3,6 +3,7 @@ import logging
 import warnings
 from typing import Any
 
+import numpy
 import pandas
 
 import src.database
@@ -421,7 +422,7 @@ def get_solend_user_stats_df(loan_states: pandas.DataFrame) -> pandas.DataFrame:
     loan_states['risk_adj_collateral_usd'] = loan_states[[i for i in loan_states.columns if i.startswith('risk_adj_collateral_usd_')]].sum(axis=1)
     loan_states['collateral_usd'] = loan_states[[i for i in loan_states.columns if i.startswith('collateral_usd_')]].sum(axis=1)
 
-    loan_states['std_health'] = (loan_states['risk_adj_collateral_usd'] / loan_states['risk_adj_debt_usd']).fillna(np.inf)
+    loan_states['std_health'] = (loan_states['risk_adj_collateral_usd'] / loan_states['risk_adj_debt_usd']).fillna(numpy.inf)
 
     wanted_cols = [
         'protocol', 
