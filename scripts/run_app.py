@@ -54,7 +54,7 @@ def main():
         protocols = st.multiselect(
             label="Select protocols",
             options=["kamino", "mango", "solend", "marginfi"],
-            default=["mango"],
+            default=["kamino", "mango", "solend", "marginfi"],
         )
 
     with col2:
@@ -127,7 +127,7 @@ def main():
 
     st.subheader("User healths")
     user_stats_df = src.visualizations.loans_table.load_user_stats_data(protocols)
-    st.dataframe(user_stats_df.sort_values('std_health', ascending=True).replace(np.inf, 'inf'), use_container_width=True)
+    st.dataframe(user_stats_df.sort_values('std_health', ascending=True).replace(np.inf, 'inf').iloc[:20], use_container_width=True)
     
 
     token_supplies_df = src.visualizations.protocol_stats.get_top_12_lending_supplies_df(
