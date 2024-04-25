@@ -2,6 +2,7 @@ from dataclasses import dataclass
 # import math
 from typing import Iterator
 # import decimal
+import time
 
 # import json
 # import operator
@@ -14,6 +15,7 @@ import plotly.express
 import plotly.graph_objs
 
 import db
+import src.cta.cta
 
 # import src.protocols.dexes.amms
 # import src.database
@@ -462,18 +464,25 @@ def get_figure(
     return figure
 
 
-# # # TODO: To be implemented.
-# def get_dangerous_price_level_data(data: pd.DataFrame) -> pd.Series:  # pylint: disable=W0613
-# 	return pd.Series(
-# 		index=[
-# 			"collateral_token_price",
-# 			"liquidable_debt_at_interval",
-# 			"debt_token_supply",
-# 			"debt_to_supply_ratio",
-# 		],
-# 	)
+def get_cta_message(data: pd.DataFrame, collateral_token: str, debt_token: str) -> str:  # pylint: disable=W0613
+    data = data.astype(float)
+    data['debt_to_supply_ratio'] = data['amount'] / data['debt_token_supply']
+    example_row = data[
+        data['debt_to_supply_ratio'] > 0.75
+    ].sort_values('collateral_token_price').iloc[-1]
 
-
-# # # TODO: To be implemented.
-# def get_risk(data: pd.Series) -> str:  # pylint: disable=W0613
-# 	return ''
+    if not example_row.empty:
+        message = src.cta.cta.generate_message(
+            price=int(example_row['collateral_token_price']),
+            liquidable_debt=example_row['amount'],
+            supply=example_row['debt_token_supply'],
+        )
+        src.cta.cta.store_cta(
+            timestamp = time.time(),
+            collateral_token = collateral_token,
+            debt_token = debt_token,
+            message = message,
+            session = db.get_db_session(),
+        )
+        return message
+    return ''
