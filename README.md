@@ -404,6 +404,10 @@ The `kamino_loan_states`, `mango_loan_states`, `marginfi_loan_states` and `solen
 
 Liquidable debts relevant for the slot witch the last available loan states are computed utilizing `Dockerfile.liquidable_debt_processing`. To run the container, an ENV variable `PROTOCOL` is required. The liquidable debts for the given protocol will then be computed and saved to the database. The computation is achieved by taking all loan states of the given protocol and simulating liquidations that would occur had the collateral token price reached any price level in a range from 0 to the current price + 30%. We then sum (accross all users of the given lending protocol) all debt that the liquidators would need to repay in order to liquidate all liquidable loans at the given price level. This way, we obtain the total liquidable debt at the given price for the given protocol. Then, we take the differences between individual price levels, these differences represent the amounts of debt liquidated at the given price level, subject to the assumption that all loans that were liquidable at higher collateral token prices were in fact liquidated. These amounts are then stored in the database.
 
+### Token supplies
+
+Amounts of tokens that are available for borrow on following protocols: Kamino, Marginfi, Solend, Mango. The supplies are stored in the db, meaning environment variables POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_HOST, POSTGRES_DB are needed, along with AUTHENTICATED_RPC_URL, which is needed in order to fetch latest onchain data. After launching the docker container and waiting for the first batch of information to be pushed to the db, the supplies will be present in `public.token_lending_supplies` table.
+
 #### Database Schema
 
 The `kamino_liquidable_debts`, `mango_liquidable_debts`, `marginfi_liquidable_debts` and `solend_liquidable_debts` tables are structured in the following way:
@@ -435,6 +439,10 @@ In contrast with AMMs, it's not very simple to simulate liquidity that would ava
 2. Load historical snapshots from the exchange for the tokens of interest. We load historical snapshots fromt the past 5 days.
 3. For every snapshot, compute limit order quantity available within 5% from the mid price in the direction of interest.
 4. Take the resulting time series of snapshots and compute its 5% quantile which is a rough estimate of the liquidity the remains in the orderbook when the price of the collateral token drops suddenly. 
+
+##### Normalized liquidity
+In order to have unified representation of on-chain liquidity in the database, liquidity normalization is conducted via `Dockerfile.liquidity-normalizer`, which fetches latest AMM/CLMM/CLOB liquidity from database, normalizes it (basically transforming all data to orderbook-like data) and then pushes it to `public.dex_normalized_liquidity` table. POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_HOST, POSTGRES_DB and AUTHENTICATED_RPC_URL environment variables are needed in order to run this service.
+
 
 ### Frontend
 
