@@ -9,6 +9,7 @@ import os
 import time
 import traceback
 
+from psycopg2 import OperationalError
 from solana.exceptions import SolanaRpcException
 from solana.rpc.async_api import AsyncClient
 from solana.rpc.commitment import Commitment
@@ -231,35 +232,42 @@ class TXFromBlockCollector(GenericSolanaConnector):
         if not self.relevant_transactions:
             self._report_collection()
             return
-        with db.get_db_session() as session:
-            for transaction in self.relevant_transactions:
-                sources = transaction.sources(self.protocol_public_keys if self.protocol_public_keys else [])
-                signature = transaction.first_signature
-                # Same transaction has to be recorded once per each relevant protocol
-                for source in sources:
-                    records = session.query(db.TransactionStatusWithSignature).filter_by(
-                        signature=str(signature),
-                        source=source
-                    ).all()
-
-                    # Check if the record exists.
-                    if records:
-                        # Iterate over each record and update transaction data.
-                        for record in records:
-                            record.transaction_data = transaction.tx_body.to_json()
-                    else:
-                        new_record = db.TransactionStatusWithSignature(
-                            source=source,
-                            slot=transaction.block_number,
+        try:
+            with db.get_db_session() as session:
+                for transaction in self.relevant_transactions:
+                    sources = transaction.sources(self.protocol_public_keys if self.protocol_public_keys else [])
+                    signature = transaction.first_signature
+                    # Same transaction has to be recorded once per each relevant protocol
+                    for source in sources:
+                        records = session.query(db.TransactionStatusWithSignature).filter_by(
                             signature=str(signature),
-                            block_time=transaction.block_time,
-                            transaction_data=transaction.tx_body.to_json(),
-                            collection_stream=self.collection_stream
-                        )
-                        session.add(new_record)
+                            source=source
+                        ).all()
 
-            # Commit the changes.
-            session.commit()
+                        # Check if the record exists.
+                        if records:
+                            # Iterate over each record and update transaction data.
+                            for record in records:
+                                record.transaction_data = transaction.tx_body.to_json()
+                        else:
+                            new_record = db.TransactionStatusWithSignature(
+                                source=source,
+                                slot=transaction.block_number,
+                                signature=str(signature),
+                                block_time=transaction.block_time,
+                                transaction_data=transaction.tx_body.to_json(),
+                                collection_stream=self.collection_stream
+                            )
+                            session.add(new_record)
+
+                # Commit the changes.
+                session.commit()
+        except OperationalError as e:
+            LOG.error("OperationalError occured: %s. Waiting 120 to retry."
+                      "\n Exception occurred: %s", str(e), traceback.format_exc())
+            time.sleep(120)
+            self._write_data()
+            return
         self._report_collection()
 
     @abstractmethod
