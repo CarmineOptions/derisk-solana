@@ -211,6 +211,11 @@ class TXFromBlockCollector(GenericSolanaConnector):
             except IntegrityError:
                 session.rollback()  # roll back the session to a clean state
                 LOG.error(f"A protocol with the public key `{public_key}` already exists in the database.")
+            except OperationalError as e:
+                LOG.error("OperationalError occured: %s. Waiting 120 to retry."
+                          "\n Exception occurred: %s", str(e), traceback.format_exc())
+                time.sleep(120)
+                TXFromBlockCollector._add_new_protocol(public_key, watershed_block_number)
 
     def _get_latest_finalized_block_on_chain(self) -> int:
         """

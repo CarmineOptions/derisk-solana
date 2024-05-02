@@ -16,6 +16,10 @@ on Solana chain for lending protocols.
     If being restarted - start from the latest block saved. The last current block number is collected from db.
 """
 import logging
+import time
+import traceback
+
+from psycopg2 import OperationalError
 
 import db
 from src.collection.tx_data.collector import TXFromBlockCollector
@@ -39,11 +43,18 @@ class CurrentTXCollector(TXFromBlockCollector):
         """
         Retrieves the earliest last collected block number among protocols.
         """
-        with db.get_db_session() as session:
-            # Query the database for protocols with the given public keys
-            protocols = session.query(db.Protocols).filter(db.Protocols.public_key.in_(
-                self.protocol_public_keys if self.protocol_public_keys else []
-            ))
+        try:
+            with db.get_db_session() as session:
+                # Query the database for protocols with the given public keys
+                protocols = session.query(db.Protocols).filter(db.Protocols.public_key.in_(
+                    self.protocol_public_keys if self.protocol_public_keys else []
+                ))
+        except OperationalError as e:
+            LOGGER.error("OperationalError occured: %s. Waiting 120 to retry."
+                      "\n Exception occurred: %s", str(e), traceback.format_exc())
+            time.sleep(120)
+            self._get_assigned_blocks()
+            return
 
         last_collected_block = None  # Initialize last_collected_block
 
@@ -75,14 +86,22 @@ class CurrentTXCollector(TXFromBlockCollector):
         Updates `last_collected_block` for each protocol.
         :return:
         """
-        with db.get_db_session() as session:
-            protocols = session.query(db.Protocols).filter(db.Protocols.public_key.in_(
-                self.protocol_public_keys if self.protocol_public_keys else []
-            ))
+        try:
+            with db.get_db_session() as session:
+                protocols = session.query(db.Protocols).filter(db.Protocols.public_key.in_(
+                    self.protocol_public_keys if self.protocol_public_keys else []
+                ))
 
-            for protocol in protocols:
-                if self.assignment:
-                    protocol.last_block_collected = max(self.assignment)
+                for protocol in protocols:
+                    if self.assignment:
+                        protocol.last_block_collected = max(self.assignment)
 
-            session.commit()
+                session.commit()
+        except OperationalError as e:
+            LOGGER.error("OperationalError occured: %s. Waiting 120 to retry."
+                         "\n Exception occurred: %s", str(e), traceback.format_exc())
+            time.sleep(120)
+            self._report_collection()
+            return
+
         LOGGER.info(f"Assignment completed: {self.assignment}")
