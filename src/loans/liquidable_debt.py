@@ -565,12 +565,16 @@ def process_solend_loan_states(loan_states: pd.DataFrame) -> pandas.DataFrame:
 
     all_data = pandas.DataFrame()
     for collateral_token, debt_token in itertools.product(COLLATERAL_TOKENS, DEBT_TOKENS):
+        print(f"processing liquidable debt for {collateral_token} - {debt_token}")
         try:
             if collateral_token == debt_token:
                 continue
-            print(f"processing liquidable debt for {collateral_token} - {debt_token}")
+
             account = next(i for i in collateral_complete_data if i['underlying_token'] == collateral_token)
             collateral_token_price = account['price']
+            if not collateral_token_price:
+                print(f"Unable to obtain price for {collateral_token}.")
+                continue
             # Compute liquidable debt.
             data = pandas.DataFrame(
                 {
