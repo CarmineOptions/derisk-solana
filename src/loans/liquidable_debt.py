@@ -31,7 +31,7 @@ import src.loans.loan_state
 import src.marginfi_map
 import src.prices
 import src.protocols
-# import src.solend_lp_tokens
+import src.solend_lp_tokens
 import src.visualizations.main_chart
 import src.protocols.dexes.amms.utils
 import src.loans.mango
