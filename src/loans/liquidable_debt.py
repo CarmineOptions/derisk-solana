@@ -605,8 +605,7 @@ def process_solend_loan_states(loan_states: pd.DataFrame) -> pandas.DataFrame:
             # Log the error with traceback
             logging.error("An error occurred: %s", traceback.format_exc())
             # Also print the traceback to the console or standard output
-            print("Caught an exception:")
-            traceback.print_exc()
+            print("Caught an exception: %s", traceback.print_exc())
             continue
 
 
