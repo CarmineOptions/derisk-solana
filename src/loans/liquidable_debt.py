@@ -600,6 +600,7 @@ def process_solend_loan_states(loan_states: pd.DataFrame) -> pandas.DataFrame:
             data.dropna(inplace=True)
             with get_db_session() as session:
                 store_liquidable_debts(data, "solend", session)
+                print(f"Success.")
 
         except Exception as e:
             # Log the error with traceback
