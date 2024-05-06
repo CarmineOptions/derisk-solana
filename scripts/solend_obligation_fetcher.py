@@ -285,7 +285,7 @@ def decode_obligation(parsed_obligation: Any) -> Tuple[List[Dict[str, Any]], Lis
 
 # run loan states collection in an infinite loop
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO)
+    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
     while True:
         timestamp = time.time()
