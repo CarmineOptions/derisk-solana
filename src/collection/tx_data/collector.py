@@ -9,14 +9,13 @@ import os
 import time
 import traceback
 
-from psycopg2 import OperationalError
 from solana.exceptions import SolanaRpcException
 from solana.rpc.async_api import AsyncClient
 from solana.rpc.commitment import Commitment
 from solana.rpc.core import RPCException
 from solders.errors import SerdeJSONError
 from solders.transaction_status import EncodedTransactionWithStatusMeta, UiConfirmedBlock
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, OperationalError
 
 from src.collection.shared.generic_collector import GenericSolanaConnector, SolanaTransaction, log_performance_time
 from src.protocols.addresses import ALL_ADDRESSES

@@ -21,7 +21,7 @@ import os
 import time
 import traceback
 
-from psycopg2 import OperationalError
+from sqlalchemy.exc import OperationalError
 
 import db
 from src.collection.tx_data.collector import TXFromBlockCollector

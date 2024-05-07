@@ -19,7 +19,7 @@ import logging
 import time
 import traceback
 
-from psycopg2 import OperationalError
+from sqlalchemy.exc import OperationalError
 
 import db
 from src.collection.tx_data.collector import TXFromBlockCollector
@@ -51,7 +51,7 @@ class CurrentTXCollector(TXFromBlockCollector):
                 ))
         except OperationalError as e:
             LOGGER.error("OperationalError occured: %s. Waiting 120 to retry."
-                      "\n Exception occurred: %s", str(e), traceback.format_exc())
+                         "\n Exception occurred: %s", str(e), traceback.format_exc())
             time.sleep(120)
             self._get_assigned_blocks()
             return
