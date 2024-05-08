@@ -137,8 +137,8 @@ def process_collateral(
     collateral = {}
     for position in collateral_raw:
         reserve = position['publicKey']
-        supply = reserve_to_supply_map[reserve]['collateralSupply']
-        collateral[supply] = position['depositedAmount']
+        collateral_mint = reserve_to_supply_map[reserve]['collateralMint']
+        collateral[collateral_mint] = {'amount': position['depositedAmount'], 'reserve': reserve}
     return collateral
 
 
@@ -155,13 +155,13 @@ def process_debt(
     debt = {}
     for position in debt_raw:
         reserve = position['publicKey']
-        supply = reserve_to_supply_map[reserve]['liquiditySupply']
-        debt[supply] = (
-            position['borrowedAmountWads']
-            * int(reserve_to_supply_map[reserve]['cumBorrowRateWADs'])
-            / position['cumulativeBorrowRateWads']
-            / (10**18)
-        )
+        liquidity_mint = reserve_to_supply_map[reserve]['liquidityMint']
+
+        debt[liquidity_mint] = {
+            'rawAmount': (position['borrowedAmountWads'] / position['cumulativeBorrowRateWads']),
+            'reserve': reserve
+        }
+
     return debt
 
 
