@@ -821,6 +821,15 @@ class SolendLoanStates(Base):
         )
 
 
+class SolendHealthRatio(Base):
+    __tablename__ = "solend_health_ratios"
+    __table_args__ = {"schema": SCHEMA_LENDERS}
+
+    slot = Column(BigInteger, primary_key=True, nullable=False)
+    user = Column(String, primary_key=True, nullable=False)
+    health_ratio = Column(String, nullable=False)
+
+
 class MarginfiLiquidableDebts(Base):
     __tablename__ = "marginfi_liquidable_debts"
     __table_args__ = {"schema": SCHEMA_LENDERS}
