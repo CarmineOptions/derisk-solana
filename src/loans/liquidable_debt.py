@@ -201,7 +201,7 @@ def process_marginfi_loan_states(
 
 
 def process_mango_loan_states(loan_states: pandas.DataFrame) -> pandas.DataFrame:
-    print(f"processing {len(loan_states)} mango loan states")
+    logging.info(f"processing {len(loan_states)} mango loan states.")
     protocol = 'mango'
     collateral_tokens = {token for collateral in loan_states['collateral'] for token in collateral}
     debt_tokens = {token for debt in loan_states['debt'] for token in debt}
@@ -224,15 +224,14 @@ def process_mango_loan_states(loan_states: pandas.DataFrame) -> pandas.DataFrame
 
 
     for collateral_token in collateral_tokens:
-
         if not token_parameters.get(collateral_token):
-            print(f'No token parameters found for {collateral_token}')
+            logging.info(f'No token parameters found for {collateral_token}')
             continue
         if not tokens_info.get(collateral_token):
-            print(f'No token info found for {collateral_token}')
+            logging.info(f'No token info found for {collateral_token}')
             continue
         if not tokens_info[collateral_token].get('decimals'):
-            print(f'No decimals found for {collateral_token}')
+            logging.info(f'No decimals found for {collateral_token}')
             continue
 
         decimals = tokens_info[collateral_token]['decimals']
@@ -247,13 +246,13 @@ def process_mango_loan_states(loan_states: pandas.DataFrame) -> pandas.DataFrame
     for debt_token in debt_tokens:
 
         if not token_parameters.get(debt_token):
-            print(f'No token parameters found for {debt_token}')
+            logging.info(f'No token parameters found for {debt_token}')
             continue
         if not tokens_info.get(debt_token):
-            print(f'No token info found for {debt_token}')
+            logging.info(f'No token info found for {debt_token}')
             continue
         if not tokens_info[debt_token].get('decimals'):
-            print(f'No decimals found for {debt_token}')
+            logging.info(f'No decimals found for {debt_token}')
             continue
         
         decimals = tokens_info[debt_token]['decimals']
@@ -442,7 +441,7 @@ def process_kamino_loan_states(loan_states: list[KaminoLoanStates]) -> pandas.Da
 
 def process_solend_loan_states(loan_states: pd.DataFrame) -> pandas.DataFrame:
     # TODO: process solend loan_states
-    print(f"processing {len(loan_states)} Solend loan states", flush=True)
+    logging.info(f"processing {len(loan_states)} Solend loan states")
 
     state = src.loans.solend.SolendState(initial_loan_states=loan_states)
     # get collateral and debt supply accounts from loan states data
@@ -565,7 +564,7 @@ def process_solend_loan_states(loan_states: pd.DataFrame) -> pandas.DataFrame:
 
     all_data = pandas.DataFrame()
     for collateral_token, debt_token in itertools.product(COLLATERAL_TOKENS, DEBT_TOKENS):
-        print(f"processing liquidable debt for {collateral_token} - {debt_token}")
+        logging.info(f"processing liquidable debt for {collateral_token} - {debt_token}")
         try:
             if collateral_token == debt_token:
                 continue
@@ -573,7 +572,7 @@ def process_solend_loan_states(loan_states: pd.DataFrame) -> pandas.DataFrame:
             account = next(i for i in collateral_complete_data if i['underlying_token'] == collateral_token)
             collateral_token_price = account['price']
             if not collateral_token_price:
-                print(f"Unable to obtain price for {collateral_token}.")
+                logging.info(f"Unable to obtain price for {collateral_token}.")
                 continue
             # Compute liquidable debt.
             data = pandas.DataFrame(
@@ -600,13 +599,11 @@ def process_solend_loan_states(loan_states: pd.DataFrame) -> pandas.DataFrame:
             data.dropna(inplace=True)
             with get_db_session() as session:
                 store_liquidable_debts(data, "solend", session)
-                print(f"Success.")
+                logging.info(f"Success.")
 
         except Exception as e:
             # Log the error with traceback
             logging.error("An error occurred: %s", traceback.format_exc())
-            # Also print the traceback to the console or standard output
-            print("Caught an exception: %s", traceback.print_exc())
             continue
 
 
