@@ -31,7 +31,7 @@ import src.loans.loan_state
 import src.marginfi_map
 import src.prices
 import src.protocols
-# import src.solend_lp_tokens
+import src.solend_lp_tokens
 import src.visualizations.main_chart
 import src.protocols.dexes.amms.utils
 import src.loans.mango
@@ -84,7 +84,7 @@ ProtocolFunc = (
 
 def process_marginfi_loan_states(
     loan_states: list[MarginfiLoanStates],
-) -> pandas.DataFrame:
+) -> None:
     PROTOCOL = 'marginfi'
     logging.info("Processing = {} loan states for protocol = {}.".format(len(loan_states), PROTOCOL))
 
@@ -156,7 +156,6 @@ def process_marginfi_loan_states(
             * token_prices[underlying_token]
         )
 
-    all_data = pandas.DataFrame()
     for collateral_token, debt_token in itertools.product(underlying_collateral_tokens, underlying_debt_tokens):
         if collateral_token == debt_token:
             continue
@@ -172,7 +171,7 @@ def process_marginfi_loan_states(
         collateral_token_price = token_prices[collateral_token]
         # The price is usually not found for unused tokens.
         if not collateral_token_price:
-            return
+            continue
 
         # Compute liqidable debt.
         data = pandas.DataFrame(
@@ -197,12 +196,12 @@ def process_marginfi_loan_states(
         data['collateral_token'] = collateral_token
         data['debt_token'] = debt_token
         data.dropna(inplace = True)
-        all_data = pandas.concat([all_data, data])
-    return all_data
+        with get_db_session() as session:
+            store_liquidable_debts(data, 'marginfi', session)
 
 
 def process_mango_loan_states(loan_states: pandas.DataFrame) -> pandas.DataFrame:
-    print(f"processing {len(loan_states)} mango loan states")
+    logging.info(f"processing {len(loan_states)} mango loan states.")
     protocol = 'mango'
     collateral_tokens = {token for collateral in loan_states['collateral'] for token in collateral}
     debt_tokens = {token for debt in loan_states['debt'] for token in debt}
@@ -225,15 +224,14 @@ def process_mango_loan_states(loan_states: pandas.DataFrame) -> pandas.DataFrame
 
 
     for collateral_token in collateral_tokens:
-
         if not token_parameters.get(collateral_token):
-            print(f'No token parameters found for {collateral_token}')
+            logging.info(f'No token parameters found for {collateral_token}')
             continue
         if not tokens_info.get(collateral_token):
-            print(f'No token info found for {collateral_token}')
+            logging.info(f'No token info found for {collateral_token}')
             continue
         if not tokens_info[collateral_token].get('decimals'):
-            print(f'No decimals found for {collateral_token}')
+            logging.info(f'No decimals found for {collateral_token}')
             continue
 
         decimals = tokens_info[collateral_token]['decimals']
@@ -248,13 +246,13 @@ def process_mango_loan_states(loan_states: pandas.DataFrame) -> pandas.DataFrame
     for debt_token in debt_tokens:
 
         if not token_parameters.get(debt_token):
-            print(f'No token parameters found for {debt_token}')
+            logging.info(f'No token parameters found for {debt_token}')
             continue
         if not tokens_info.get(debt_token):
-            print(f'No token info found for {debt_token}')
+            logging.info(f'No token info found for {debt_token}')
             continue
         if not tokens_info[debt_token].get('decimals'):
-            print(f'No decimals found for {debt_token}')
+            logging.info(f'No decimals found for {debt_token}')
             continue
         
         decimals = tokens_info[debt_token]['decimals']
@@ -265,8 +263,6 @@ def process_mango_loan_states(loan_states: pandas.DataFrame) -> pandas.DataFrame
             * float(liab_maint_w)
             * token_prices[debt_token]
         )
-        
-    all_data = []
 
     for collateral_token, debt_token in itertools.product(collateral_tokens, debt_tokens):
         if collateral_token == debt_token:
@@ -301,10 +297,9 @@ def process_mango_loan_states(loan_states: pandas.DataFrame) -> pandas.DataFrame
         data['collateral_token'] = collateral_token
         data['debt_token'] = debt_token
         data = data.dropna()
-        
-        all_data.append(data)
-        
-    return pandas.concat(all_data)
+        with get_db_session() as session:
+            store_liquidable_debts(data, "mango", session)
+
 
 def process_kamino_loan_states(loan_states: list[KaminoLoanStates]) -> pandas.DataFrame:
     PROTOCOL = 'kamino'
@@ -399,7 +394,6 @@ def process_kamino_loan_states(loan_states: list[KaminoLoanStates]) -> pandas.Da
         if x in src.kamino_vault_map.supply_vault_to_mint_map
     }
 
-    all_data = pandas.DataFrame()
     for collateral_token, debt_token in itertools.product(COLLATERAL_TOKENS, DEBT_TOKENS):
         if collateral_token == debt_token:
             continue
@@ -415,7 +409,7 @@ def process_kamino_loan_states(loan_states: list[KaminoLoanStates]) -> pandas.Da
         collateral_token_price = token_prices[collateral_token]
         # The price is usually not found for unused tokens.
         if not collateral_token_price:
-            return
+            continue
 
         # Compute liqidable debt.
         data = pandas.DataFrame(
@@ -441,13 +435,13 @@ def process_kamino_loan_states(loan_states: list[KaminoLoanStates]) -> pandas.Da
         data['collateral_token'] = collateral_token
         data['debt_token'] = debt_token
         data.dropna(inplace = True)
-        all_data = pandas.concat([all_data, data])
-    return all_data
+        with get_db_session() as session:
+            store_liquidable_debts(data, "kamino", session)
 
 
 def process_solend_loan_states(loan_states: pd.DataFrame) -> pandas.DataFrame:
     # TODO: process solend loan_states
-    print(f"processing {len(loan_states)} Solend loan states", flush=True)
+    logging.info(f"processing {len(loan_states)} Solend loan states")
 
     state = src.loans.solend.SolendState(initial_loan_states=loan_states)
     # get collateral and debt supply accounts from loan states data
@@ -570,12 +564,16 @@ def process_solend_loan_states(loan_states: pd.DataFrame) -> pandas.DataFrame:
 
     all_data = pandas.DataFrame()
     for collateral_token, debt_token in itertools.product(COLLATERAL_TOKENS, DEBT_TOKENS):
+        logging.info(f"processing liquidable debt for {collateral_token} - {debt_token}")
         try:
             if collateral_token == debt_token:
                 continue
-            print(f"processing liquidable debt for {collateral_token} - {debt_token}")
+
             account = next(i for i in collateral_complete_data if i['underlying_token'] == collateral_token)
             collateral_token_price = account['price']
+            if not collateral_token_price:
+                logging.info(f"Unable to obtain price for {collateral_token}.")
+                continue
             # Compute liquidable debt.
             data = pandas.DataFrame(
                 {
@@ -599,15 +597,14 @@ def process_solend_loan_states(loan_states: pd.DataFrame) -> pandas.DataFrame:
             data['collateral_token'] = collateral_token
             data['debt_token'] = debt_token
             data.dropna(inplace=True)
-            all_data = pandas.concat([all_data, data])
+            with get_db_session() as session:
+                store_liquidable_debts(data, "solend", session)
+                logging.info(f"Success.")
+
         except Exception as e:
             # Log the error with traceback
             logging.error("An error occurred: %s", traceback.format_exc())
-            # Also print the traceback to the console or standard output
-            print("Caught an exception:")
-            traceback.print_exc()
             continue
-    return all_data
 
 
 def protocol_to_process_func(
@@ -721,31 +718,30 @@ def process_loan_states_to_liquidable_debts(
     process_function: Callable[
         [AnyLoanState],
         pandas.DataFrame,
-    ],
-    session: Session,
+    ]
 ):
-    current_liquidable_debts = fetch_liquidable_debts(protocol, session)
+    with get_db_session() as session:
+        current_liquidable_debts = fetch_liquidable_debts(protocol, session)
     current_liquidable_debts_slot = 0
     if len(current_liquidable_debts) > 0:
         current_liquidable_debts_slot = int(current_liquidable_debts.iloc[0]["slot"])
 
-    current_loan_states: AnyLoanState = src.loans.loan_state.fetch_loan_states(protocol, session)
+    with get_db_session() as session:
+        current_loan_states: AnyLoanState = src.loans.loan_state.fetch_loan_states(protocol, session)
     current_loan_states_slot = 0
     if len(current_liquidable_debts) > 0:
         current_loan_states_slot = int(current_loan_states.iloc[0]["slot"])
 
     if not current_liquidable_debts_slot or current_liquidable_debts_slot < current_loan_states_slot:
-        new_liquidable_debts = process_function(current_loan_states)
-        store_liquidable_debts(new_liquidable_debts, protocol, session)
+        process_function(current_loan_states)
 
 
 def process_loan_states_continuously(protocol: Protocol):
     logging.info("Starting loan states to liquidable_debts processing.")
-    session = get_db_session()
 
     process_func = protocol_to_process_func(protocol)
 
     while True:
-        process_loan_states_to_liquidable_debts(protocol, process_func, session)
+        process_loan_states_to_liquidable_debts(protocol, process_func)
         logging.info("Updated liquidable_debts.")
         time.sleep(120)
