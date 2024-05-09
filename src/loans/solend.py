@@ -86,7 +86,7 @@ class SolendCollateralPosition:
     def risk_adjusted_market_value(self):
         """ Position market value, USD """
         assert self.decimals is not None, f"Missing collateral mint decimals for {self.mint}"
-        assert self.ltv is not None, f"Missing loan to value for {self.mint}"
+        assert self.liquidation_threshold is not None, f"Missing liquidation threshold for {self.mint}"
         assert self.c_token_exchange_rate, f"Missing collateral token exchange rate: " \
                                            f"{self.c_token_exchange_rate} for {self.mint}"
         assert self.underlying_asset_price_wad, f"Missing asset price: {self.underlying_asset_price_wad} for {self.mint}"
@@ -96,7 +96,7 @@ class SolendCollateralPosition:
             * int(self.underlying_asset_price_wad)
             / 10**self.decimals
             / WAD
-            * self.ltv
+            * self.liquidation_threshold
         )
 
 
@@ -322,7 +322,7 @@ class SolendState(src.loans.state.State):
             for loan_entity in self.loan_entities.values():
                 loan_entity.update_positions_from_reserve_config(self.reserve_configs)
                 new_health_ratio = db.SolendHealthRatio(
-                    slot=self.last_slot,
+                    slot=int(self.last_slot),
                     user=loan_entity.obligation,
                     health_factor=loan_entity.health_ratio(),
                     std_health_factor=loan_entity.std_health_ratio(),
