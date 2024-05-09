@@ -3,6 +3,7 @@ Module containing functionality related to Postgres DB used throughout the repo.
 """
 import os
 from enum import Enum
+from datetime import datetime
 
 from sqlalchemy import (
     create_engine,
@@ -17,6 +18,7 @@ from sqlalchemy import (
     DECIMAL,
     Boolean,
     inspect,
+    DateTime
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.declarative import declarative_base
@@ -826,8 +828,16 @@ class SolendHealthRatio(Base):
     __table_args__ = {"schema": SCHEMA_LENDERS}
 
     slot = Column(BigInteger, primary_key=True, nullable=False)
+    last_update = Column(BigInteger, index=True, nullable=True)
     user = Column(String, primary_key=True, nullable=False)
-    health_ratio = Column(String, nullable=False)
+    health_factor = Column(String, index=True, nullable=False)
+    std_health_factor = Column(String, index=True, nullable=False)
+    collateral = Column(String, nullable=False)
+    risk_adjusted_collateral = Column(String, nullable=False)
+    debt = Column(String, nullable=False)
+    risk_adjusted_debt = Column(String, nullable=False)
+    protocol = Column(String, default='solend', nullable=False)
+    timestamp = Column(DateTime, default=datetime.utcnow, nullable=False)
 
 
 class MarginfiLiquidableDebts(Base):
