@@ -62,6 +62,7 @@ class SolendCollateralPosition:
     underlying_asset_price_wad: str = ''
     liquidation_threshold: float | None = None
     liquidation_bonus: float | None = None
+    underlying_token: str = ''
 
     def __hash__(self):
         return hash((self.reserve, self.mint, round(self.amount, 10)))
@@ -232,6 +233,7 @@ class SolendLoanEntity:
                 collateral.underlying_asset_price_wad = reserve_config['reserve']['liquidity']['marketPrice']
                 collateral.liquidation_threshold = reserve_config['reserve']['config']['liquidationThreshold'] / 100
                 collateral.liquidation_bonus = reserve_config['reserve']['config']['liquidationBonus'] / 100
+                collateral.underlying_token = reserve_config['reserve']['liquidity']['mintPubkey']
 
         # Update debt positions
         for debt in self.debt:
@@ -324,10 +326,10 @@ class SolendState(src.loans.state.State):
                     user=loan_entity.obligation,
                     health_factor=loan_entity.health_ratio(),
                     std_health_factor=loan_entity.std_health_ratio(),
-                    collateral=loan_entity.collateral_market_value(),
-                    risk_adjusted_collateral=loan_entity.collateral_risk_adjusted_market_value(),
-                    debt=loan_entity.debt_market_value(),
-                    risk_adjusted_debt=loan_entity.debt_risk_adjusted_market_value()
+                    collateral=str(round(loan_entity.collateral_market_value(), 6)),
+                    risk_adjusted_collateral=str(round(loan_entity.collateral_risk_adjusted_market_value(), 6)),
+                    debt=str(round(loan_entity.debt_market_value(), 6)),
+                    risk_adjusted_debt=str(round(loan_entity.debt_risk_adjusted_market_value(), 6))
                 )
                 session.add(new_health_ratio)
             session.commit()
