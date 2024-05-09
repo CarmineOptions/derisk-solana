@@ -23,7 +23,7 @@ from solders.rpc.responses import GetProgramAccountsResp
 # Local application/library specific imports
 import db
 from src.loans.loan_state import store_loan_states
-
+from src.loans.solend import SolendState
 
 # logger
 LOGGER = logging.getLogger(__name__)
@@ -216,6 +216,11 @@ def obtain_loan_states():
         store_loan_states(new_loan_states, 'solend', session)
     LOGGER.info(f"{new_loan_states.shape[0]} loan states successfully collected and saved for `{slot}` block.")
 
+    LOGGER.info("Start updating health factors...")
+    start_time = time.time()
+    state = SolendState(initial_loan_states=new_loan_states)
+    state.save_health_ratios()
+    LOGGER.info(f"Health Factors updated in {time.time() - start_time:.2f} second.")
 
 def unpack_data(data: bytes, layout: str):
     """ Decode the binary data into structured data using predefined layouts. """
