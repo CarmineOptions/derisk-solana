@@ -222,6 +222,7 @@ def obtain_loan_states():
     state.save_health_ratios()
     LOGGER.info(f"Health Factors updated in {time.time() - start_time:.2f} second.")
 
+
 def unpack_data(data: bytes, layout: str):
     """ Decode the binary data into structured data using predefined layouts. """
     layout_size = struct.calcsize(layout)
@@ -297,4 +298,4 @@ if __name__ == "__main__":
         obtain_loan_states()
         elapsed_time = time.time() - timestamp
         LOGGER.info(f"Loan state collection successfully done in {elapsed_time:.2f} seconds.")
-        time.sleep(60*30 - elapsed_time)
+        time.sleep(60*15 - elapsed_time)
