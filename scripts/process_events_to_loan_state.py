@@ -12,6 +12,6 @@ if __name__ == "__main__":
     if protocol not in valid_protocols:
         raise ValueError(f"{protocol} is not a valid protocol")
 
-    logging.basicConfig(level=logging.INFO)
+    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
     process_events_continuously(protocol)
