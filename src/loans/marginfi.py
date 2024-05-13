@@ -101,7 +101,8 @@ class MarginFiState(src.loans.state.State):
         except solana.exceptions.SolanaRpcException:
             time.sleep(10)
             self.get_unprocessed_events()
-        self.accounts = accounts.value
+        else:
+            self.accounts = accounts.value
 
     def process_unprocessed_events(self):
         for account in self.accounts:
