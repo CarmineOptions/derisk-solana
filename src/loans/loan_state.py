@@ -265,6 +265,8 @@ def process_events_continuously(protocol: Protocol):
     protocol_class = protocol_to_protocol_class(protocol)
 
     while True:
+        start_time = time.time()
         process_events_to_loan_states(protocol, protocol_class, session)
         logging.info("Updated loan_states.")
-        time.sleep(120)
+        processing_time = time.time() - start_time
+        time.sleep(max(0, 900 - processing_time))
