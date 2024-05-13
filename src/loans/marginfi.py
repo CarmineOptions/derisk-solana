@@ -90,13 +90,17 @@ class MarginFiState(src.loans.state.State):
 
         client = solana.rpc.async_api.AsyncClient(AUTHENTICATED_RPC_URL)
 
-        accounts = asyncio.run(
-            client.get_program_accounts(
-                solders.pubkey.Pubkey.from_string(src.protocols.addresses.MARGINFI_ADDRESS),
-                encoding='base64',
-                filters=[solana.rpc.types.MemcmpOpts(8, GROUP)],
+        try:
+            accounts = asyncio.run(
+                client.get_program_accounts(
+                    solders.pubkey.Pubkey.from_string(src.protocols.addresses.MARGINFI_ADDRESS),
+                    encoding='base64',
+                    filters=[solana.rpc.types.MemcmpOpts(8, GROUP)],
+                )
             )
-        )
+        except solana.exceptions.SolanaRpcException:
+            time.sleep(10)
+            self.get_unprocessed_events()
         self.accounts = accounts.value
 
     def process_unprocessed_events(self):
@@ -106,12 +110,15 @@ class MarginFiState(src.loans.state.State):
                 continue
 
             user = str(account.pubkey)
+            # Create the loan entity so that we have a record of it even when all balances are inactive.
+            assert self.loan_entities[user]
 
             for balance in decoded_account.lending_account.balances:
                 if not balance.active:
                     continue
 
                 token = str(balance.bank_pk)
+                # The amounts provided are raw amounts.
                 collateral_amount = decimal.Decimal(str(int(balance.asset_shares.value / 2**48)))
                 debt_amount = decimal.Decimal(str(int(balance.liability_shares.value / 2**48)))
 
