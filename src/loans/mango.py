@@ -1,4 +1,6 @@
 import traceback
+import logging
+import asyncio
 import itertools
 import time
 import pandas as pd
@@ -15,6 +17,44 @@ from src.protocols.anchor_clients.mango_client.accounts.mango_account import Man
 from src.prices import get_prices_for_tokens
 import src.mango_token_params_map
 import numpy as np
+
+# =============================================================================================
+# Helper Structs for parsing Serum orders
+
+from construct import Bytes, Int64ul, Padding
+from construct import Struct as cStruct
+from construct import BitsInteger, BitsSwapped, BitStruct, Const, Flag
+
+ACCOUNT_FLAGS_LAYOUT = BitsSwapped(  # Swap to little endian
+    BitStruct(
+        "initialized" / Flag,
+        "market" / Flag,
+        "open_orders" / Flag,
+        "request_queue" / Flag,
+        "event_queue" / Flag,
+        "bids" / Flag,
+        "asks" / Flag,
+        Const(0, BitsInteger(57)),  # Padding
+    )
+)
+
+OPEN_ORDERS_LAYOUT = cStruct(
+    Padding(5),
+    "account_flags" / ACCOUNT_FLAGS_LAYOUT,
+    "market" / Bytes(32),
+    "owner" / Bytes(32),
+    "base_token_free" / Int64ul,
+    "base_token_total" / Int64ul,
+    "quote_token_free" / Int64ul,
+    "quote_token_total" / Int64ul,
+    "free_slot_bits" / Bytes(16),
+    "is_bid_bits" / Bytes(16),
+    "orders" / Bytes(16)[128],
+    "client_ids" / Int64ul[128],
+    "referrer_rebate_accrued" / Int64ul,
+    Padding(7),
+)
+# =============================================================================================
 
 def get_authenticated_rpc_url() -> str:
     authenticated_rpc_url = os.environ.get("AUTHENTICATED_RPC_URL")
@@ -64,7 +104,6 @@ class MangoState(src.loans.state.State):
             protocol='Mango',
             loan_entity_class=MangoLoanEntity,
             verbose_users=verbose_users,
-            initial_loan_states=initial_loan_states,
         )
         self.client = Client(get_authenticated_rpc_url())
         self.group_token_index_map = get_group_token_index_to_index_map()
@@ -157,6 +196,46 @@ class MangoState(src.loans.state.State):
 
                 else:
                     continue
+
+            for order in account.serum3:
+                if order.market_index == 65535:
+                    # Order Unset
+                    continue
+
+                # Get base and quote token info
+                mint = self.group_token_index_map.get(mango_group)
+                if not mint:
+                    print(f'Unable to find token index map for group {mango_group}')
+                    continue
+
+                base_mint = mint.get(order.base_token_index)
+                quote_mint = mint.get(order.quote_token_index)
+
+                if not base_mint:   
+                    print(f'Unable to find base token index map for index {order.base_token_index}')
+                    continue
+
+                if not quote_mint:   
+                    print(f'Unable to find quote token index map for index {order.quote_token_index}')
+                    continue
+                
+                try:
+                    # Fetch Serum order account info
+                    fetched_order = self.client.get_account_info(order.open_orders)
+                except SolanaRpcException: 
+                    logging.error(f'Unable to fetch serum order {order.open_orders} for account: {mango_account}')
+                    continue
+
+                # Parse Serum order
+                parsed_order = OPEN_ORDERS_LAYOUT.parse(fetched_order.value.data)
+
+                # Total contains the amount locked in order, the filled amount, 
+                base_amount = parsed_order.base_token_total   
+                quote_amount = parsed_order.quote_token_total 
+
+                self.loan_entities[mango_account].collateral.increase_value(token=base_mint['mint'], value=base_amount)
+                self.loan_entities[mango_account].collateral.increase_value(token=quote_mint['mint'], value=quote_amount)
+
         self.last_slot = int(time.time())
                 
 
