@@ -1,13 +1,21 @@
+import asyncio
 import decimal
 import logging
+import os
+import time
 
 import pandas
-import numpy as np
+import numpy
+import solana.rpc.async_api
+import solders.pubkey
+import solders.rpc.responses
 
 import src.loans.helpers
 import src.loans.types
 import src.loans.state
 import src.marginfi_map
+import src.protocols.addresses
+import src.protocols.anchor_clients.marginfi_client.accounts.marginfi_account
 
 
 
@@ -27,6 +35,15 @@ def get_events(start_block_number: int = 0) -> pandas.DataFrame:
         event_names=tuple(EVENTS_METHODS_MAPPING),
         start_block_number=start_block_number,
     )
+
+
+def decode_account(
+    account: solders.rpc.responses.RpcKeyedAccount,
+) -> src.protocols.anchor_clients.marginfi_client.accounts.marginfi_account.MarginfiAccount | None:
+    try:
+        return src.protocols.anchor_clients.marginfi_client.accounts.MarginfiAccount.decode(account.account.data)
+    except src.protocols.anchor_clients.marginfi_client.accounts.marginfi_account.AccountInvalidDiscriminator:
+        return
 
 
 class MarginFiLoanEntity(src.loans.state.LoanEntity):
@@ -55,14 +72,53 @@ class MarginFiState(src.loans.state.State):
             verbose_users=verbose_users,
             initial_loan_states=initial_loan_states,
         )
+        self.accounts: list[solders.rpc.responses.RpcKeyedAccount] = []
 
     def get_unprocessed_events(self) -> None:
-        self.unprocessed_events = src.loans.helpers.get_events(
-            table='lenders.marginfi_parsed_transactions_v5',
-            event_names=tuple(EVENTS_METHODS_MAPPING),
-            event_column='instruction_name',
-            start_block_number=self.last_slot + 1,
+        # TODO: switch back to events when the issues are solved
+        # self.unprocessed_events = src.loans.helpers.get_events(
+        #     table='lenders.marginfi_parsed_transactions_v5',
+        #     event_names=tuple(EVENTS_METHODS_MAPPING),
+        #     event_column='instruction_name',
+        #     start_block_number=self.last_slot + 1,
+        # )
+        AUTHENTICATED_RPC_URL = os.environ.get("AUTHENTICATED_RPC_URL")
+        if AUTHENTICATED_RPC_URL is None:
+            raise ValueError("no AUTHENTICATED_RPC_URL env var")
+        # This is the only group we found.
+        GROUP = '4qp6Fx6tnZkY5Wropq9wUYgtFxXKwE6viZxFHg3rdAG8'
+
+        client = solana.rpc.async_api.AsyncClient(AUTHENTICATED_RPC_URL)
+
+        accounts = asyncio.run(
+            client.get_program_accounts(
+                solders.pubkey.Pubkey.from_string(src.protocols.addresses.MARGINFI_ADDRESS),
+                encoding='base64',
+                filters=[solana.rpc.types.MemcmpOpts(8, GROUP)],
+            )
         )
+        self.accounts = accounts.value
+
+    def process_unprocessed_events(self):
+        for account in self.accounts:
+            decoded_account = decode_account(account)
+            if not decoded_account:
+                continue
+
+            user = str(account.pubkey)
+
+            for balance in decoded_account.lending_account.balances:
+                if not balance.active:
+                    continue
+
+                token = str(balance.bank_pk)
+                collateral_amount = decimal.Decimal(str(int(balance.asset_shares.value / 2**48)))
+                debt_amount = decimal.Decimal(str(int(balance.liability_shares.value / 2**48)))
+
+                self.loan_entities[user].collateral.set_value(token=token, value=collateral_amount)
+                self.loan_entities[user].debt.set_value(token=token, value=debt_amount)
+
+        self.last_slot = int(time.time())
 
     def process_event(self, event: pandas.DataFrame) -> None:
         min_slot = event["block"].min()
@@ -278,7 +334,7 @@ def get_marginfi_user_stats_df(loan_states: pandas.DataFrame) -> pandas.DataFram
     loan_states['risk_adj_collateral_usd'] = loan_states[[i for i in loan_states.columns if i.startswith('risk_adj_collateral_usd_')]].sum(axis=1)
     loan_states['collateral_usd'] = loan_states[[i for i in loan_states.columns if i.startswith('collateral_usd_')]].sum(axis=1)
 
-    loan_states['std_health'] = (loan_states['risk_adj_collateral_usd'] / loan_states['risk_adj_debt_usd']).fillna(np.inf)
+    loan_states['std_health'] = (loan_states['risk_adj_collateral_usd'] / loan_states['risk_adj_debt_usd']).fillna(numpy.inf)
 
 
     wanted_cols = [
