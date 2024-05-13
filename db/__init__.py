@@ -3,6 +3,7 @@ Module containing functionality related to Postgres DB used throughout the repo.
 """
 import os
 from enum import Enum
+import time
 
 from sqlalchemy import (
     create_engine,
@@ -798,6 +799,22 @@ class MangoLoanStates(Base):
             f"collateral={self.collateral},"
             f"debt={self.debt})"
         )
+
+class MangoHealthRatio(Base):
+    __tablename__ = "mango_health_ratios"
+    __table_args__ = {"schema": SCHEMA_LENDERS}
+
+    slot = Column(BigInteger, primary_key=True, nullable=False)
+    last_update = Column(BigInteger, index=True, nullable=True)
+    user = Column(String, primary_key=True, nullable=False)
+    health_factor = Column(String, index=True, nullable=False)
+    std_health_factor = Column(String, index=True, nullable=False)
+    collateral = Column(String, nullable=False)
+    risk_adjusted_collateral = Column(String, nullable=False)
+    debt = Column(String, nullable=False)
+    risk_adjusted_debt = Column(String, nullable=False)
+    protocol = Column(String, default='mango', nullable=False)
+    timestamp = Column(BigInteger, default=int(time.time()), nullable=False)
 
 
 class SolendLoanStates(Base):
