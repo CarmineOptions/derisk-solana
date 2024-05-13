@@ -17,6 +17,7 @@ from src.protocols.anchor_clients.mango_client.accounts.mango_account import Man
 from src.prices import get_prices_for_tokens
 import src.mango_token_params_map
 import numpy as np
+import db
 
 # =============================================================================================
 # Helper Structs for parsing Serum orders
@@ -237,8 +238,45 @@ class MangoState(src.loans.state.State):
                 self.loan_entities[mango_account].collateral.increase_value(token=quote_mint['mint'], value=quote_amount)
 
         self.last_slot = int(time.time())
-                
 
+        self.store_health_ratios()
+
+    def store_health_ratios(self):
+        if not self.loan_entities:
+            logging.error('No loan entities to calculate health_ratios for.')
+
+        loan_state_df = pd.DataFrame(
+            {
+                'protocol': [self.protocol for _ in self.loan_entities.keys()],
+                'slot': [self.last_slot for _ in self.loan_entities.keys()],
+                'user': [user for user in self.loan_entities],
+                'collateral': [{token: float(amount) for token, amount in loan.collateral.items()} for loan in self.loan_entities.values()],
+                'debt': [{token: float(amount) for token, amount in loan.debt.items()} for loan in self.loan_entities.values()],
+            }
+        )
+        health_ratio_df = get_mango_health_ratio_df(loan_state_df)
+
+        now = int(time.time())
+
+        entries = [
+            db.MangoHealthRatio(
+                slot = self.last_slot,
+                last_update = now, 
+                user = entry['user'],
+                health_factor = str(entry['health']),
+                std_health_factor = str(entry['std_health']),
+                collateral = str(entry['collateral_usd']),
+                risk_adjusted_collateral = str(entry['risk_adj_collateral_usd']),
+                debt = str(entry['debt_usd']),
+                risk_adjusted_debt = str(entry['risk_adj_debt_usd']),
+                protocol = self.protocol,
+                timestamp = now,
+            ) for entry in health_ratio_df.to_dict('records')
+        ]
+
+        with db.get_db_session() as sesh:
+            sesh.add_all(entries)
+            sesh.commit()
 
 def liq_debt(x: pd.Series, collateral_collumn: str, debt_collumn: str) -> float:
     if x['health'] > 0:
@@ -299,7 +337,7 @@ def compute_liquidable_debt_at_price(
     return loan_states['to_be_liquidated'].sum()
 
 
-def get_mango_user_stats_df(loan_states: pd.DataFrame) -> pd.DataFrame:
+def get_mango_health_ratio_df(loan_states: pd.DataFrame) -> pd.DataFrame:
 
     collateral_tokens = {token for collateral in loan_states['collateral'] for token in collateral}
     debt_tokens = {token for debt in loan_states['debt'] for token in debt}
@@ -385,18 +423,32 @@ def get_mango_user_stats_df(loan_states: pd.DataFrame) -> pd.DataFrame:
     loan_states['collateral_usd'] = loan_states[[i for i in loan_states.columns if i.startswith('collateral_usd_')]].sum(axis=1)
 
     loan_states['std_health'] = (loan_states['risk_adj_collateral_usd'] / loan_states['risk_adj_debt_usd'])
+    loan_states['std_health'][loan_states['std_health'].isna()] = np.inf
+    
+    loan_states['health'] = loan_states['std_health'] - 1
 
     wanted_cols = [
-        'protocol', 
         'user', 
+        'health',
         'std_health',
         'collateral_usd', 
         'risk_adj_collateral_usd',
         'debt_usd', 
         'risk_adj_debt_usd',
-        'collateral',
-        'debt',
+        'protocol', 
     ]
 
     return loan_states[wanted_cols]
+
+    # user = Column(String, primary_key=True, nullable=False)
+    # health_factor = Column(String, index=True, nullable=False)
+    # std_health_factor = Column(String, index=True, nullable=False)
+    # collateral = Column(String, nullable=False)
+    # risk_adjusted_collateral = Column(String, nullable=False)
+    # debt = Column(String, nullable=False)
+    # risk_adjusted_debt = Column(String, nullable=False)
+    # protocol = Column(String, default='mango', nullable=False)
+    # timestamp = Column(BigInteger, default=int(time.time()), nullable=False)
+
+    
 

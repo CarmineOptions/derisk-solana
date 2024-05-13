@@ -239,7 +239,6 @@ def process_events_to_loan_states(
 
     state = protocol_class(
         verbose_users={},
-        initial_loan_states=current_loan_states,
     )
     state.get_unprocessed_events()
     logging.info('The number of unprocessed events = {} for protocol = {}.'.format(len(state.unprocessed_events), protocol))
@@ -254,6 +253,10 @@ def process_events_to_loan_states(
             'debt': [{token: float(amount) for token, amount in loan.debt.items()} for loan in state.loan_entities.values()],
         }
     )
+
+    # TODO: Upload health ratios etc here, rn every protocol has their
+    # own implementation
+
     if state.last_slot > min_slot:
         store_loan_states(new_loan_state, protocol, session)
 
