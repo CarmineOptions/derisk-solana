@@ -213,17 +213,24 @@ class MangoState(src.loans.state.State):
                 quote_mint = mint.get(order.quote_token_index)
 
                 if not base_mint:   
-                    print(f'Unable to find base token index map for index {order.base_token_index}')
+                    logging.info(f'Unable to find base token index map for index {order.base_token_index}')
                     continue
 
                 if not quote_mint:   
-                    print(f'Unable to find quote token index map for index {order.quote_token_index}')
+                    logging.info(f'Unable to find quote token index map for index {order.quote_token_index}')
                     continue
                 
-                try:
-                    # Fetch Serum order account info
-                    fetched_order = self.client.get_account_info(order.open_orders)
-                except SolanaRpcException: 
+                fetched_order = None
+
+                for i in range(3):
+                    try:
+                        # Fetch Serum order account info
+                        fetched_order = self.client.get_account_info(order.open_orders)
+                        break
+                    except SolanaRpcException: 
+                        time.sleep(i * 20)
+
+                if fetched_order is None:
                     logging.error(f'Unable to fetch serum order {order.open_orders} for account: {mango_account}')
                     continue
 
@@ -231,8 +238,8 @@ class MangoState(src.loans.state.State):
                 parsed_order = OPEN_ORDERS_LAYOUT.parse(fetched_order.value.data)
 
                 # Total contains the amount locked in order, the filled amount, 
-                base_amount = parsed_order.base_token_total   
-                quote_amount = parsed_order.quote_token_total 
+                base_amount = parsed_order.base_token_total
+                quote_amount = parsed_order.quote_token_total
 
                 self.loan_entities[mango_account].collateral.increase_value(token=base_mint['mint'], value=base_amount)
                 self.loan_entities[mango_account].collateral.increase_value(token=quote_mint['mint'], value=quote_amount)
