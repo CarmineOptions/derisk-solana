@@ -1,202 +1,54 @@
 from decimal import Decimal
-# TODO: Generate this dynamically
-token_parameters = {'JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN': {'maint_asset_weight': Decimal('0.89999997615814208984375'),
-  'init_asset_weight': Decimal('0.800000011920928955078125'),
-  'maint_liab_weight': Decimal('1.10000002384185791015625'),
-  'init_liab_weight': Decimal('1.2000000476837158203125')},
- '45EgCwcPXYagBC7KqBin4nCFgEZWN7f3Y6nACwxqMCWX': {'maint_asset_weight': Decimal('0'),
-  'init_asset_weight': Decimal('0'),
-  'maint_liab_weight': Decimal('1.39999997615814208984375'),
-  'init_liab_weight': Decimal('1.7999999523162841796875')},
- 'BLZEEuZUBVqFhj8adcCFPJvPVCiCyVmh3hkJMrU8KuJA': {'maint_asset_weight': Decimal('0'),
-  'init_asset_weight': Decimal('0'),
-  'maint_liab_weight': Decimal('1.25'),
-  'init_liab_weight': Decimal('1.5')},
- 'GFX1ZjR2P15tmrSwow6FjyDYcEkoFb4p4gJCpLBjaxHD': {'maint_asset_weight': Decimal('0'),
-  'init_asset_weight': Decimal('0'),
-  'maint_liab_weight': Decimal('1.39999997615814208984375'),
-  'init_liab_weight': Decimal('1.7999999523162841796875')},
- 'StepAscQoEioFxxWGnh2sLBDFp9d8rvKz2Yp39iDpyT': {'maint_asset_weight': Decimal('0.75'),
-  'init_asset_weight': Decimal('0.5'),
-  'maint_liab_weight': Decimal('1.2000000476837158203125'),
-  'init_liab_weight': Decimal('1.39999997615814208984375')},
- '4k3Dyjzvzp8eMZWUXbBCjEvwSkkk59S5iCNLY3QrkX6R': {'maint_asset_weight': Decimal('0.75'),
-  'init_asset_weight': Decimal('0.5'),
-  'maint_liab_weight': Decimal('1.2000000476837158203125'),
-  'init_liab_weight': Decimal('1.39999997615814208984375')},
- '85VBFQZC9TZkfaptBWjvUw7YbZjy52A6mjtPGjstQAmQ': {'maint_asset_weight': Decimal('0.75'),
-  'init_asset_weight': Decimal('0.5'),
-  'maint_liab_weight': Decimal('1.2000000476837158203125'),
-  'init_liab_weight': Decimal('1.39999997615814208984375')},
- 'DUALa4FC2yREwZ59PHeu1un4wis36vHRv5hWVBmzykCJ': {'maint_asset_weight': Decimal('0'),
-  'init_asset_weight': Decimal('0'),
-  'maint_liab_weight': Decimal('1.399999999999998578914528480'),
-  'init_liab_weight': Decimal('1.800000000000000710542735760')},
- '7dHbWXmci3dT8UFYWYZweBLXgycu7Y3iL6trKn1Y7ARj': {'maint_asset_weight': Decimal('0'),
-  'init_asset_weight': Decimal('0'),
-  'maint_liab_weight': Decimal('1.10000002384185791015625'),
-  'init_liab_weight': Decimal('1.2000000476837158203125')},
- 'ZEUS1aR7aX8DFFJf5QjWj2ftDDdNTroMNGo8YoQm3Gq': {'maint_asset_weight': Decimal('0'),
-  'init_asset_weight': Decimal('0'),
-  'maint_liab_weight': Decimal('1.399999999999998578914528480'),
-  'init_liab_weight': Decimal('1.800000000000000710542735760')},
- 'TNSRxcUxoT9xBG3de7PiJyTDYu7kskLqcpddxnEJAS6': {'maint_asset_weight': Decimal('0'),
-  'init_asset_weight': Decimal('0'),
-  'maint_liab_weight': Decimal('1.399999999999998578914528480'),
-  'init_liab_weight': Decimal('1.800000000000000710542735760')},
- 'METADDFL6wWMWEoKTFJwcThTbUmtarRJZjRpzUvkxhr': {'maint_asset_weight': Decimal('0'),
-  'init_asset_weight': Decimal('0'),
-  'maint_liab_weight': Decimal('1.39999997615814208984375'),
-  'init_liab_weight': Decimal('1.7999999523162841796875')},
- 'So11111111111111111111111111111111111111112': {'maint_asset_weight': Decimal('0.89999997615814208984375'),
-  'init_asset_weight': Decimal('0.800000011920928955078125'),
-  'maint_liab_weight': Decimal('1.10000002384185791015625'),
-  'init_liab_weight': Decimal('1.2000000476837158203125')},
- 'EjmyN6qEC1Tf1JxiG1ae7UTJhUxSwk1TCWNWqxWV4J6o': {'maint_asset_weight': Decimal('0.75'),
-  'init_asset_weight': Decimal('0.5'),
-  'maint_liab_weight': Decimal('1.2000000476837158203125'),
-  'init_liab_weight': Decimal('1.39999997615814208984375')},
- 'BqVHWpwUDgMik5gbTciFfozadpE2oZth5bxCDrgbDt52': {'maint_asset_weight': Decimal('0'),
-  'init_asset_weight': Decimal('0'),
-  'maint_liab_weight': Decimal('1.399999999999998578914528480'),
-  'init_liab_weight': Decimal('1.800000000000000710542735760')},
- 'GDfnEsia2WLAW5t8yx2X5j2mkfA74i5kwGdDuZHt7XmG': {'maint_asset_weight': Decimal('0'),
-  'init_asset_weight': Decimal('0'),
-  'maint_liab_weight': Decimal('1.25'),
-  'init_liab_weight': Decimal('1.5')},
- 'orcaEKTdK7LKz57vaAYr9QeNsVEPfiu6QeMU1kektZE': {'maint_asset_weight': Decimal('0.5'),
-  'init_asset_weight': Decimal('0.25'),
-  'maint_liab_weight': Decimal('1.25'),
-  'init_liab_weight': Decimal('1.5')},
- 'J1toso1uCk3RLmjorhTtrVwY9HJ7X8V9yYac6Y7kGCPn': {'maint_asset_weight': Decimal('0.89999997615814208984375'),
-  'init_asset_weight': Decimal('0.800000011920928955078125'),
-  'maint_liab_weight': Decimal('1.10000002384185791015625'),
-  'init_liab_weight': Decimal('1.2000000476837158203125')},
- 'AZsHEMXd36Bj1EMNXhowJajpUXzrKcK57wW4ZGXVa7yR': {'maint_asset_weight': Decimal('0'),
-  'init_asset_weight': Decimal('0'),
-  'maint_liab_weight': Decimal('1.39999997615814208984375'),
-  'init_liab_weight': Decimal('1.7999999523162841796875')},
- 'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB': {'maint_asset_weight': Decimal('0.949999988079071044921875'),
-  'init_asset_weight': Decimal('0.89999997615814208984375'),
-  'maint_liab_weight': Decimal('1.0499999523162841796875'),
-  'init_liab_weight': Decimal('1.10000002384185791015625')},
- 'mSoLzYCxHdYgdzU16g5QSh3i5K3z3KZK7ytfqcJm7So': {'maint_asset_weight': Decimal('0.89999997615814208984375'),
-  'init_asset_weight': Decimal('0.800000011920928955078125'),
-  'maint_liab_weight': Decimal('1.10000002384185791015625'),
-  'init_liab_weight': Decimal('1.2000000476837158203125')},
- 'DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263': {'maint_asset_weight': Decimal('0.5'),
-  'init_asset_weight': Decimal('0.25'),
-  'maint_liab_weight': Decimal('1.25'),
-  'init_liab_weight': Decimal('1.5')},
- '7vfCXTUXx5WJV5JADk17DUJ4ksgau7utNKj4b963voxs': {'maint_asset_weight': Decimal('0.89999997615814208984375'),
-  'init_asset_weight': Decimal('0.800000011920928955078125'),
-  'maint_liab_weight': Decimal('1.10000002384185791015625'),
-  'init_liab_weight': Decimal('1.2000000476837158203125')},
- '6DSqVXg9WLTWgz6LACqxN757QdHe1sCqkUfojWmxWtok': {'maint_asset_weight': Decimal('0'),
-  'init_asset_weight': Decimal('0'),
-  'maint_liab_weight': Decimal('1.399999999999998578914528480'),
-  'init_liab_weight': Decimal('1.800000000000000710542735760')},
- 'BaoawH9p2J8yUK9r5YXQs3hQwmUJgscACjmTkh8rMwYL': {'maint_asset_weight': Decimal('0'),
-  'init_asset_weight': Decimal('0'),
-  'maint_liab_weight': Decimal('1.399999999999998578914528480'),
-  'init_liab_weight': Decimal('1.800000000000000710542735760')},
- 'RLBxxFkseAZ4RgJH3Sqn8jXxhmGoz9jWxDNJMh8pL7a': {'maint_asset_weight': Decimal('0'),
-  'init_asset_weight': Decimal('0'),
-  'maint_liab_weight': Decimal('1.39999997615814208984375'),
-  'init_liab_weight': Decimal('1.7999999523162841796875')},
- '3jsFX1tx2Z8ewmamiwSU851GzyzM2DJMq7KWW5DM8Py3': {'maint_asset_weight': Decimal('0.75'),
-  'init_asset_weight': Decimal('0'),
-  'maint_liab_weight': Decimal('1.2000000476837158203125'),
-  'init_liab_weight': Decimal('1.39999997615814208984375')},
- 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v': {'maint_asset_weight': Decimal('1'),
-  'init_asset_weight': Decimal('1'),
-  'maint_liab_weight': Decimal('1'),
-  'init_liab_weight': Decimal('1')},
- '7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU': {'maint_asset_weight': Decimal('0'),
-  'init_asset_weight': Decimal('0'),
-  'maint_liab_weight': Decimal('1.25'),
-  'init_liab_weight': Decimal('1.5')},
- 'USDH1SM1ojwWUga67PGrgFWUHibbjqMvuMaDkRJTgkX': {'maint_asset_weight': Decimal('0'),
-  'init_asset_weight': Decimal('0'),
-  'maint_liab_weight': Decimal('1.2999999523162841796875'),
-  'init_liab_weight': Decimal('1.39999997615814208984375')},
- 'HZ1JovNiVvGrGNiiYvEozEVgZ58xaU3RKwX8eACQBCt3': {'maint_asset_weight': Decimal('0.5'),
-  'init_asset_weight': Decimal('0.25'),
-  'maint_liab_weight': Decimal('1.25'),
-  'init_liab_weight': Decimal('1.5')},
- 'kinXdEcpDQeHPEuQnqmUgtYykqKGVFq6CeVX5iAHJq6': {'maint_asset_weight': Decimal('0'),
-  'init_asset_weight': Decimal('0'),
-  'maint_liab_weight': Decimal('1.399999999999998578914528480'),
-  'init_liab_weight': Decimal('1.800000000000000710542735760')},
- 'nosXBVoaCTtYdLvKY6Csb4AC8JCdQKKAaWYtx2ZMoo7': {'maint_asset_weight': Decimal('0'),
-  'init_asset_weight': Decimal('0'),
-  'maint_liab_weight': Decimal('1.2999999523162841796875'),
-  'init_liab_weight': Decimal('1.60000002384185791015625')},
- 'HZRCwxP2Vq9PCpPXooayhJ2bxTpo5xfpQrwB1svh332p': {'maint_asset_weight': Decimal('0'),
-  'init_asset_weight': Decimal('0'),
-  'maint_liab_weight': Decimal('1.39999997615814208984375'),
-  'init_liab_weight': Decimal('1.7999999523162841796875')},
- 'SLCLww7nc1PD2gQPQdGayHviVVcpMthnqUz2iWKhNQV': {'maint_asset_weight': Decimal('0'),
-  'init_asset_weight': Decimal('0'),
-  'maint_liab_weight': Decimal('1.39999997615814208984375'),
-  'init_liab_weight': Decimal('1.7999999523162841796875')},
- 'rndrizKT3MK1iimdxRdWabcF7Zg7AR5T4nud4EkHBof': {'maint_asset_weight': Decimal('0'),
-  'init_asset_weight': Decimal('0'),
-  'maint_liab_weight': Decimal('1.399999999999998578914528480'),
-  'init_liab_weight': Decimal('1.800000000000000710542735760')},
- '27G8MtK7VtTcCHkpASjSDdkWWYfoqT6ggEuKidVJidD4': {'maint_asset_weight': Decimal('0.75'),
-  'init_asset_weight': Decimal('0.5'),
-  'maint_liab_weight': Decimal('1.2000000476837158203125'),
-  'init_liab_weight': Decimal('1.39999997615814208984375')},
- 'MangoCzJ36AjZyKwVj3VnYU4GTonjfVEnJmvvWaxLac': {'maint_asset_weight': Decimal('0'),
-  'init_asset_weight': Decimal('0'),
-  'maint_liab_weight': Decimal('1.399999999999998578914528480'),
-  'init_liab_weight': Decimal('1.800000000000000710542735760')},
- 'jtojtomepa8beP8AuQc6eXt5FriJwfFMwQx2v2f9mCL': {'maint_asset_weight': Decimal('0.5'),
-  'init_asset_weight': Decimal('0.25'),
-  'maint_liab_weight': Decimal('1.25'),
-  'init_liab_weight': Decimal('1.5')},
- 'EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm': {'maint_asset_weight': Decimal('0.800000011920928955078125'),
-  'init_asset_weight': Decimal('0.660000026226043701171875'),
-  'maint_liab_weight': Decimal('1.10000002384185791015625'),
-  'init_liab_weight': Decimal('1.2000000476837158203125')},
- '3NZ9JMVBmGAqocybic2c7LQCJScmgsAZ6vQqTDzcqmJh': {'maint_asset_weight': Decimal('0.89999997615814208984375'),
-  'init_asset_weight': Decimal('0.800000011920928955078125'),
-  'maint_liab_weight': Decimal('1.10000002384185791015625'),
-  'init_liab_weight': Decimal('1.2000000476837158203125')},
- 'hntyVP6YFm1Hg25TN9WGLqM12b8TQmcknKrdu1oxWux': {'maint_asset_weight': Decimal('0'),
-  'init_asset_weight': Decimal('0'),
-  'maint_liab_weight': Decimal('1.39999997615814208984375'),
-  'init_liab_weight': Decimal('1.7999999523162841796875')},
- '6DNSN2BJsaPFdFFc1zP37kkeNe4Usc1Sqkzr9C9vPWcU': {'maint_asset_weight': Decimal('0.89999997615814208984375'),
-  'init_asset_weight': Decimal('0.800000011920928955078125'),
-  'maint_liab_weight': Decimal('1.10000002384185791015625'),
-  'init_liab_weight': Decimal('1.2000000476837158203125')},
- 'bSo13r4TkiE4KumL71LsHTPpL2euBYLFx6h9HP3piy1': {'maint_asset_weight': Decimal('0.75'),
-  'init_asset_weight': Decimal('0.5'),
-  'maint_liab_weight': Decimal('1.2000000476837158203125'),
-  'init_liab_weight': Decimal('1.39999997615814208984375')},
- 'MNDEFzGvMt87ueuHvVU9VcTqsAP5b3fTGPsHuuPA5ey': {'maint_asset_weight': Decimal('0.5'),
-  'init_asset_weight': Decimal('0'),
-  'maint_liab_weight': Decimal('1.25'),
-  'init_liab_weight': Decimal('1.5')},
- 'HzwqbKZw8HxMN6bF2yFZNrht3c2iXXzpKcFu7uBEDKtr': {'maint_asset_weight': Decimal('0'),
-  'init_asset_weight': Decimal('0'),
-  'maint_liab_weight': Decimal('1.25'),
-  'init_liab_weight': Decimal('1.5')},
- 'NeonTjSjsuo3rexg9o6vHuMXw62f9V7zvmu8M8Zut44': {'maint_asset_weight': Decimal('0'),
-  'init_asset_weight': Decimal('0'),
-  'maint_liab_weight': Decimal('1.25'),
-  'init_liab_weight': Decimal('1.5')},
- 'WENWENvqqNya429ubCdR81ZmD69brwQaaBYY6p3LCpk': {'maint_asset_weight': Decimal('0'),
-  'init_asset_weight': Decimal('0'),
-  'maint_liab_weight': Decimal('1.399999999999998578914528480'),
-  'init_liab_weight': Decimal('1.800000000000000710542735760')},
- '6CNHDCzD5RkvBWxxyokQQNQPjFWgoHF94D7BmC73X6ZK': {'maint_asset_weight': Decimal('0'),
-  'init_asset_weight': Decimal('0'),
-  'maint_liab_weight': Decimal('1.39999997615814208984375'),
-  'init_liab_weight': Decimal('1.7999999523162841796875')},
- '7ZCm8WBN9aLa3o47SoYctU6iLdj7wkGG5SV2hE5CgtD5': {'maint_asset_weight': Decimal('0'),
-  'init_asset_weight': Decimal('0'),
-  'maint_liab_weight': Decimal('1.39999997615814208984375'),
-  'init_liab_weight': Decimal('1.7999999523162841796875')}}
+import time
+import asyncio
+import os
+
+from solana.exceptions import SolanaRpcException
+from solana.rpc.async_api import AsyncClient
+import requests
+from src.protocols.anchor_clients.mango_client.accounts.bank import Bank
+from src.loans.mango import get_authenticated_rpc_url
+
+from solders.pubkey import Pubkey
+
+def get_banks_addresses() -> list[Pubkey]:
+
+    try:
+        r = requests.get('https://api.mngo.cloud/data/v4/group-metadata', timeout = 30)
+        r.raise_for_status()
+
+        main_group = [i for i in r.json()['groups'] if i['name'] == 'MAINNET.0'][0]
+        banks = [Pubkey.from_string(i['banks'][0]['publicKey']) for i in main_group['tokens']]
+
+    except requests.exceptions.Timeout:
+        time.sleep(60)
+        return get_banks_addresses()
+
+    return banks
+
+def fetch_banks(client: AsyncClient, banks: list[Pubkey]) -> list[Bank]:
+    try: 
+        banks_fetched = asyncio.run(Bank.fetch_multiple(client, banks))
+    except SolanaRpcException: 
+        time.sleep(30)
+        return fetch_banks(banks)
+
+    return banks_fetched
+
+def get_mango_token_params_map() -> dict[str, dict[str, Decimal]]:
+    client = AsyncClient(get_authenticated_rpc_url())
+  
+    banks = get_banks_addresses()
+    banks_fetched = fetch_banks(client, banks)
+
+    token_params = {}
+    for bank in banks_fetched:
+        mint = str(bank.mint)
+
+        token_params[mint] = {
+            'maint_asset_weight': Decimal(bank.maint_asset_weight.val) / 2**48,
+            'init_asset_weight': Decimal(bank.init_asset_weight.val) / 2**48,
+            'maint_liab_weight': Decimal(bank.maint_liab_weight.val) / 2**48,
+            'init_liab_weight': Decimal(bank.init_liab_weight.val) / 2**48,
+        }
+    return token_params

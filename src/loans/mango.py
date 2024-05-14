@@ -238,7 +238,7 @@ def get_mango_user_stats_df(loan_states: pd.DataFrame) -> pd.DataFrame:
     underlying_collateral_tokens: set = collateral_tokens
     underlying_debt_tokens: set = debt_tokens
     token_prices = get_prices_for_tokens(list(underlying_collateral_tokens | underlying_debt_tokens))
-    token_parameters = src.mango_token_params_map.token_parameters
+    token_parameters = src.mango_token_params_map.get_mango_token_params_map()
     tokens_info = src.protocols.dexes.amms.utils.get_tokens_address_to_info_map()
 
 
