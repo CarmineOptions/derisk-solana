@@ -447,15 +447,3 @@ def get_mango_health_ratio_df(loan_states: pd.DataFrame) -> pd.DataFrame:
 
     return loan_states[wanted_cols]
 
-    # user = Column(String, primary_key=True, nullable=False)
-    # health_factor = Column(String, index=True, nullable=False)
-    # std_health_factor = Column(String, index=True, nullable=False)
-    # collateral = Column(String, nullable=False)
-    # risk_adjusted_collateral = Column(String, nullable=False)
-    # debt = Column(String, nullable=False)
-    # risk_adjusted_debt = Column(String, nullable=False)
-    # protocol = Column(String, default='mango', nullable=False)
-    # timestamp = Column(BigInteger, default=int(time.time()), nullable=False)
-
-    
-
