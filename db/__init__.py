@@ -2,8 +2,8 @@
 Module containing functionality related to Postgres DB used throughout the repo.
 """
 import os
+import time
 from enum import Enum
-from datetime import datetime
 
 from sqlalchemy import (
     create_engine,
@@ -14,13 +14,10 @@ from sqlalchemy import (
     ForeignKey,
     PrimaryKeyConstraint,
     Float,
-    Numeric,
     DECIMAL,
     Boolean,
-    inspect,
-    DateTime
+    inspect
 )
-from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.types import Enum as SQLEnum
@@ -837,7 +834,7 @@ class SolendHealthRatio(Base):
     debt = Column(String, nullable=False)
     risk_adjusted_debt = Column(String, nullable=False)
     protocol = Column(String, default='solend', nullable=False)
-    timestamp = Column(DateTime, default=datetime.utcnow, nullable=False)
+    timestamp = Column(BigInteger, default=lambda: int(time.time()), nullable=False)
 
 
 class MarginfiLiquidableDebts(Base):
