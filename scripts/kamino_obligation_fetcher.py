@@ -109,9 +109,12 @@ def process_collateral(obligation: Any, reserve_to_supply_map: Dict[str, Any]):
     collateral_raw = obligation.deposits
     collateral = {}
     for position in collateral_raw:
-        reserve = position.deposit_reserve
+        amount = position.deposited_amount
+        if amount == 0:
+            continue
+        reserve = str(position.deposit_reserve)
         collateral_mint = reserve_to_supply_map[reserve]['collateralMint']
-        collateral[collateral_mint] = {'amount': position.deposited_amount, 'reserve': reserve}
+        collateral[str(collateral_mint)] = {'amount': amount, 'reserve': reserve}
     return collateral
 
 
@@ -124,12 +127,14 @@ def process_debt(obligation: Any, reserve_to_supply_map: Dict[str, Any]):
     debt_raw = obligation.borrows
     debt = {}
     for position in debt_raw:
-        reserve = position.borrow_reserve
-        liquidity_mint = reserve_to_supply_map[reserve]['liquidityMint']
         borrowed_amount = position.borrowed_amount_sf
+        if borrowed_amount == 0:
+            continue
+        reserve = str(position.borrow_reserve)
+        liquidity_mint = reserve_to_supply_map[reserve]['liquidityMint']
         cumulative_borrow_rate = position.cumulative_borrow_rate_bsf.value[0]
 
-        debt[liquidity_mint] = {
+        debt[str(liquidity_mint)] = {
             'rawAmount': borrowed_amount / cumulative_borrow_rate,
             'reserve': reserve
         }
@@ -165,8 +170,11 @@ async def obtain_loan_states():
     decoder = TransactionDecoder(path_to_idl=Path(KAMINO_IDL_PATH), program_id=Pubkey.from_string(KAMINO_ADDRESS))
     decoded_obligations = []
     # decode obligations
-    for obligation in obligations:
+    for i, obligation in enumerate(obligations):
         decoded_obligations.append(decoder.program.coder.accounts.decode(obligation.account.data))
+        if i % 10000 == 0:
+            print(i)
+    LOGGER.info("All obligations are successfully decoded.")
     # decode reserves and create reserve_to_supply_map
     reserve_to_supply_map = await get_reserve_to_supply_map(decoder, client)
 
@@ -182,12 +190,11 @@ async def obtain_loan_states():
         }
         obligations_processed.append(processed_obligation)
     new_loan_states = pd.DataFrame(obligations_processed)
-    return new_loan_states
     # store loan states to database
-    # with db.get_db_session() as session:
-    #     store_loan_states(new_loan_states, 'kamino', session)
-    # LOGGER.info(f"{new_loan_states.shape[0]} loan states successfully collected and saved for `{slot}` block.")
-    #
+    with db.get_db_session() as session:
+        store_loan_states(new_loan_states, 'kamino', session)
+    LOGGER.info(f"{new_loan_states.shape[0]} loan states successfully collected and saved for `{slot}` block.")
+
     # LOGGER.info("Start updating health factors...")
     # start_time = time.time()
     # # TODo store health factors to kamino_health_ratios table
@@ -195,11 +202,9 @@ async def obtain_loan_states():
 
 
 async def main():
-    # while True:
-    for i in range(1):
+    while True:
         timestamp = time.time()
-        nls = await obtain_loan_states()
-        print(nls)
+        await obtain_loan_states()
         elapsed_time = time.time() - timestamp
         LOGGER.info(f"Loan state collection successfully done in {elapsed_time:.2f} seconds.")
         time.sleep(60*15 - elapsed_time)
