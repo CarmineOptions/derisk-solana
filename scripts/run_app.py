@@ -126,8 +126,8 @@ def main():
     st.dataframe(utilizations_df, use_container_width=True)
 
     st.subheader("User healths")
-    user_stats_df = src.visualizations.loans_table.load_user_stats_data(protocols)
-    st.dataframe(user_stats_df.sort_values('std_health', ascending=True).replace(np.inf, 'inf').iloc[:20], use_container_width=True)
+    user_health_ratios_df = src.visualizations.loans_table.load_user_health_ratios(protocols)
+    st.dataframe(user_health_ratios_df.sort_values('Standardized Health Factor', ascending=True).head(50), use_container_width=True)
     
 
     token_supplies_df = src.visualizations.protocol_stats.get_top_12_lending_supplies_df(
