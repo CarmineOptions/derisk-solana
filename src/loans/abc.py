@@ -7,11 +7,13 @@ import logging
 import os
 import time
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Tuple
+
 
 # Related third-party imports
 import pandas as pd
 from solana.exceptions import SolanaRpcException
+from solana.rpc.api import Client
 from solana.rpc.async_api import AsyncClient
 from solana.rpc.types import MemcmpOpts
 from solders.pubkey import Pubkey
@@ -37,10 +39,10 @@ JLP_MARKET = 'DxXdAyU3kCjnyggvHmY5nAwg5cRbbmdyX3npfDMjjMek'
 ALTCOIN_MARKET = 'ByYiZxp8QrdN9qbdtaAiePN8AAr3qvTPppNJDpf5DVJ5'
 
 
-async def fetch_accounts(pool_pubkey: str, client: AsyncClient, filters: List[Any]) -> List[RpcKeyedAccount]:
+def fetch_accounts(pool_pubkey: str, client: Client, filters: List[Any]) -> List[RpcKeyedAccount]:
     """ Fetch Solend obligations for pool. """
     try:
-        response = await client.get_program_accounts(
+        response = client.get_program_accounts(
             KAMINO_PROGRAM_ID,
             encoding='base64',
             filters=filters
@@ -51,23 +53,47 @@ async def fetch_accounts(pool_pubkey: str, client: AsyncClient, filters: List[An
     except SolanaRpcException as e:
         LOGGER.error(f"SolanaRpcException: {e} while collecting obligations for `{pool_pubkey}`.")
         time.sleep(0.5)
-        return await fetch_accounts(pool_pubkey, client, filters)
+        return fetch_accounts(pool_pubkey, client, filters)
+
+# async def fetch_accounts_async(pool_pubkey: str, client: AsyncClient, filters: List[Any]) -> List[RpcKeyedAccount]:
+#     """ Fetch Solend obligations for pool asynchronously. """
+#     try:
+#         response = await client.get_program_accounts(
+#             KAMINO_PROGRAM_ID,
+#             encoding='base64',
+#             filters=filters
+#         )
+#         return response.value
+#
+#     except SolanaRpcException as e:
+#         LOGGER.error(f"SolanaRpcException: {e} while collecting obligations for `{pool_pubkey}`.")
+#         await asyncio.sleep(0.5)
+#         return await fetch_accounts_async(pool_pubkey, client, filters)
+#
+#
+# def fetch_accounts(pool_pubkey: str, client: AsyncClient, filters: List[Any]) -> List[RpcKeyedAccount]:
+#     """ Fetch Solend obligations for pool synchronously. """
+#
+#     async def async_wrapper():
+#         return await fetch_accounts_async(pool_pubkey, client, filters)
+#
+#     return asyncio.run(async_wrapper())
 
 
-async def get_slot_number(client: AsyncClient) -> int:
-    """ Fetch Solend obligations for pool. """
-    try:
-        response = await client.get_slot()
-        return response.value
+# def get_slot_number(client: Client) -> int:
+#     """ Fetch Solend obligations for pool. """
+#     try:
+#         response = client.get_slot()
+#         return response.value
 
-    except SolanaRpcException as e:
-        LOGGER.error(f"SolanaRpcException: {e} while collecting slot number.")
-        time.sleep(0.25)
-        return await get_slot_number(client)
+#     except SolanaRpcException as e:
+#         LOGGER.error(f"SolanaRpcException: {e} while collecting slot number.")
+#         time.sleep(0.25)
+#         return get_slot_number(client)
 
 
-async def get_reserve_to_supply_map(decoder: TransactionDecoder, client: AsyncClient) -> Dict[str, Any]:
-    """ Get reserve data for Kamino reserves. """
+def get_reserve_to_supply_map(decoder: TransactionDecoder, client: Client) -> Dict[str, Any]:
+    """ Get reserve data from solend.fi API. """
     reserves = []
     for market in [LENDING_MARKET_MAIN, JLP_MARKET, ALTCOIN_MARKET]:
         filters = [
@@ -75,7 +101,7 @@ async def get_reserve_to_supply_map(decoder: TransactionDecoder, client: AsyncCl
             MemcmpOpts(32, str(market)),
         ]
 
-        market_accounts = await fetch_accounts(market, client, filters)
+        market_accounts = fetch_accounts(market, client, filters)
 
         market_reserves = [
             {
@@ -137,28 +163,29 @@ def process_debt(obligation: Any, reserve_to_supply_map: Dict[str, Any]):
     return debt
 
 
-async def obtain_loan_states():
+def obtain_loan_states():
     """ Obtain Solend loan states. """
     LOGGER.info("Start loan states collection.")
     # get current slot number
-    client = AsyncClient(AUTHENTICATED_RPC_URL)
-    slot = await get_slot_number(client)
+    client = Client(AUTHENTICATED_RPC_URL)
+    #     slot = get_slot_number(client)
+    slot = 123
     # get and decode main pool obligations
-    obligations = await fetch_accounts(
-        str(LENDING_MARKET_MAIN), client, filters = [
+    obligations = fetch_accounts(
+        str(LENDING_MARKET_MAIN), client, filters=[
             Obligation.layout.sizeof() + 8,
             MemcmpOpts(32, str(LENDING_MARKET_MAIN)),
         ]
     )
 
-    LOGGER.info("Loan states for KAMINO MAIN pool successfully collected.")
+    LOGGER.info("Loan states for KAMINO MAIN pool successfully collected and decoded.")
     # get and decode obligations for isolated pools
     for market_address in [JLP_MARKET, ALTCOIN_MARKET]:
         filters = [
             Obligation.layout.sizeof() + 8,
             MemcmpOpts(32, market_address),
         ]
-        response = await fetch_accounts(market_address, client=client, filters=filters)
+        response = fetch_accounts(market_address, client=client, filters=filters)
         obligations.extend(response)
     LOGGER.info("Loan states for KAMINO ALTCOIN and JLP pools successfully collected.")
     # Create Kamino program decoder
@@ -168,15 +195,15 @@ async def obtain_loan_states():
     for obligation in obligations:
         decoded_obligations.append(decoder.program.coder.accounts.decode(obligation.account.data))
     # decode reserves and create reserve_to_supply_map
-    reserve_to_supply_map = await get_reserve_to_supply_map(decoder, client)
+    reserve_to_supply_map = get_reserve_to_supply_map(decoder, client)
 
     # Format decoded obligation data
     obligations_processed = []
-    for obligation in decoded_obligations:
+    for user, obligation in decoded_obligations:
         processed_obligation = {
             'slot': slot,
-            'protocol': 'kamino',
-            'user': str(obligation.owner),
+            'protocol': 'solend',
+            'user': user,
             'collateral': process_collateral(obligation, reserve_to_supply_map),
             'debt': process_debt(obligation, reserve_to_supply_map)
         }
@@ -184,28 +211,15 @@ async def obtain_loan_states():
     new_loan_states = pd.DataFrame(obligations_processed)
     return new_loan_states
     # store loan states to database
-    # with db.get_db_session() as session:
-    #     store_loan_states(new_loan_states, 'kamino', session)
-    # LOGGER.info(f"{new_loan_states.shape[0]} loan states successfully collected and saved for `{slot}` block.")
-    #
-    # LOGGER.info("Start updating health factors...")
-    # start_time = time.time()
-    # # TODo store health factors to kamino_health_ratios table
-    # LOGGER.info(f"Health Factors updated in {time.time() - start_time:.2f} second.")
 
 
-async def main():
-    # while True:
-    for i in range(1):
-        timestamp = time.time()
-        nls = await obtain_loan_states()
-        print(nls)
-        elapsed_time = time.time() - timestamp
-        LOGGER.info(f"Loan state collection successfully done in {elapsed_time:.2f} seconds.")
-        time.sleep(60*15 - elapsed_time)
+#     with db.get_db_session() as session:
+#         store_loan_states(new_loan_states, 'kamino', session)
+#     LOGGER.info(f"{new_loan_states.shape[0]} loan states successfully collected and saved for `{slot}` block.")
 
+#     LOGGER.info("Start updating health factors...")
+#     start_time = time.time()
+#     # TODo store health factors to kamino_health_ratios table
+#     LOGGER.info(f"Health Factors updated in {time.time() - start_time:.2f} second.")
 
-# run loan states collection in an infinite loop
-if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-    asyncio.run(main())
+obtain_loan_states()

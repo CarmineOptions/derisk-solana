@@ -1,5 +1,7 @@
 import decimal
 import logging
+from functools import lru_cache
+from typing import Any, Dict
 
 import numpy
 import pandas
@@ -8,7 +10,7 @@ import src.kamino_vault_map
 import src.loans.helpers
 import src.loans.types
 import src.loans.state
-
+import src.loans.solend
 
 
 # Keys are values of the "instruction_name" column in the database, values are the respective method names.
@@ -30,14 +32,84 @@ def get_events(start_block_number: int = 0) -> pandas.DataFrame:
     )
 
 
-class KaminoLoanEntity(src.loans.state.LoanEntity):
+class KaminoCollateralPosition(src.loans.state.CollateralPosition):
+    underlying_asset_price: str = ''
+
+    @lru_cache()
+    def market_value(self):
+        """ Position market value, USD """
+        assert self.decimals is not None, f"Missing collateral mint decimals for {self.mint}"
+        assert self.c_token_exchange_rate, f"Missing collateral token exchange rate: " \
+                                           f"{self.c_token_exchange_rate} for {self.mint}"
+        assert self.underlying_asset_price, f"Missing asset price: {self.underlying_asset_price} for {self.mint}"
+        return (
+            self.amount
+            * float(self.c_token_exchange_rate)
+            * int(self.underlying_asset_price)
+            / 10**self.decimals
+        )
+
+    @lru_cache()
+    def risk_adjusted_market_value(self):
+        """ Position market value, USD """
+        assert self.decimals is not None, f"Missing collateral mint decimals for {self.mint}"
+        assert self.liquidation_threshold is not None, f"Missing liquidation threshold for {self.mint}"
+        assert self.c_token_exchange_rate, f"Missing collateral token exchange rate: " \
+                                           f"{self.c_token_exchange_rate} for {self.mint}"
+        assert self.underlying_asset_price, f"Missing asset price: {self.underlying_asset_price} for {self.mint}"
+        return (
+            self.amount
+            * float(self.c_token_exchange_rate)
+            * int(self.underlying_asset_price)
+            / 10**self.decimals
+            * self.liquidation_threshold
+        )
+
+
+class KaminoDebtPosition(src.loans.state.DebtPosition):
+    cumulative_borrow_rate: str = ''
+    underlying_asset_price: str = ''
+
+    @lru_cache()
+    def risk_adjusted_market_value(self):
+        """ Position risk adjusted market value, USD """
+        assert self.decimals is not None, f"Missing collateral mint decimals for {self.reserve}"
+        assert self.cumulative_borrow_rate, f"Missing cumBorrowRate: {self.cumulative_borrow_rate}" \
+                                            f" for {self.reserve}"
+        assert self.weight, f"Missing borrow rate: {self.weight} for {self.reserve}"
+        assert self.underlying_asset_price, f"Missing asset price: {self.underlying_asset_price} for {self.reserve}"
+        return (
+            self.raw_amount
+            * int(self.cumulative_borrow_rate)
+            * int(self.underlying_asset_price)
+            / 10**self.decimals
+            * self.weight
+        )
+
+    @lru_cache()
+    def market_value(self):
+        """ Position market value, USD """
+        assert self.decimals is not None, f"Missing collateral mint decimals for {self.reserve}"
+        assert self.cumulative_borrow_rate, f"Missing cumBorrowRate: {self.cumulative_borrow_rate}" \
+                                            f" for {self.reserve}"
+        assert self.underlying_asset_price, f"Missing asset price: " \
+                                            f"{self.underlying_asset_price} for {self.reserve}"
+        return (
+            self.raw_amount
+            * int(self.cumulative_borrow_rate)
+            * int(self.underlying_asset_price)
+            / 10**self.decimals
+        )
+
+
+class KaminoLoanEntity(src.loans.state.CustomLoanEntity):
     """ A class that describes the Kamino loan entity. """
 
-    def __init__(self) -> None:
-        super().__init__()
+    def update_positions_from_reserve_config(self, reserve_configs: Dict[str, Any]):
+        pass  # TODO
 
 
-class KaminoState(src.loans.state.State):
+class KaminoState(src.loans.solend.SolendState):
     """
     A class that describes the state of all Kamino loan entities. It implements methods for correct processing of every
     relevant event.
@@ -50,12 +122,17 @@ class KaminoState(src.loans.state.State):
         verbose_users: set[str] | None = None,
         initial_loan_states: pandas.DataFrame = pandas.DataFrame(),
     ) -> None:
+        self.reserve_configs = dict()
+        self.loan_entity_class = KaminoLoanEntity
         super().__init__(
             protocol='Kamino',
             loan_entity_class=KaminoLoanEntity,
             verbose_users=verbose_users,
             initial_loan_states=initial_loan_states,
         )
+
+    def _get_reserve_configs(self):
+        pass  # TODO
 
     def get_unprocessed_events(self) -> None:
         self.unprocessed_events = src.loans.helpers.get_events(

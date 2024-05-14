@@ -16,6 +16,7 @@ import src.loans.state
 import src.solend_maps
 
 from src.prices import get_prices_for_tokens
+from src.loans.state import CollateralPosition, DebtPosition, CustomLoanEntity
 
 from src.protocols.dexes.amms.utils import get_tokens_address_to_info_map
 # Ignore all warnings
@@ -50,21 +51,8 @@ def get_events(start_block_number: int = 0) -> pd.DataFrame:
     )
 
 
-@dataclass
-class SolendCollateralPosition:
-    reserve: str
-    mint: str
-    amount: float
-    decimals: int | None = None
-    ltv: float | None = None
-    c_token_exchange_rate: float = ''
+class SolendCollateralPosition(CollateralPosition):
     underlying_asset_price_wad: str = ''
-    liquidation_threshold: float | None = None
-    liquidation_bonus: float | None = None
-    underlying_token: str = ''
-
-    def __hash__(self):
-        return hash((self.reserve, self.mint, round(self.amount, 10)))
 
     @lru_cache()
     def market_value(self):
@@ -99,18 +87,9 @@ class SolendCollateralPosition:
         )
 
 
-@dataclass
-class SolendDebtPosition:
-    reserve: str
-    mint: str
-    raw_amount: float
-    decimals: int | None = None
+class SolendDebtPosition(DebtPosition):
     cumulative_borrow_rate_wad: str = ''
     underlying_asset_price_wad: str = ''
-    weight: float | None = None
-
-    def __hash__(self):
-        return hash((self.reserve, self.mint, round(self.raw_amount, 10)))
 
     @lru_cache()
     def risk_adjusted_market_value(self):
@@ -144,42 +123,8 @@ class SolendDebtPosition:
         )
 
 
-class SolendLoanEntity:
+class SolendLoanEntity(CustomLoanEntity):
     """ A class that describes the Solend loan entity. """
-
-    def __init__(self, obligation: str, slot: int) -> None:
-        self.collateral: List[SolendCollateralPosition] = list()
-        self.debt: List[SolendDebtPosition] = list()
-        self.obligation = obligation
-        self.last_updated = slot
-
-    @property
-    def is_zero_debt(self):
-        if not self.debt:
-            return True
-        return all([position.raw_amount == 0 for position in self.debt])
-
-    @property
-    def is_zero_deposit(self):
-        if not self.collateral:
-            return True
-        return all([position.amount == 0 for position in self.collateral])
-
-    @lru_cache()
-    def collateral_market_value(self):
-        return sum([position.market_value() for position in self.collateral])
-
-    @lru_cache()
-    def debt_market_value(self):
-        return sum([position.market_value() for position in self.debt])
-
-    @lru_cache()
-    def collateral_risk_adjusted_market_value(self):
-        return sum([position.risk_adjusted_market_value() for position in self.collateral])
-
-    @lru_cache()
-    def debt_risk_adjusted_market_value(self):
-        return sum([position.risk_adjusted_market_value() for position in self.debt])
 
     @lru_cache()
     def std_health_ratio(self) -> str | None:
@@ -211,14 +156,6 @@ class SolendLoanEntity:
         std_health_ratio_num = float(std_health_ratio)
         health_ratio = 1 / std_health_ratio_num
         return str(round(health_ratio, 6))
-
-    def get_unique_reserves(self) -> List[str]:
-        reserves = []
-        if self.debt:
-            reserves.extend([position.reserve for position in self.debt])
-        if self.collateral:
-            reserves.extend([position.reserve for position in self.collateral])
-        return list(set(reserves))
 
     def update_positions_from_reserve_config(self, reserve_configs: Dict[str, Any]):
         """ Fill missing data in position object with parameters from reserve configs. """
@@ -258,7 +195,6 @@ class SolendState(src.loans.state.State):
         slot: int = 0
     ) -> None:
         self.where = 0
-        self.reserve = SolendState._fetch_reserves()
         self.reserve_configs = dict()
         super().__init__(
             protocol='solend',
@@ -417,24 +353,6 @@ class SolendState(src.loans.state.State):
                     price = i['reserve']['liquidity']['marketPrice']
         assert price, f'failed to fetch price for {token}'
         return int(price) / WAD
-
-    @staticmethod
-    def _fetch_reserves() -> pd.DataFrame:
-        connection = src.database.establish_connection()
-        reserves = pd.read_sql(
-            sql=f"""
-                select 
-                    reserve_pubkey,
-                    reserve_liquidity_mint_pubkey, 
-                    reserve_liquidity_supply_pubkey,
-                    reserve_collateral_mint_pubkey,
-                    reserve_collateral_supply_pubkey
-                from lenders.solend_reserves_v2;
-                """,
-            con=connection,
-        )
-        connection.close()
-        return reserves
 
     def get_token_for_liquidity_supply(self, reserve_pubkey):
         return self.reserves[
