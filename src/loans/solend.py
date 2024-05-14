@@ -182,14 +182,14 @@ class SolendLoanEntity:
         return sum([position.risk_adjusted_market_value() for position in self.debt])
 
     @lru_cache()
-    def std_health_ratio(self) -> str:
+    def std_health_ratio(self) -> str | None:
         """
         Compute standardized health ratio:
             std_health_ratio = risk adjusted collateral / risk adjusted debt
         :return:
         """
         if self.is_zero_debt:
-            return 'inf'
+            return None
         if self.is_zero_deposit:
             return '0'
         deposited_value = self.collateral_risk_adjusted_market_value()
@@ -197,17 +197,17 @@ class SolendLoanEntity:
         return str(round(deposited_value / borrowed_value, 6))
 
     @lru_cache()
-    def health_ratio(self) -> str:
+    def health_ratio(self) -> str | None:
         """
         Compute Solend health ratio:
             health_ratio = risk adjusted debt / risk adjusted collateral
         :return:
         """
         std_health_ratio = self.std_health_ratio()
-        if std_health_ratio == 'inf':
+        if std_health_ratio is None:
             return '0'
         if std_health_ratio in {'0', '0.0'}:
-            return 'inf'
+            return None
         std_health_ratio_num = float(std_health_ratio)
         health_ratio = 1 / std_health_ratio_num
         return str(round(health_ratio, 6))
@@ -258,12 +258,11 @@ class SolendState(src.loans.state.State):
         slot: int = 0
     ) -> None:
         self.where = 0
-        self.reserve = SolendState._fetch_reserves()  # TODO drop
+        self.reserve = SolendState._fetch_reserves()
         self.reserve_configs = dict()
-        self.loan_entity_class = SolendLoanEntity
         super().__init__(
             protocol='solend',
-            loan_entity_class=self.loan_entity_class,
+            loan_entity_class=SolendLoanEntity,
             verbose_users=verbose_users,
             initial_loan_states=initial_loan_states,
         )
@@ -336,7 +335,7 @@ class SolendState(src.loans.state.State):
                 session.add(new_health_ratio)
             session.commit()
 
-    def find_relevant_mint_collateral_pairs(self):
+    def find_relevant_debt_collateral_pairs(self):
         """
         Computes the total market values for each pair of debt mints and collateral underlying tokens
         that are relevant (non-zero amounts) across all loans.
@@ -417,7 +416,7 @@ class SolendState(src.loans.state.State):
                     last_update = int(i['reserve']['lastUpdate']['slot'])
                     price = i['reserve']['liquidity']['marketPrice']
         assert price, f'failed to fetch price for {token}'
-        return int(price) / 10 ** 18
+        return int(price) / WAD
 
     @staticmethod
     def _fetch_reserves() -> pd.DataFrame:
