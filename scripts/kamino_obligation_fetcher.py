@@ -168,23 +168,21 @@ async def obtain_loan_states():
     LOGGER.info("Loan states for KAMINO ALTCOIN and JLP pools successfully collected.")
     # Create Kamino program decoder
     decoder = TransactionDecoder(path_to_idl=Path(KAMINO_IDL_PATH), program_id=Pubkey.from_string(KAMINO_ADDRESS))
-    decoded_obligations = []
+    decoded_obligations = {}
     # decode obligations
-    for i, obligation in enumerate(obligations):
-        decoded_obligations.append(decoder.program.coder.accounts.decode(obligation.account.data))
-        if i % 10000 == 0:
-            print(i)
+    for obligation in obligations:
+        decoded_obligations[str(obligation.pubkey)] = decoder.program.coder.accounts.decode(obligation.account.data)
     LOGGER.info("All obligations are successfully decoded.")
     # decode reserves and create reserve_to_supply_map
     reserve_to_supply_map = await get_reserve_to_supply_map(decoder, client)
 
     # Format decoded obligation data
     obligations_processed = []
-    for obligation in decoded_obligations:
+    for user, obligation in decoded_obligations.items():
         processed_obligation = {
             'slot': slot,
             'protocol': 'kamino',
-            'user': str(obligation.owner),
+            'user': user,
             'collateral': process_collateral(obligation, reserve_to_supply_map),
             'debt': process_debt(obligation, reserve_to_supply_map)
         }
