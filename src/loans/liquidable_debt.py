@@ -219,7 +219,7 @@ def process_mango_loan_states(loan_states: pandas.DataFrame) -> pandas.DataFrame
     underlying_debt_tokens: set = debt_tokens
 
     token_prices = src.prices.get_prices_for_tokens(list(underlying_collateral_tokens | underlying_debt_tokens))
-    token_parameters = src.mango_token_params_map.token_parameters
+    token_parameters = src.mango_token_params_map.get_mango_token_params_map()
     tokens_info = src.protocols.dexes.amms.utils.get_tokens_address_to_info_map()
 
 
