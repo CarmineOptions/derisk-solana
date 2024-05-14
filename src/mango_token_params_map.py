@@ -26,9 +26,9 @@ def get_banks_addresses() -> list[Pubkey]:
 
     return banks
 
-def fetch_banks(banks: list[Pubkey]) -> list[Bank]:
+def fetch_banks(client: AsyncClient, banks: list[Pubkey]) -> list[Bank]:
     try: 
-        banks_fetched = asyncio.run(Bank.fetch_multiple(AsyncClient(get_authenticated_rpc_url()), banks))
+        banks_fetched = asyncio.run(Bank.fetch_multiple(client, banks))
     except SolanaRpcException: 
         time.sleep(30)
         return fetch_banks(banks)
@@ -36,8 +36,10 @@ def fetch_banks(banks: list[Pubkey]) -> list[Bank]:
     return banks_fetched
 
 def get_mango_token_params_map() -> dict[str, dict[str, Decimal]]:
+    client = AsyncClient(get_authenticated_rpc_url())
+  
     banks = get_banks_addresses()
-    banks_fetched = fetch_banks(banks)
+    banks_fetched = fetch_banks(client, banks)
 
     token_params = {}
     for bank in banks_fetched:
