@@ -443,7 +443,7 @@ def process_solend_loan_states(loan_states: pandas.DataFrame) -> pandas.DataFram
     # Create SolendState instance with current loan states.
     state = src.loans.solend.SolendState(initial_loan_states=loan_states)
     # get all present collateral/debt token pairs
-    relevant_pairs = state.find_relevant_mint_collateral_pairs()
+    relevant_pairs = state.find_relevant_debt_collateral_pairs()
     # get all collateral and debt mints that at least once appears within current loan states.
     collateral_mints, debt_mints = state.get_all_unique_mints()
     # build dataframe of loan states with flattened positions (debt and collateral)
