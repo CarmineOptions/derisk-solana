@@ -477,12 +477,12 @@ def get_cta_message(data: pd.DataFrame, collateral_token: str, debt_token: str) 
             liquidable_debt=example_row['amount'],
             supply=example_row['debt_token_supply'],
         )
-        src.cta.cta.store_cta(
-            timestamp = time.time(),
-            collateral_token = collateral_token,
-            debt_token = debt_token,
-            message = message,
-            session = db.get_db_session(),
-        )
+        # src.cta.cta.store_cta(
+        #     timestamp = time.time(),
+        #     collateral_token = collateral_token,
+        #     debt_token = debt_token,
+        #     message = message,
+        #     session = db.get_db_session(),
+        # )
         return message
     return ''
