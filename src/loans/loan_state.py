@@ -254,9 +254,6 @@ def process_events_to_loan_states(
         }
     )
 
-    # TODO: Upload health ratios etc here, rn every protocol has their
-    # own implementation
-
     if state.last_slot > min_slot:
         store_loan_states(new_loan_state, protocol, session)
 
