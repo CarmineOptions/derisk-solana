@@ -1,11 +1,13 @@
 import decimal
 from typing import Literal, Callable, Type
 import logging
+import datetime
 
 import pandas as pd
 from sqlalchemy.orm.session import Session
 from sqlalchemy.orm import aliased
 from sqlalchemy.sql import func
+import streamlit as st
 
 import src.loans.mango
 import src.loans.kamino
@@ -35,9 +37,9 @@ Protocol = Literal["marginfi", "mango", "kamino", "solend"]
 
 AnyHealthRatioModel = (
     Type[db.MangoHealthRatio]
+    | Type[db.SolendHealthRatio]
     # | Type[db.MarginfiHealthRatio]
     # | Type[db.KaminoHealthRatio]
-    # | Type[db.SolendHealthRatio]
 )
 
 def get_health_ratio_protocol_model(protocol: Protocol) -> AnyHealthRatioModel | None:
@@ -54,13 +56,19 @@ def get_health_ratio_protocol_model(protocol: Protocol) -> AnyHealthRatioModel |
 		# return db.MarginfiHealthRatio
 		
 	if protocol == SOLEND:
-		return None
-		# return db.SolendHealthRatio
+		return db.SolendHealthRatio
 
 	return None
 
-def fetch_health_ratios(session: Session, model: AnyHealthRatioModel) -> pd.DataFrame:
+def fetch_health_ratios(session: Session, model: AnyHealthRatioModel, n: int) -> pd.DataFrame:
 	"""
+	Fetches users health ratios for given Protocol.
+
+	Parameters:
+	- session: DB Session (this function doesn't close it)
+	- model: Any health ratio model
+	- n: how many users to fetch (n users with lowest std health factor)
+	
 	Note: Does not close the session.
 	"""
 	subquery = session.query(
@@ -69,10 +77,12 @@ def fetch_health_ratios(session: Session, model: AnyHealthRatioModel) -> pd.Data
 	).group_by(model.user).subquery()
 
 	# Join the subquery with the main table to get the latest entries
-	latest_entries = session.query(model).join(
+	latest_entries_query = session.query(model).join(
 		subquery,
 		(model.user == subquery.c.user) & (model.timestamp == subquery.c.latest_timestamp)
-	).all()
+	).filter(model.health_factor.isnot(None))
+
+	latest_entries = latest_entries_query.order_by(model.std_health_factor.asc()).limit(n).all()
 
 	data = [{
 		'slot': entry.slot,
@@ -89,7 +99,8 @@ def fetch_health_ratios(session: Session, model: AnyHealthRatioModel) -> pd.Data
 	} for entry in latest_entries]
 
 	return pd.DataFrame(data)
-		
+
+@st.cache_data(ttl=datetime.timedelta(minutes=10))
 def load_user_health_ratios(protocols: list[str]) -> pd.DataFrame:
 	"""
 	For list of protocols it returns a dataframe containg all users health ratios.
@@ -99,16 +110,18 @@ def load_user_health_ratios(protocols: list[str]) -> pd.DataFrame:
 
 	with db.get_db_session() as sesh:
 		for protocol in protocols:
-			
+
 			# Get the correct model for given protocol
 			model = get_health_ratio_protocol_model(protocol)
 
 			if not model:
-				logging.error(f'Unable to find HealthRatios model for protocol "{protocol}"')
+				logging.error(f'Unable to find HealthRatio model for protocol "{protocol}"')
 				continue
 
+			logging.info(f'Fetching user health ratios for "{protocol}"')
+
 			# Fetch health ratios data
-			health_ratios_df = fetch_health_ratios(sesh, model)
+			health_ratios_df = fetch_health_ratios(sesh, model, 50)
 			# Drop redundant columns
 			health_ratios_df = health_ratios_df.drop(['timestamp', 'slot', 'last_update'], axis =1)
 			# Rename some collumns that are also present in loan states 
@@ -140,6 +153,4 @@ def load_user_health_ratios(protocols: list[str]) -> pd.DataFrame:
 			data.append(full_df)
 
 	return pd.concat(data).set_index('User')
-
-
 
