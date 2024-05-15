@@ -14,6 +14,7 @@ import src.loans.kamino
 import src.loans.marginfi
 import src.loans.solend
 
+from src.visualizations.shared import AnyHealthRatioModel, get_health_ratio_protocol_model
 
 from src.loans.loan_state import fetch_loan_states
 
@@ -27,38 +28,6 @@ import db
 # 	save_data: bool,
 # ) -> pandas.DataFrame:
 # 	return pandas.DataFrame()
-
-
-MARGINFI = "marginfi"
-MANGO = "mango"
-KAMINO = "kamino"
-SOLEND = "solend"
-Protocol = Literal["marginfi", "mango", "kamino", "solend"]
-
-AnyHealthRatioModel = (
-    Type[db.MangoHealthRatio]
-    | Type[db.SolendHealthRatio]
-    # | Type[db.MarginfiHealthRatio]
-    # | Type[db.KaminoHealthRatio]
-)
-
-def get_health_ratio_protocol_model(protocol: Protocol) -> AnyHealthRatioModel | None:
-
-	if protocol == MANGO:
-		return db.MangoHealthRatio
-
-	if protocol == KAMINO:
-		return None
-		# return db.KaminoHealthRatio
-
-	if protocol == MARGINFI:
-		return None
-		# return db.MarginfiHealthRatio
-		
-	if protocol == SOLEND:
-		return db.SolendHealthRatio
-
-	return None
 
 def fetch_health_ratios(session: Session, model: AnyHealthRatioModel, n: int) -> pd.DataFrame:
 	"""
@@ -100,7 +69,7 @@ def fetch_health_ratios(session: Session, model: AnyHealthRatioModel, n: int) ->
 
 	return pd.DataFrame(data)
 
-@st.cache_data(ttl=datetime.timedelta(minutes=10))
+@st.cache_data(ttl=datetime.timedelta(minutes=60))
 def load_user_health_ratios(protocols: list[str]) -> pd.DataFrame:
 	"""
 	For list of protocols it returns a dataframe containg all users health ratios.
@@ -129,6 +98,9 @@ def load_user_health_ratios(protocols: list[str]) -> pd.DataFrame:
 			health_ratios_df = health_ratios_df.rename(columns={'collateral': 'collateral_usd', 'debt': 'debt_usd'})
 
 			# Fetch loan states 
+			# TODO: Here we're fetching all of loan states, but the health ratios we need
+			# are the ones present in health_ratios_df (there's only 50 of them)
+			# so use custom loan_states fetcher that can specify users to fetch data for
 			loan_states_df = fetch_loan_states(protocol, sesh)
 			# Select only needed columns
 			loan_states_df = loan_states_df[['user', 'collateral', 'debt']]
