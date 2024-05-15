@@ -31,7 +31,7 @@ def fetch_banks(client: AsyncClient, banks: list[Pubkey]) -> list[Bank]:
         banks_fetched = asyncio.run(Bank.fetch_multiple(client, banks))
     except SolanaRpcException: 
         time.sleep(30)
-        return fetch_banks(banks)
+        return fetch_banks(client, banks)
 
     return banks_fetched
 
