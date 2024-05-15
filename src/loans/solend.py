@@ -625,7 +625,6 @@ def get_solend_user_stats_df(loan_states: pd.DataFrame) -> pd.DataFrame:
             lambda x: x[token] if token in x else decimal.Decimal('0')
         )
 
-
     for token in collateral_tokens:
         if not token in token_to_ltv:
             continue
@@ -634,7 +633,6 @@ def get_solend_user_stats_df(loan_states: pd.DataFrame) -> pd.DataFrame:
         mint = r[token]
 
         if not tokens_info.get(mint):
-            # print('no info')
             continue
 
         ltv = token_to_ltv[token]

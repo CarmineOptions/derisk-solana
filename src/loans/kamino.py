@@ -43,6 +43,8 @@ ALTCOIN_MARKET = 'ByYiZxp8QrdN9qbdtaAiePN8AAr3qvTPppNJDpf5DVJ5'
 
 SF = 2 ** 60
 
+LOGGER = logging.getLogger(__name__)
+
 
 def get_events(start_block_number: int = 0) -> pandas.DataFrame:
     return src.loans.helpers.get_events(
@@ -73,7 +75,6 @@ class KaminoCollateralPosition(src.loans.state.CollateralPosition):
     def risk_adjusted_market_value(self):
         """ Position market value, USD """
         assert self.decimals is not None, f"Missing collateral mint decimals for {self.mint}"
-        assert self.liquidation_threshold is not None, f"Missing liquidation threshold for {self.mint}"
         assert self.c_token_exchange_rate, f"Missing collateral token exchange rate: " \
                                            f"{self.c_token_exchange_rate} for {self.mint}"
         assert self.underlying_asset_price_wad, f"Missing asset price: {self.underlying_asset_price_wad} for {self.mint}"
@@ -82,7 +83,6 @@ class KaminoCollateralPosition(src.loans.state.CollateralPosition):
                 * float(self.c_token_exchange_rate)
                 * int(self.underlying_asset_price_wad) / SF
                 / 10 ** self.decimals
-                * self.liquidation_threshold
         )
 
 
@@ -95,6 +95,7 @@ class KaminoDebtPosition(src.loans.state.DebtPosition):
         assert self.cumulative_borrow_rate_wad, f"Missing cumBorrowRate: {self.cumulative_borrow_rate_wad}" \
                                                 f" for {self.reserve}"
         assert self.borrow_factor, f"Missing borrow factor: {self.borrow_factor} for {self.reserve}"
+        assert self.liquidation_threshold is not None, f"Missing liquidation threshold for {self.mint}"
         assert self.underlying_asset_price_wad, f"Missing asset price: {self.underlying_asset_price_wad} for {self.reserve}"
         return (
                 self.raw_amount
@@ -102,6 +103,7 @@ class KaminoDebtPosition(src.loans.state.DebtPosition):
                 * int(self.underlying_asset_price_wad) / SF
                 / 10 ** self.decimals
                 / self.borrow_factor
+                * self.liquidation_threshold
         )
 
     @lru_cache()
@@ -217,7 +219,7 @@ class KaminoState(src.loans.solend.SolendState):
     def _get_reserve_configs(self):
         reserves = []
         decoder = TransactionDecoder(
-            path_to_idl= '../src/protocols/idls/kamino_idl.json', # Path(KAMINO_IDL_PATH)
+            path_to_idl= Path(KAMINO_IDL_PATH),
             program_id=Pubkey.from_string(KAMINO_ADDRESS)
         )
         for market in [LENDING_MARKET_MAIN, JLP_MARKET, ALTCOIN_MARKET]:
@@ -256,7 +258,6 @@ class KaminoState(src.loans.solend.SolendState):
             self._get_reserve_configs()
         with get_db_session() as session:
             for loan_entity in self.loan_entities.values():
-                print(type(loan_entity))
                 loan_entity.update_positions_from_reserve_config(self.reserve_configs, self.token_prices)
                 new_health_ratio = KaminoHealthRatio(
                     slot=int(self.last_slot),
@@ -270,8 +271,7 @@ class KaminoState(src.loans.solend.SolendState):
                 )
 
                 session.add(new_health_ratio)
-            print(new_health_ratio.__dict__)
-            # session.commit()
+            session.commit()
 
     @staticmethod
     def fetch_accounts(pool_pubkey: str, client: Client, filters: List[Any]) -> List[RpcKeyedAccount]:
@@ -286,7 +286,7 @@ class KaminoState(src.loans.solend.SolendState):
             return response.value
 
         except SolanaRpcException as e:
-            # LOGGER.error(f"SolanaRpcException: {e} while collecting obligations for `{pool_pubkey}`.")
+            LOGGER.error(f"SolanaRpcException: {e} while collecting obligations for `{pool_pubkey}`.")
             time.sleep(0.5)
             return KaminoState.fetch_accounts(pool_pubkey, client, filters)
 

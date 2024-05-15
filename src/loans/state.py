@@ -47,6 +47,8 @@ class DebtPosition:
     cumulative_borrow_rate_wad: str = ''
     underlying_asset_price_wad: str = ''
     borrow_factor: float | None = None
+    liquidation_threshold: float | None = None
+    liquidation_bonus: float | None = None
 
     def __hash__(self):
         return hash((self.reserve, self.mint, round(self.raw_amount, 10)))
