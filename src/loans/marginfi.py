@@ -233,30 +233,42 @@ class MarginFiState(src.loans.state.State):
 def compute_liquidable_debt_at_price(
     loan_states: pandas.DataFrame,
     token_prices: dict[str, float],
-    mint_to_liquidity_vault_map: dict[str, str],
-    collateral_token: str,
-    target_collateral_token_price: decimal.Decimal,
-    debt_token: str,
+    underlying_to_bank_mapping: dict[str, set[str]],
+    underlying_collateral: str,
+    target_underlying_collateral_price: decimal.Decimal,
+    underlying_debt: str,
 ) -> decimal.Decimal:
-    liquidity_vault_collateral_tokens = mint_to_liquidity_vault_map[collateral_token]
-    liquidity_vault_debt_tokens = mint_to_liquidity_vault_map[debt_token]
+    collateral_banks = underlying_to_bank_mapping[underlying_collateral]
+    debt_banks = underlying_to_bank_mapping[underlying_debt]
 
-    price_ratio = target_collateral_token_price / token_prices[collateral_token]
-    for liquidity_vault_collateral_token in liquidity_vault_collateral_tokens:
-        liquidity_vault_collateral_column = f'collateral_usd_{liquidity_vault_collateral_token}'
-        if liquidity_vault_collateral_column in loan_states.columns:
-            loan_states[liquidity_vault_collateral_column] = loan_states[liquidity_vault_collateral_column] * price_ratio
-        liquidity_vault_debt_column = f'debt_usd_{liquidity_vault_collateral_token}'
-        if liquidity_vault_debt_column in loan_states.columns:
-            loan_states[liquidity_vault_debt_column] = loan_states[liquidity_vault_debt_column] * price_ratio
-    loan_states['collateral_usd'] = loan_states[[x for x in loan_states.columns if 'collateral_usd_' in x]].sum(axis = 1)
-    loan_states['debt_usd'] = loan_states[[x for x in loan_states.columns if 'debt_usd_' in x]].sum(axis = 1)
-    loan_states['health'] = (loan_states['collateral_usd'] - loan_states['debt_usd']) / loan_states['collateral_usd']
+    price_ratio = target_underlying_collateral_price / token_prices[underlying_collateral]
+    for collateral_bank in collateral_banks:
+        collateral_usd_column = f'risk_adjusted_collateral_usd_{collateral_bank}'
+        debt_usd_column = f'risk_adjusted_debt_usd_{collateral_bank}'
+        loan_states[collateral_usd_column] = loan_states[collateral_usd_column] * price_ratio
+        loan_states[debt_usd_column] = loan_states[debt_usd_column] * price_ratio
+    loan_states['risk_adjusted_collateral_usd'] = loan_states[
+        [
+            x
+            for x in loan_states.columns
+            if 'risk_adjusted_collateral_usd_' in x
+        ]
+    ].sum(axis = 1)
+    loan_states['risk_adjusted_debt_usd'] = loan_states[
+        [
+            x
+            for x in loan_states.columns
+            if 'risk_adjusted_debt_usd_' in x
+        ]
+    ].sum(axis = 1)
+    loan_states['net_risk_adjusted_debt_usd'] = loan_states['risk_adjusted_debt_usd'] - loan_states['risk_adjusted_collateral_usd']
+    loan_states['health_factor'] = -loan_states['net_risk_adjusted_debt_usd'] / loan_states['risk_adjusted_collateral_usd']
+    loan_states['liquidable'] = loan_states['health_factor'] < 0
 
-    loan_states['liquidable'] = loan_states['health'] < 0
     # The debt is liquidated up to the liquidation_threshold.
+    loan_states['underlying_debt_usd'] = loan_states[[f'debt_usd_{x}' for x in debt_banks]].sum(axis = 1)
     loan_states['debt_to_be_liquidated'] = (
-        (loan_states[f'debt_usd_{liquidity_vault_debt_tokens[0]}'] - loan_states['collateral_usd'])
+        loan_states[['net_risk_adjusted_debt_usd', 'underlying_debt_usd']].min(axis = 1)
         * loan_states['liquidable']
     ).clip(lower = 0)
     return loan_states['debt_to_be_liquidated'].sum()
