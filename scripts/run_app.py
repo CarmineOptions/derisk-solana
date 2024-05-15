@@ -24,6 +24,7 @@ import src.visualizations.settings
 from src.prices import get_prices_for_tokens
 from src.protocols.dexes.amms.utils import get_tokens_address_to_info_map
 import src.visualizations.loans_table
+import src.visualizations.user_stats
 
 
 def main():
@@ -129,6 +130,9 @@ def main():
     user_health_ratios_df = src.visualizations.loans_table.load_user_health_ratios(protocols)
     st.dataframe(user_health_ratios_df.sort_values('Standardized Health Factor', ascending=True).head(50), use_container_width=True)
     
+    st.subheader("User statistics")
+    user_stats_df = src.visualizations.user_stats.get_users_stats(protocols)
+    st.dataframe(user_stats_df, use_container_width=True)
 
     token_supplies_df = src.visualizations.protocol_stats.get_top_12_lending_supplies_df(
         tokens_prices, tokens_info
