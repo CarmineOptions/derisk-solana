@@ -1,5 +1,7 @@
 import decimal
 from typing import Literal, Callable, Type
+import logging
+
 import pandas as pd
 from sqlalchemy.orm.session import Session
 from sqlalchemy.orm import aliased
@@ -32,25 +34,28 @@ SOLEND = "solend"
 Protocol = Literal["marginfi", "mango", "kamino", "solend"]
 
 AnyHealthRatioModel = (
-    Type[db.MangoHealthRatios]
-    # | Type[db.MarginfiHealthRatios]
-    # | Type[db.KaminoHealthRatios]
-    # | Type[db.SolendHealthRatios]
+    Type[db.MangoHealthRatio]
+    # | Type[db.MarginfiHealthRatio]
+    # | Type[db.KaminoHealthRatio]
+    # | Type[db.SolendHealthRatio]
 )
 
 def get_health_ratio_protocol_model(protocol: Protocol) -> AnyHealthRatioModel | None:
 
 	if protocol == MANGO:
-		return db.MangoHealthRatios
+		return db.MangoHealthRatio
 
 	if protocol == KAMINO:
-		return db.KaminoHealthRatios
+		return None
+		# return db.KaminoHealthRatio
 
 	if protocol == MARGINFI:
-		return db.MarginfiHealthRatios
+		return None
+		# return db.MarginfiHealthRatio
 		
 	if protocol == SOLEND:
-		return db.SolendHealthRatios
+		return None
+		# return db.SolendHealthRatio
 
 	return None
 
@@ -64,9 +69,9 @@ def fetch_health_ratios(session: Session, model: AnyHealthRatioModel) -> pd.Data
 	).group_by(model.user).subquery()
 
 	# Join the subquery with the main table to get the latest entries
-	latest_entries = session.query(db.MangoHealthRatios).join(
+	latest_entries = session.query(model).join(
 		subquery,
-		(db.MangoHealthRatios.user == subquery.c.user) & (db.MangoHealthRatios.timestamp == subquery.c.latest_timestamp)
+		(model.user == subquery.c.user) & (model.timestamp == subquery.c.latest_timestamp)
 	).all()
 
 	data = [{

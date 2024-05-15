@@ -15,6 +15,7 @@ from solana.rpc.types import MemcmpOpts
 from src.protocols.anchor_clients.mango_client.program_id import PROGRAM_ID as MANGO_ID
 from src.protocols.anchor_clients.mango_client.accounts.mango_account import MangoAccount
 from src.prices import get_prices_for_tokens
+import src.loans.state
 import src.mango_token_params_map
 import numpy as np
 import db
