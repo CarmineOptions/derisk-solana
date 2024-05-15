@@ -2,6 +2,7 @@
 Module containing functionality related to Postgres DB used throughout the repo.
 """
 import os
+import time
 from enum import Enum
 import time
 
@@ -14,12 +15,10 @@ from sqlalchemy import (
     ForeignKey,
     PrimaryKeyConstraint,
     Float,
-    Numeric,
     DECIMAL,
     Boolean,
-    inspect,
+    inspect
 )
-from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.types import Enum as SQLEnum
@@ -836,6 +835,23 @@ class SolendLoanStates(Base):
             f"collateral={self.collateral},"
             f"debt={self.debt})"
         )
+
+
+class SolendHealthRatio(Base):
+    __tablename__ = "solend_health_ratios"
+    __table_args__ = {"schema": SCHEMA_LENDERS}
+
+    slot = Column(BigInteger, primary_key=True, nullable=False)
+    last_update = Column(BigInteger, index=True, nullable=True)
+    user = Column(String, primary_key=True, nullable=False)
+    health_factor = Column(String, index=True, nullable=True)
+    std_health_factor = Column(String, index=True, nullable=True)
+    collateral = Column(String, nullable=False)
+    risk_adjusted_collateral = Column(String, nullable=False)
+    debt = Column(String, nullable=False)
+    risk_adjusted_debt = Column(String, nullable=False)
+    protocol = Column(String, default='solend', nullable=False)
+    timestamp = Column(BigInteger, default=lambda: int(time.time()), nullable=False)
 
 
 class MarginfiLiquidableDebts(Base):
