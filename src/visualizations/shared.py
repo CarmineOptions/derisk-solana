@@ -13,7 +13,7 @@ Protocol = Literal["marginfi", "mango", "kamino", "solend"]
 AnyHealthRatioModel = (
     Type[db.MangoHealthRatio]
     | Type[db.SolendHealthRatio]
-    # | Type[db.MarginfiHealthRatio]
+    | Type[db.MarginfiHealthRatio]
     # | Type[db.KaminoHealthRatio]
 )
 
@@ -27,8 +27,7 @@ def get_health_ratio_protocol_model(protocol: Protocol) -> AnyHealthRatioModel |
 		# return db.KaminoHealthRatio
 
 	if protocol == MARGINFI:
-		return None
-		# return db.MarginfiHealthRatio
+		return db.MarginfiHealthRatio
 		
 	if protocol == SOLEND:
 		return db.SolendHealthRatio
