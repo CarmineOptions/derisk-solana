@@ -2,7 +2,6 @@ import decimal
 import logging
 import warnings
 import requests
-from dataclasses import dataclass
 from functools import lru_cache
 from typing import Any, List, Dict, Tuple
 
@@ -52,7 +51,6 @@ def get_events(start_block_number: int = 0) -> pd.DataFrame:
 
 
 class SolendCollateralPosition(CollateralPosition):
-    underlying_asset_price_wad: str = ''
 
     @lru_cache()
     def market_value(self):
@@ -88,8 +86,6 @@ class SolendCollateralPosition(CollateralPosition):
 
 
 class SolendDebtPosition(DebtPosition):
-    cumulative_borrow_rate_wad: str = ''
-    underlying_asset_price_wad: str = ''
 
     @lru_cache()
     def risk_adjusted_market_value(self):
@@ -157,7 +153,7 @@ class SolendLoanEntity(CustomLoanEntity):
         health_ratio = 1 / std_health_ratio_num
         return str(round(health_ratio, 6))
 
-    def update_positions_from_reserve_config(self, reserve_configs: Dict[str, Any]):
+    def update_positions_from_reserve_config(self, reserve_configs: Dict[str, Any], prices: Dict[str, Any]):
         """ Fill missing data in position object with parameters from reserve configs. """
         # Update collateral positions
         for collateral in self.collateral:
@@ -166,7 +162,7 @@ class SolendLoanEntity(CustomLoanEntity):
                 collateral.decimals = reserve_config['reserve']['liquidity']['mintDecimals']
                 collateral.ltv = reserve_config['reserve']['config']['loanToValueRatio'] / 100
                 collateral.c_token_exchange_rate = reserve_configs[collateral.reserve]['cTokenExchangeRate']
-                collateral.underlying_asset_price_wad = reserve_config['reserve']['liquidity']['marketPrice']
+                collateral.underlying_asset_price_wad = prices[reserve_config['reserve']['liquidity']['mintPubkey']] * WAD
                 collateral.liquidation_threshold = reserve_config['reserve']['config']['liquidationThreshold'] / 100
                 collateral.liquidation_bonus = reserve_config['reserve']['config']['liquidationBonus'] / 100
                 collateral.underlying_token = reserve_config['reserve']['liquidity']['mintPubkey']
@@ -177,7 +173,7 @@ class SolendLoanEntity(CustomLoanEntity):
             if reserve_config:
                 debt.decimals = reserve_config['reserve']['liquidity']['mintDecimals']
                 debt.cumulative_borrow_rate_wad = reserve_config['reserve']['liquidity']['cumulativeBorrowRateWads']
-                debt.underlying_asset_price_wad = reserve_config['reserve']['liquidity']['marketPrice']
+                debt.underlying_asset_price_wad = prices[reserve_config['reserve']['liquidity']['mintPubkey']] * WAD
                 debt.weight = reserve_config['reserve']['config']['borrowWeight']
 
 
@@ -192,13 +188,19 @@ class SolendState(src.loans.state.State):
         self,
         verbose_users: set[str] | None = None,
         initial_loan_states: pd.DataFrame = pd.DataFrame(),
-        slot: int = 0
+        protocol: str = 'solend',
+        loan_entity_class = SolendLoanEntity,
+        debt_position_class = SolendDebtPosition,
+        collateral_position_class = SolendCollateralPosition,
     ) -> None:
         self.where = 0
         self.reserve_configs = dict()
+        self.token_prices = dict()
+        self.debt_position_class = debt_position_class
+        self.collateral_position_class = collateral_position_class
         super().__init__(
-            protocol='solend',
-            loan_entity_class=SolendLoanEntity,
+            protocol=protocol,
+            loan_entity_class=loan_entity_class,
             verbose_users=verbose_users,
             initial_loan_states=initial_loan_states,
         )
@@ -211,12 +213,12 @@ class SolendState(src.loans.state.State):
             last_update = row['slot']
 
             if obligation not in self.loan_entities:
-                self.loan_entities[obligation] = SolendLoanEntity(obligation, last_update)
+                self.loan_entities[obligation] = self.loan_entity_class(obligation=obligation, slot=last_update)
             # Process collateral positions
             collateral_data = row['collateral']
             for mint, collateral_info in collateral_data.items():
                 if collateral_info:  # Check if there is data present for the collateral
-                    new_collateral_position = SolendCollateralPosition(
+                    new_collateral_position = self.collateral_position_class(
                         reserve=collateral_info['reserve'],
                         mint=mint,
                         amount=collateral_info['amount'],
@@ -227,7 +229,7 @@ class SolendState(src.loans.state.State):
             debt_data = row['debt']
             for mint, debt_info in debt_data.items():
                 if debt_info:  # Check if there is data present for the debt
-                    new_debt_position = SolendDebtPosition(
+                    new_debt_position = self.debt_position_class(
                         reserve=debt_info['reserve'],
                         mint=mint,
                         raw_amount=debt_info['rawAmount'],
@@ -248,6 +250,11 @@ class SolendState(src.loans.state.State):
             reserve['reserve']['address']: reserve
             for reserve in response.json()['results']
         }
+        self.token_prices = get_prices_for_tokens(list({
+            reserve_config['reserve']['liquidity']['mintPubkey']
+            for reserve_config in self.reserve_configs.values()
+        }))
+
 
     def save_health_ratios(self) -> None:
         """
@@ -257,7 +264,7 @@ class SolendState(src.loans.state.State):
             self._get_reserve_configs()
         with db.get_db_session() as session:
             for loan_entity in self.loan_entities.values():
-                loan_entity.update_positions_from_reserve_config(self.reserve_configs)
+                loan_entity.update_positions_from_reserve_config(self.reserve_configs, self.token_prices)
                 new_health_ratio = db.SolendHealthRatio(
                     slot=int(self.last_slot),
                     user=loan_entity.obligation,
@@ -280,7 +287,7 @@ class SolendState(src.loans.state.State):
 
         market_values = {}
         for loan_entity in self.loan_entities.values():
-            loan_entity.update_positions_from_reserve_config(self.reserve_configs)
+            loan_entity.update_positions_from_reserve_config(self.reserve_configs, self.token_prices)
             for debt in loan_entity.debt:
                 if debt.raw_amount > 0:
                     debt_value = debt.market_value()  # Compute market value of the debt

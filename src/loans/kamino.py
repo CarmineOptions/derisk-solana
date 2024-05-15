@@ -1,17 +1,30 @@
 import decimal
 import logging
+import os
+import time
 from functools import lru_cache
-from typing import Any, Dict
+from pathlib import Path
+from typing import Any, Dict, List
 
 import numpy
 import pandas
+from solana.exceptions import SolanaRpcException
+from solana.rpc.api import Client
+from solana.rpc.types import MemcmpOpts
+from solders.pubkey import Pubkey
+from solders.rpc.responses import RpcKeyedAccount
 
 import src.kamino_vault_map
 import src.loans.helpers
 import src.loans.types
 import src.loans.state
 import src.loans.solend
-
+from db import KaminoHealthRatio, get_db_session
+from src.parser import TransactionDecoder
+from src.prices import get_prices_for_tokens
+from src.protocols.addresses import KAMINO_ADDRESS
+from src.protocols.anchor_clients.kamino_client.accounts import Reserve
+from src.protocols.idl_paths import KAMINO_IDL_PATH
 
 # Keys are values of the "instruction_name" column in the database, values are the respective method names.
 EVENTS_METHODS_MAPPING: dict[str, str] = {
@@ -21,6 +34,14 @@ EVENTS_METHODS_MAPPING: dict[str, str] = {
     'repay_obligation_liquidity': 'process_repayment_event',
     'withdraw_obligation_collateral_and_redeem_reserve_collateral': 'process_withdrawal_event',
 }
+
+AUTHENTICATED_RPC_URL = os.getenv("RPC_URL")
+KAMINO_PROGRAM_ID = Pubkey.from_string("KLend2g3cP87fffoy8q1mQqGKjrxjC8boSyAYavgmjD")
+LENDING_MARKET_MAIN = '7u3HeHxYDLhnCoErrtycNokbQYbWGzLs6JSDqGAv5PfF'
+JLP_MARKET = 'DxXdAyU3kCjnyggvHmY5nAwg5cRbbmdyX3npfDMjjMek'
+ALTCOIN_MARKET = 'ByYiZxp8QrdN9qbdtaAiePN8AAr3qvTPppNJDpf5DVJ5'
+
+SF = 2 ** 60
 
 
 def get_events(start_block_number: int = 0) -> pandas.DataFrame:
@@ -33,7 +54,6 @@ def get_events(start_block_number: int = 0) -> pandas.DataFrame:
 
 
 class KaminoCollateralPosition(src.loans.state.CollateralPosition):
-    underlying_asset_price: str = ''
 
     @lru_cache()
     def market_value(self):
@@ -41,12 +61,12 @@ class KaminoCollateralPosition(src.loans.state.CollateralPosition):
         assert self.decimals is not None, f"Missing collateral mint decimals for {self.mint}"
         assert self.c_token_exchange_rate, f"Missing collateral token exchange rate: " \
                                            f"{self.c_token_exchange_rate} for {self.mint}"
-        assert self.underlying_asset_price, f"Missing asset price: {self.underlying_asset_price} for {self.mint}"
+        assert self.underlying_asset_price_wad, f"Missing asset price: {self.underlying_asset_price_wad} for {self.mint}"
         return (
-            self.amount
-            * float(self.c_token_exchange_rate)
-            * int(self.underlying_asset_price)
-            / 10**self.decimals
+                self.amount
+                * float(self.c_token_exchange_rate)
+                * int(self.underlying_asset_price_wad) / SF
+                / 10 ** self.decimals
         )
 
     @lru_cache()
@@ -56,57 +76,118 @@ class KaminoCollateralPosition(src.loans.state.CollateralPosition):
         assert self.liquidation_threshold is not None, f"Missing liquidation threshold for {self.mint}"
         assert self.c_token_exchange_rate, f"Missing collateral token exchange rate: " \
                                            f"{self.c_token_exchange_rate} for {self.mint}"
-        assert self.underlying_asset_price, f"Missing asset price: {self.underlying_asset_price} for {self.mint}"
+        assert self.underlying_asset_price_wad, f"Missing asset price: {self.underlying_asset_price_wad} for {self.mint}"
         return (
-            self.amount
-            * float(self.c_token_exchange_rate)
-            * int(self.underlying_asset_price)
-            / 10**self.decimals
-            * self.liquidation_threshold
+                self.amount
+                * float(self.c_token_exchange_rate)
+                * int(self.underlying_asset_price_wad) / SF
+                / 10 ** self.decimals
+                * self.liquidation_threshold
         )
 
 
 class KaminoDebtPosition(src.loans.state.DebtPosition):
-    cumulative_borrow_rate: str = ''
-    underlying_asset_price: str = ''
 
     @lru_cache()
     def risk_adjusted_market_value(self):
         """ Position risk adjusted market value, USD """
         assert self.decimals is not None, f"Missing collateral mint decimals for {self.reserve}"
-        assert self.cumulative_borrow_rate, f"Missing cumBorrowRate: {self.cumulative_borrow_rate}" \
-                                            f" for {self.reserve}"
-        assert self.weight, f"Missing borrow rate: {self.weight} for {self.reserve}"
-        assert self.underlying_asset_price, f"Missing asset price: {self.underlying_asset_price} for {self.reserve}"
+        assert self.cumulative_borrow_rate_wad, f"Missing cumBorrowRate: {self.cumulative_borrow_rate_wad}" \
+                                                f" for {self.reserve}"
+        assert self.borrow_factor, f"Missing borrow factor: {self.borrow_factor} for {self.reserve}"
+        assert self.underlying_asset_price_wad, f"Missing asset price: {self.underlying_asset_price_wad} for {self.reserve}"
         return (
-            self.raw_amount
-            * int(self.cumulative_borrow_rate)
-            * int(self.underlying_asset_price)
-            / 10**self.decimals
-            * self.weight
+                self.raw_amount
+                * int(self.cumulative_borrow_rate_wad) / SF
+                * int(self.underlying_asset_price_wad) / SF
+                / 10 ** self.decimals
+                / self.borrow_factor
         )
 
     @lru_cache()
     def market_value(self):
         """ Position market value, USD """
         assert self.decimals is not None, f"Missing collateral mint decimals for {self.reserve}"
-        assert self.cumulative_borrow_rate, f"Missing cumBorrowRate: {self.cumulative_borrow_rate}" \
-                                            f" for {self.reserve}"
-        assert self.underlying_asset_price, f"Missing asset price: " \
-                                            f"{self.underlying_asset_price} for {self.reserve}"
+        assert self.cumulative_borrow_rate_wad, f"Missing cumBorrowRate: {self.cumulative_borrow_rate_wad}" \
+                                                f" for {self.reserve}"
+        assert self.underlying_asset_price_wad, f"Missing asset price: " \
+                                                f"{self.underlying_asset_price_wad} for {self.reserve}"
         return (
-            self.raw_amount
-            * int(self.cumulative_borrow_rate)
-            * int(self.underlying_asset_price)
-            / 10**self.decimals
+                self.raw_amount
+                * int(self.cumulative_borrow_rate_wad) / SF
+                * int(self.underlying_asset_price_wad) / SF
+                / 10 ** self.decimals
         )
 
 
 class KaminoLoanEntity(src.loans.state.CustomLoanEntity):
     """ A class that describes the Kamino loan entity. """
 
-    def update_positions_from_reserve_config(self, reserve_configs: Dict[str, Any]):
-        pass  # TODO
+    def update_positions_from_reserve_config(self, reserve_configs: Dict[str, Any], prices: Dict[str, Any]):
+        """ Fill missing data in position object with parameters from reserve configs. """
+        # Update collateral positions
+        for collateral in self.collateral:
+            reserve_config = reserve_configs.get(collateral.reserve)
+            if reserve_config:
+                collateral.decimals = reserve_config.liquidity.mint_decimals
+                collateral.ltv = reserve_config.config.loan_to_value_pct / 100
+                collateral.c_token_exchange_rate = _compute_ctoken_exchange_rate(
+                    available_amount=reserve_config.liquidity.available_amount,
+                    borrowed_amount_sf=reserve_config.liquidity.borrowed_amount_sf,
+                    accumulated_protocol_fees_sf=reserve_config.liquidity.accumulated_protocol_fees_sf,
+                    accumulated_referrer_fees_sf=reserve_config.liquidity.accumulated_referrer_fees_sf,
+                    pending_referrer_fees_sf=reserve_config.liquidity.pending_referrer_fees_sf,
+                    mint_total_supply=reserve_config.collateral.mint_total_supply
+                )
+                collateral.underlying_asset_price_wad = prices[str(reserve_config.liquidity.mint_pubkey)] * SF
+                collateral.liquidation_threshold = reserve_config.config.liquidation_threshold_pct / 100
+                collateral.liquidation_bonus = reserve_config.config.min_liquidation_bonus_bps / 10000
+                collateral.underlying_token = str(reserve_config.liquidity.mint_pubkey)
+
+        # Update debt positions
+        for debt in self.debt:
+            reserve_config = reserve_configs.get(debt.reserve)
+            if reserve_config:
+                debt.decimals = reserve_config.liquidity.mint_decimals
+                debt.cumulative_borrow_rate_wad = reserve_config.liquidity.cumulative_borrow_rate_bsf.value[0]
+                debt.underlying_asset_price_wad = prices[debt.mint] * SF
+                debt.borrow_factor = reserve_config.config.borrow_factor_pct / 100
+                debt.liquidation_threshold = reserve_config.config.liquidation_threshold_pct / 100
+                debt.liquidation_bonus = reserve_config.config.min_liquidation_bonus_bps / 10000
+
+    def health_ratio(self) -> str | None:
+        """
+        Compute Solend health ratio:
+            health_ratio = risk adjusted debt / risk adjusted collateral
+        :return:
+        """
+        if self.is_zero_debt and self.is_zero_deposit:
+            return None
+        if self.is_zero_debt:
+            return '0'
+        if self.is_zero_deposit:
+            return 'inf'
+        deposited_value = self.collateral_market_value()
+        borrowed_value = self.debt_market_value()
+        return str(round(borrowed_value / deposited_value, 6))
+
+
+@lru_cache()
+def _compute_ctoken_exchange_rate(
+    available_amount,
+    borrowed_amount_sf,
+    accumulated_protocol_fees_sf,
+    accumulated_referrer_fees_sf,
+    pending_referrer_fees_sf,
+    mint_total_supply
+):
+    total_liquidity = available_amount + (
+        borrowed_amount_sf
+        - accumulated_protocol_fees_sf
+        - accumulated_referrer_fees_sf
+        - pending_referrer_fees_sf
+    ) / SF
+    return total_liquidity / mint_total_supply
 
 
 class KaminoState(src.loans.solend.SolendState):
@@ -114,7 +195,7 @@ class KaminoState(src.loans.solend.SolendState):
     A class that describes the state of all Kamino loan entities. It implements methods for correct processing of every
     relevant event.
     """
-
+    client = Client(AUTHENTICATED_RPC_URL)
     EVENTS_METHODS_MAPPING: dict[str, str] = EVENTS_METHODS_MAPPING
 
     def __init__(
@@ -125,14 +206,89 @@ class KaminoState(src.loans.solend.SolendState):
         self.reserve_configs = dict()
         self.loan_entity_class = KaminoLoanEntity
         super().__init__(
-            protocol='Kamino',
+            protocol='kamino',
             loan_entity_class=KaminoLoanEntity,
             verbose_users=verbose_users,
             initial_loan_states=initial_loan_states,
+            debt_position_class = KaminoDebtPosition,
+            collateral_position_class = KaminoCollateralPosition
         )
 
     def _get_reserve_configs(self):
-        pass  # TODO
+        reserves = []
+        decoder = TransactionDecoder(
+            path_to_idl= '../src/protocols/idls/kamino_idl.json', # Path(KAMINO_IDL_PATH)
+            program_id=Pubkey.from_string(KAMINO_ADDRESS)
+        )
+        for market in [LENDING_MARKET_MAIN, JLP_MARKET, ALTCOIN_MARKET]:
+            filters = [
+                Reserve.layout.sizeof() + 8,
+                MemcmpOpts(32, str(market)),
+            ]
+
+            market_accounts = KaminoState.fetch_accounts(market, self.client, filters)
+
+            market_reserves = [
+                {
+                    'address': str(reserve.pubkey),
+                    'info': decoder.program.coder.accounts.decode(reserve.account.data)
+                }
+                for reserve in market_accounts
+            ]
+
+            for reserve in market_reserves:
+                reserves.append(reserve)
+
+        self.reserve_configs = {
+            reserve['address']: reserve['info']
+            for reserve in reserves
+        }
+        self.token_prices = get_prices_for_tokens(list({
+            str(reserve_config.liquidity.mint_pubkey)
+            for reserve_config in self.reserve_configs.values()
+        }))
+
+    def save_health_ratios(self) -> None:
+        """
+        Compute and save health ratios to the database.
+        """
+        if not self.reserve_configs:
+            self._get_reserve_configs()
+        with get_db_session() as session:
+            for loan_entity in self.loan_entities.values():
+                print(type(loan_entity))
+                loan_entity.update_positions_from_reserve_config(self.reserve_configs, self.token_prices)
+                new_health_ratio = KaminoHealthRatio(
+                    slot=int(self.last_slot),
+                    user=loan_entity.obligation,
+                    health_factor=loan_entity.health_ratio(),
+                    std_health_factor=loan_entity.std_health_ratio(),
+                    collateral=str(round(loan_entity.collateral_market_value(), 6)),
+                    risk_adjusted_collateral=str(round(loan_entity.collateral_risk_adjusted_market_value(), 6)),
+                    debt=str(round(loan_entity.debt_market_value(), 6)),
+                    risk_adjusted_debt=str(round(loan_entity.debt_risk_adjusted_market_value(), 6))
+                )
+
+                session.add(new_health_ratio)
+            print(new_health_ratio.__dict__)
+            # session.commit()
+
+    @staticmethod
+    def fetch_accounts(pool_pubkey: str, client: Client, filters: List[Any]) -> List[RpcKeyedAccount]:
+        """ Fetch Solend obligations for pool. """
+        try:
+            response = client.get_program_accounts(
+                KAMINO_PROGRAM_ID,
+                encoding='base64',
+                filters=filters
+            )
+
+            return response.value
+
+        except SolanaRpcException as e:
+            # LOGGER.error(f"SolanaRpcException: {e} while collecting obligations for `{pool_pubkey}`.")
+            time.sleep(0.5)
+            return KaminoState.fetch_accounts(pool_pubkey, client, filters)
 
     def get_unprocessed_events(self) -> None:
         self.unprocessed_events = src.loans.helpers.get_events(

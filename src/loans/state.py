@@ -20,6 +20,7 @@ class CollateralPosition:
     c_token_exchange_rate: float = ''
     liquidation_threshold: float | None = None
     liquidation_bonus: float | None = None
+    underlying_asset_price_wad: str = ''
     underlying_token: str = ''
 
     def __hash__(self):
@@ -43,6 +44,9 @@ class DebtPosition:
     raw_amount: float
     decimals: int | None = None
     weight: float | None = None
+    cumulative_borrow_rate_wad: str = ''
+    underlying_asset_price_wad: str = ''
+    borrow_factor: float | None = None
 
     def __hash__(self):
         return hash((self.reserve, self.mint, round(self.raw_amount, 10)))
@@ -135,7 +139,7 @@ class CustomLoanEntity:
         return list(set(reserves))
 
     @abc.abstractmethod
-    def update_positions_from_reserve_config(self, reserve_configs: Dict[str, Any]):
+    def update_positions_from_reserve_config(self, reserve_configs: Dict[str, Any], prices: Dict[str, Any]):
         """ Fill missing data in position object with parameters from reserve configs. """
         raise NotImplementedError('Implement me!')
 
