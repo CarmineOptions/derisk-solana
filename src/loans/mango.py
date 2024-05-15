@@ -3,16 +3,16 @@ import logging
 import asyncio
 import itertools
 import time
-import pandas as pd
-import src.loans.state 
 from decimal import Decimal
-from solana.exceptions import SolanaRpcException
-from solders.pubkey import Pubkey
-from src.protocols.anchor_clients.mango_client.program_id import PROGRAM_ID as MANGO_ID
-from solana.rpc.api import Client
+
 import requests
-import os
+import pandas as pd
+from solders.pubkey import Pubkey
+from solana.exceptions import SolanaRpcException
+from solana.rpc.api import Client
 from solana.rpc.types import MemcmpOpts
+
+from src.protocols.anchor_clients.mango_client.program_id import PROGRAM_ID as MANGO_ID
 from src.protocols.anchor_clients.mango_client.accounts.mango_account import MangoAccount
 from src.prices import get_prices_for_tokens
 import src.mango_token_params_map
@@ -57,11 +57,6 @@ OPEN_ORDERS_LAYOUT = cStruct(
 )
 # =============================================================================================
 
-def get_authenticated_rpc_url() -> str:
-    authenticated_rpc_url = os.environ.get("AUTHENTICATED_RPC_URL")
-    if authenticated_rpc_url is None:
-        raise ValueError("No AUTHENTICATED_RPC_URL env var")
-    return authenticated_rpc_url
 
 def get_group_token_index_to_index_map():
     r = requests.get('https://api.mngo.cloud/data/v4/group-metadata')
@@ -106,7 +101,7 @@ class MangoState(src.loans.state.State):
             loan_entity_class=MangoLoanEntity,
             verbose_users=verbose_users,
         )
-        self.client = Client(get_authenticated_rpc_url())
+        self.client = Client(src.utils.get_authenticated_rpc_url())
         self.group_token_index_map = get_group_token_index_to_index_map()
 
     def get_groups(self) -> list[Pubkey]:

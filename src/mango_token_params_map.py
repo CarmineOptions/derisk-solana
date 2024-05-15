@@ -7,7 +7,7 @@ from solana.exceptions import SolanaRpcException
 from solana.rpc.async_api import AsyncClient
 import requests
 from src.protocols.anchor_clients.mango_client.accounts.bank import Bank
-from src.loans.mango import get_authenticated_rpc_url
+from src.utils import get_authenticated_rpc_url
 
 from solders.pubkey import Pubkey
 
