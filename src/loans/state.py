@@ -108,12 +108,16 @@ class CustomLoanEntity:
             std_health_ratio = risk adjusted collateral / risk adjusted debt
         :return:
         """
+        if self.is_zero_debt and self.is_zero_deposit:
+            return None
         if self.is_zero_debt:
             return 'inf'
         if self.is_zero_deposit:
             return '0'
         deposited_value = self.collateral_risk_adjusted_market_value()
         borrowed_value = self.debt_risk_adjusted_market_value()
+        if borrowed_value == 0:  # for cases with health ratios equal to 0
+            return 'inf'
         return str(round(deposited_value / borrowed_value, 6))
 
     @lru_cache()

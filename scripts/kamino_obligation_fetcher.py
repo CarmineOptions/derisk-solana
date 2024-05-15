@@ -19,6 +19,7 @@ from solders.rpc.responses import RpcKeyedAccount
 
 # Local application/library specific imports
 import db
+from src.loans.kamino import KaminoState
 from src.loans.loan_state import store_loan_states
 from src.parser import TransactionDecoder
 from src.protocols.addresses import KAMINO_ADDRESS
@@ -193,10 +194,11 @@ async def obtain_loan_states():
         store_loan_states(new_loan_states, 'kamino', session)
     LOGGER.info(f"{new_loan_states.shape[0]} loan states successfully collected and saved for `{slot}` block.")
 
-    # LOGGER.info("Start updating health factors...")
-    # start_time = time.time()
-    # # TODo store health factors to kamino_health_ratios table
-    # LOGGER.info(f"Health Factors updated in {time.time() - start_time:.2f} second.")
+    LOGGER.info("Start updating health factors...")
+    start_time = time.time()
+    state = KaminoState(initial_loan_states=new_loan_states)
+    state.save_health_ratios()
+    LOGGER.info(f"Health Factors updated in {time.time() - start_time:.2f} second.")
 
 
 async def main():

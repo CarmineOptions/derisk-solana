@@ -141,7 +141,9 @@ class KaminoLoanEntity(src.loans.state.CustomLoanEntity):
                     pending_referrer_fees_sf=reserve_config.liquidity.pending_referrer_fees_sf,
                     mint_total_supply=reserve_config.collateral.mint_total_supply
                 )
-                collateral.underlying_asset_price_wad = prices[str(reserve_config.liquidity.mint_pubkey)] * SF
+                price = prices[str(reserve_config.liquidity.mint_pubkey)]
+                collateral.underlying_asset_price_wad = price * SF if price is not None \
+                    else reserve_config.liquidity.market_price_sf
                 collateral.liquidation_threshold = reserve_config.config.liquidation_threshold_pct / 100
                 collateral.liquidation_bonus = reserve_config.config.min_liquidation_bonus_bps / 10000
                 collateral.underlying_token = str(reserve_config.liquidity.mint_pubkey)
@@ -152,7 +154,9 @@ class KaminoLoanEntity(src.loans.state.CustomLoanEntity):
             if reserve_config:
                 debt.decimals = reserve_config.liquidity.mint_decimals
                 debt.cumulative_borrow_rate_wad = reserve_config.liquidity.cumulative_borrow_rate_bsf.value[0]
-                debt.underlying_asset_price_wad = prices[debt.mint] * SF
+                price = prices[debt.mint] * SF
+                debt.underlying_asset_price_wad = price * SF if price is not None \
+                    else reserve_config.liquidity.market_price_sf
                 debt.borrow_factor = reserve_config.config.borrow_factor_pct / 100
                 debt.liquidation_threshold = reserve_config.config.liquidation_threshold_pct / 100
                 debt.liquidation_bonus = reserve_config.config.min_liquidation_bonus_bps / 10000
@@ -443,55 +447,48 @@ class KaminoState(src.loans.solend.SolendState):
             )
 
 
-def compute_liquidable_debt_at_price(
-    loan_states: pandas.DataFrame,
-    token_prices: dict[str, float],
-    debt_token_parameters: dict[str, float],
-    mint_to_lp_map: dict[str, str],
-    mint_to_supply_map: dict[str, str],
-    collateral_token: str,
-    target_collateral_token_price: decimal.Decimal,
-    debt_token: str,
+def compute_liquidable_debt_for_price_target(
+        loan_states: pandas.DataFrame,
+        debt_token: str,
+        collateral_mints: List[str],
+        collateral_underlying_token: str,
+        original_price: float,
+        target_price: float,
 ) -> decimal.Decimal:
+    """
+    Compute USD value of liquidable debt for target price.
+    :return:
+    """
+    # get price ratio
+    price_ratio = target_price / original_price
+    # update risk adjusted market value for relevant cTokens
+    for collateral_mint in collateral_mints:
+        loan_states[f'collateral_usd_{collateral_mint}'] = (
+                loan_states[f'collateral_usd_{collateral_mint}']
+                * price_ratio
+        )
+    # update risk adjusted market value of corresponding debt
+    if f'debt_usd_{collateral_underlying_token}' in loan_states.columns:
+        loan_states[f'debt_usd_{collateral_underlying_token}'] = (
+                loan_states[f'debt_usd_{collateral_underlying_token}']
+                * price_ratio
+        )
 
-    if not debt_token in mint_to_supply_map:
-        return decimal.Decimal('0')
-    lp_collateral_tokens = mint_to_lp_map[collateral_token]
-    supply_collateral_tokens = mint_to_supply_map[collateral_token]
-    supply_debt_tokens = mint_to_supply_map[debt_token]
-
-    price_ratio = target_collateral_token_price / token_prices[collateral_token]
-    for lp_collateral_token in lp_collateral_tokens:
-        lp_collateral_column = f'collateral_usd_{lp_collateral_token}'
-        if lp_collateral_column in loan_states.columns:
-            loan_states[lp_collateral_column] = loan_states[lp_collateral_column] * price_ratio
-    for supply_collateral_token in supply_collateral_tokens:
-        supply_collateral_column = f'debt_usd_{supply_collateral_token}'
-        if supply_collateral_column in loan_states.columns:
-            loan_states[supply_collateral_column] = loan_states[supply_collateral_column] * price_ratio
-    loan_states['collateral_usd'] = loan_states[[x for x in loan_states.columns if 'collateral_usd_' in x]].sum(axis = 1)
-    loan_states['debt_usd'] = loan_states[[x for x in loan_states.columns if 'debt_usd_' in x]].sum(axis = 1)
-    loan_states['loan_to_value'] = loan_states['debt_usd'] / loan_states['collateral_usd']
-
-    liquidation_parameters = debt_token_parameters.get(supply_debt_tokens[0], None)
-    liquidation_threshold = (
-        liquidation_parameters['liquidation_threshold_pct'] / 100
-        if liquidation_parameters
-        else 0.5
-    )
-    loan_states['liquidable'] = loan_states['loan_to_value'] > liquidation_threshold
+    # compute total risk adjusted deposited value
+    loan_states['total_collateral_usd'] = loan_states[[
+        x for x in loan_states.columns if 'collateral_usd_' in x
+    ]].sum(axis=1)
+    # compute total risk adjusted debt value
+    loan_states['total_debt_usd'] = loan_states[[x for x in loan_states.columns if 'debt_usd_' in x]].sum(axis=1)
+    # get risk factor and define liquidable debt
+    loan_states['health_factor'] = loan_states['total_debt_usd'] / loan_states['total_collateral_usd']
+    loan_states['liquidable'] = loan_states['health_factor'] > 1
     # 20% of the debt value is liquidated.
-    liquidable_debt_ratio = 0.2 * (
-        1 + liquidation_parameters['min_liquidation_bonus_bps'] / 10_000
-        if liquidation_parameters
-        else 1.02
-    )
-    loan_states['debt_to_be_liquidated'] = (
-        liquidable_debt_ratio
-        * loan_states[f'debt_usd_{supply_debt_tokens[0]}']
-        * loan_states['liquidable']
-    )
-    return loan_states['debt_to_be_liquidated'].sum()
+    liquidable_debt_ratio = 0.2 * (1 + 0.05)
+    loan_states['debt_to_be_liquidated'] = liquidable_debt_ratio * loan_states[f'debt_usd_{debt_token}'] * loan_states[
+        'liquidable']
+    liquidatable_value = loan_states['debt_to_be_liquidated'].sum()
+    return liquidatable_value
 
 def get_kamino_user_stats_df(loan_states: pandas.DataFrame) -> pandas.DataFrame:
 

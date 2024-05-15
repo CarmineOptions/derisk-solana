@@ -129,8 +129,10 @@ class SolendLoanEntity(CustomLoanEntity):
             std_health_ratio = risk adjusted collateral / risk adjusted debt
         :return:
         """
-        if self.is_zero_debt:
+        if self.is_zero_debt and self.is_zero_deposit:
             return None
+        if self.is_zero_debt:
+            return 'inf'
         if self.is_zero_deposit:
             return '0'
         deposited_value = self.collateral_risk_adjusted_market_value()
@@ -146,9 +148,9 @@ class SolendLoanEntity(CustomLoanEntity):
         """
         std_health_ratio = self.std_health_ratio()
         if std_health_ratio is None:
-            return '0'
-        if std_health_ratio in {'0', '0.0'}:
             return None
+        if std_health_ratio in {'0', '0.0'}:
+            return 'inf'
         std_health_ratio_num = float(std_health_ratio)
         health_ratio = 1 / std_health_ratio_num
         return str(round(health_ratio, 6))
@@ -162,7 +164,9 @@ class SolendLoanEntity(CustomLoanEntity):
                 collateral.decimals = reserve_config['reserve']['liquidity']['mintDecimals']
                 collateral.ltv = reserve_config['reserve']['config']['loanToValueRatio'] / 100
                 collateral.c_token_exchange_rate = reserve_configs[collateral.reserve]['cTokenExchangeRate']
-                collateral.underlying_asset_price_wad = prices[reserve_config['reserve']['liquidity']['mintPubkey']] * WAD
+                price = prices[reserve_config['reserve']['liquidity']['mintPubkey']]
+                collateral.underlying_asset_price_wad = price * WAD if price is not None \
+                    else reserve_config['reserve']['liquidity']['marketPrice']
                 collateral.liquidation_threshold = reserve_config['reserve']['config']['liquidationThreshold'] / 100
                 collateral.liquidation_bonus = reserve_config['reserve']['config']['liquidationBonus'] / 100
                 collateral.underlying_token = reserve_config['reserve']['liquidity']['mintPubkey']
@@ -173,7 +177,9 @@ class SolendLoanEntity(CustomLoanEntity):
             if reserve_config:
                 debt.decimals = reserve_config['reserve']['liquidity']['mintDecimals']
                 debt.cumulative_borrow_rate_wad = reserve_config['reserve']['liquidity']['cumulativeBorrowRateWads']
-                debt.underlying_asset_price_wad = prices[reserve_config['reserve']['liquidity']['mintPubkey']] * WAD
+                price = prices[reserve_config['reserve']['liquidity']['mintPubkey']]
+                debt.underlying_asset_price_wad = price * WAD if price is not None \
+                    else reserve_config['reserve']['liquidity']['marketPrice']
                 debt.weight = reserve_config['reserve']['config']['borrowWeight']
 
 
@@ -254,7 +260,6 @@ class SolendState(src.loans.state.State):
             reserve_config['reserve']['liquidity']['mintPubkey']
             for reserve_config in self.reserve_configs.values()
         }))
-
 
     def save_health_ratios(self) -> None:
         """
