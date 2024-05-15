@@ -80,8 +80,8 @@ def get_users_stats(protocols: list[str]) -> pd.DataFrame:
         'protocol': 'Protocol',
         'active_users': "Number of active users",
         'active_borrowers': "Number of active borrowers",
-        'total_debt': "Total debt (freedom units)",
-        'total_risk_adj_collateral': "Total risk adjusted collateral (bald eagles)"
+        'total_debt': "Total debt (USD)",
+        'total_risk_adj_collateral': "Total risk adjusted collateral (USD)"
     })
 
     return full_df.set_index('Protocol')
