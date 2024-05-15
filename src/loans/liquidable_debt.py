@@ -1,14 +1,20 @@
+from typing import Callable, Literal, Type, TypeVar
+import asyncio
 import collections
+import dataclasses
 import decimal
 import itertools
 import logging
+import os
 import time
 import traceback
 import warnings
-from typing import Callable, Literal, Type, TypeVar
 
-
+import numpy
 import pandas
+import requests
+import solana.rpc.async_api
+import solders.pubkey
 from sqlalchemy import func
 from sqlalchemy.orm.session import Session
 
@@ -19,6 +25,7 @@ from db import (
     MarginfiLoanStates,
     KaminoLoanStates,
     SolendLoanStates,
+    MarginfiHealthRatio,
     MangoLiquidableDebts,
     MarginfiLiquidableDebts,
     KaminoLiquidableDebts,
@@ -36,8 +43,9 @@ import src.protocols.dexes.amms.utils
 import src.loans.mango
 import src.mango_token_params_map
 
-from warnings import simplefilter
-simplefilter(action="ignore", category=pandas.errors.PerformanceWarning)
+
+
+warnings.simplefilter(action="ignore", category=pandas.errors.PerformanceWarning)
 
 # Ignore all warnings
 warnings.filterwarnings('ignore')
@@ -81,82 +89,183 @@ ProtocolFunc = (
 )
 
 
-def process_marginfi_loan_states(
-    loan_states: list[MarginfiLoanStates],
+@dataclasses.dataclass
+class TokenParameters:
+    underlying: str
+    decimals: int
+    interest_rate_model: float
+    factor: float
+
+
+async def get_bank(
+    client: solana.rpc.async_api.AsyncClient,
+    token: str,
+) -> src.protocols.anchor_clients.marginfi_client.accounts.Bank:
+    try:
+        return await src.protocols.anchor_clients.marginfi_client.accounts.Bank.fetch(
+            client,
+            solders.pubkey.Pubkey.from_string(token),
+        )
+    except solana.exceptions.SolanaRpcException:
+        time.sleep(1)
+        return await get_bank(client = client, token = token)
+
+
+async def process_marginfi_loan_states(
+    loan_states: pandas.DataFrame,
+    previous_health_ratios: pandas.DataFrame,
 ) -> None:
     PROTOCOL = 'marginfi'
     logging.info("Processing = {} loan states for protocol = {}.".format(len(loan_states), PROTOCOL))
-
-    # Get mappings between mint and LP tokens and mint and supply vaults.
-    MINT_TO_LIQUIDITY_VAULT_MAPPING = {x['mint']: [] for x in src.marginfi_map.liquidity_vault_to_info_mapping.values()}
-    for x, y in src.marginfi_map.liquidity_vault_to_info_mapping.items():
-        MINT_TO_LIQUIDITY_VAULT_MAPPING[y['mint']].append(x)
 
     # Extract a set of collateral and debt tokens used.
     collateral_tokens = {token for collateral in loan_states['collateral'] for token in collateral}
     debt_tokens = {token for debt in loan_states['debt'] for token in debt}
 
+    AUTHENTICATED_RPC_URL = os.environ.get("AUTHENTICATED_RPC_URL")
+    if AUTHENTICATED_RPC_URL is None:
+        raise ValueError("no AUTHENTICATED_RPC_URL env var")
+
+    client = solana.rpc.async_api.AsyncClient(AUTHENTICATED_RPC_URL)
+
     # Get token parameters.
     collateral_token_parameters = {
-        token: src.marginfi_map.liquidity_vault_to_info_mapping[token]
-        for token in collateral_tokens
-        if token in src.marginfi_map.liquidity_vault_to_info_mapping
+        token: None
+        for collateral in loan_states['collateral']
+        for token in collateral
     }
+    for token in collateral_token_parameters:
+        bank = await get_bank(client = client, token = token)
+        collateral_token_parameters[token] = TokenParameters(
+            underlying = str(bank.mint),
+            decimals = int(bank.mint_decimals),
+            interest_rate_model = float(bank.asset_share_value.value / 2**48),
+            factor = float(bank.config.asset_weight_maint.value / 2**48),
+        )
     debt_token_parameters = {
-        token: src.marginfi_map.liquidity_vault_to_info_mapping[token]
-        for token in debt_tokens
-        if token in src.marginfi_map.liquidity_vault_to_info_mapping
+        token: None
+        for debt in loan_states['debt']
+        for token in debt
     }
+    for token in debt_token_parameters:
+        bank = await get_bank(client = client, token = token)
+        debt_token_parameters[token] = TokenParameters(
+            underlying = str(bank.mint),
+            decimals = int(bank.mint_decimals),
+            interest_rate_model = float(bank.liability_share_value.value / 2**48),
+            factor = float(bank.config.liability_weight_maint.value / 2**48),
+        )
 
     # Get underlying token prices.
-    underlying_collateral_tokens = [
-        x['mint']
-        for x in collateral_token_parameters.values()
-    ]
-    underlying_debt_tokens = [
-        x['mint']
-        for x in debt_token_parameters.values()
-    ]
-    token_prices = src.prices.get_prices_for_tokens(underlying_collateral_tokens + underlying_debt_tokens)
+    underlying_collateral_tokens = [x.underlying for x in collateral_token_parameters.values()]
+    underlying_debt_tokens = [x.underlying for x in debt_token_parameters.values()]
+    all_underlying_tokens = underlying_collateral_tokens + underlying_debt_tokens
+    token_prices = src.prices.get_prices_for_tokens(all_underlying_tokens)
+
+    underlying_to_bank_mapping = {underlying: set() for underlying in all_underlying_tokens}
+    for bank, parameters in collateral_token_parameters.items():
+        underlying_to_bank_mapping[parameters.underlying].add(bank)
+    for bank, parameters in debt_token_parameters.items():
+        underlying_to_bank_mapping[parameters.underlying].add(bank)
 
     # Put collateral and debt token holdings into the loan states df.
     for token in collateral_tokens:
-        loan_states[f'collateral_{token}'] = loan_states['collateral'].apply(
-            lambda x: x[token] if token in x else decimal.Decimal('0')
-        )
+        loan_states[f'collateral_{token}'] = loan_states['collateral'].apply(lambda x: x.get(token, 0.0))
     for token in debt_tokens:
-        loan_states[f'debt_{token}'] = loan_states['debt'].apply(
-            lambda x: x[token] if token in x else decimal.Decimal('0')
-        )
+        loan_states[f'debt_{token}'] = loan_states['debt'].apply(lambda x: x.get(token, 0.0))
 
     # Compute the USD value of collateral and debt token holdings.
     for token in collateral_tokens:
-        if not token in collateral_token_parameters:
-            continue
-        decimals = collateral_token_parameters[token]['decs']
-        collateral_factor = collateral_token_parameters[token]['asset_weight_maint'] / 2**48
-        underlying_token = collateral_token_parameters[token]['mint']
         loan_states[f'collateral_usd_{token}'] = (
-            loan_states[f'collateral_{token}'].astype(float)
-            / (10**decimals)
-            * (collateral_factor)
-            * token_prices[underlying_token]
+            loan_states[f'collateral_{token}']
+            / (10**collateral_token_parameters[token].decimals)
+            * collateral_token_parameters[token].interest_rate_model
+            * token_prices[collateral_token_parameters[token].underlying]
         )
+    collateral_columns = [x for x in loan_states.columns if 'collateral_usd_' in x]
+    loan_states['collateral_usd'] = loan_states[collateral_columns].sum(axis = 1)
+    for token in collateral_tokens:
+        loan_states[f'risk_adjusted_collateral_usd_{token}'] = (
+            loan_states[f'collateral_usd_{token}']
+            * collateral_token_parameters[token].factor
+        )
+    risk_adjusted_collateral_columns = [x for x in loan_states.columns if 'risk_adjusted_collateral_usd_' in x]
+    loan_states['risk_adjusted_collateral_usd'] = loan_states[risk_adjusted_collateral_columns].sum(axis = 1)
     for token in debt_tokens:
-        if not token in debt_token_parameters:
-            continue
-        decimals = debt_token_parameters[token]['decs']
-        debt_factor = debt_token_parameters[token]['liability_weight_maint'] / 2**48
-        underlying_token = debt_token_parameters[token]['mint']
         loan_states[f'debt_usd_{token}'] = (
             loan_states[f'debt_{token}'].astype(float)
-            / (10**decimals)
-            * (1/debt_factor)
-            * token_prices[underlying_token]
+            / (10**debt_token_parameters[token].decimals)
+            * debt_token_parameters[token].interest_rate_model
+            * token_prices[debt_token_parameters[token].underlying]
         )
+    debt_columns = [x for x in loan_states.columns if 'debt_usd_' in x]
+    loan_states['debt_usd'] = loan_states[debt_columns].sum(axis = 1)
+    for token in debt_tokens:    
+        loan_states[f'risk_adjusted_debt_usd_{token}'] = (
+            loan_states[f'debt_usd_{token}']
+            * debt_token_parameters[token].factor
+        )
+    risk_adjusted_debt_columns = [x for x in loan_states.columns if 'risk_adjusted_debt_usd_' in x]
+    loan_states['risk_adjusted_debt_usd'] = loan_states[risk_adjusted_debt_columns].sum(axis = 1)
+
+    # Compute health ratios.
+    loan_states['health_factor'] = (
+        loan_states['risk_adjusted_collateral_usd'] - loan_states['risk_adjusted_debt_usd']
+    ) / loan_states['risk_adjusted_collateral_usd']
+    loan_states['std_health_factor'] = (
+        loan_states['risk_adjusted_collateral_usd'] / loan_states['risk_adjusted_debt_usd']
+    )
+
+    # Prepare health ratio data.
+    health_ratios = loan_states[['protocol', 'user']].copy()
+    timestamp = time.time()
+    health_ratios['slot'] = timestamp
+    health_ratios['timestamp'] = timestamp
+    health_ratios['last_update'] = timestamp
+    health_ratios['collateral'] = loan_states['collateral_usd'].round(5)
+    health_ratios['risk_adjusted_collateral'] = loan_states['risk_adjusted_collateral_usd'].round(5)
+    health_ratios['debt'] = loan_states['debt_usd'].round(5)
+    health_ratios['risk_adjusted_debt'] = loan_states['risk_adjusted_debt_usd'].round(5)
+    health_ratios['health_factor'] = loan_states['health_factor'].round(5)
+    health_ratios['std_health_factor'] = loan_states['std_health_factor'].round(5)
+
+    # Save health ratios to the database.
+    with get_db_session() as session:
+        if previous_health_ratios.empty:
+            changed_health_ratios = health_ratios
+        else:
+            health_ratios.set_index('user', inplace = True)
+            previous_health_ratios.set_index('user', inplace = True)
+            health_ratios['previous_std_health_factor'] = previous_health_ratios['std_health_factor'].astype(float)
+            health_ratios['health_factor_relative_change'] = (
+                health_ratios['std_health_factor']
+                / health_ratios['previous_std_health_factor']
+            ).fillna(numpy.inf)
+            changed_health_ratios = health_ratios[
+                (
+                    (health_ratios['std_health_factor'] >= 1.2)
+                    & (health_ratios['health_factor_relative_change'] >= 1.01)
+                ) | (
+                    (health_ratios['std_health_factor'] < 1.2)
+                    & (health_ratios['health_factor_relative_change'] >= 1.0025)
+                )
+            ]
+            changed_health_ratios.drop(
+                columns=['previous_std_health_factor', 'health_factor_relative_change'],
+                inplace = True,
+            )
+            changed_health_ratios.reset_index(drop = False, inplace = True)
+        store_marginfi_health_ratios(changed_health_ratios, PROTOCOL, session)
 
     for collateral_token, debt_token in itertools.product(underlying_collateral_tokens, underlying_debt_tokens):
         if collateral_token == debt_token:
+            continue
+
+        collateral_banks = underlying_to_bank_mapping[collateral_token]
+        debt_banks = underlying_to_bank_mapping[debt_token]
+        collateral_usd_columns = [f'collateral_usd_{x}' for x in collateral_banks]
+        debt_usd_columns = [f'debt_usd_{x}' for x in debt_banks]
+        if not (loan_states[collateral_usd_columns].sum(axis = 1) * loan_states[debt_usd_columns].sum(axis = 1)).sum():
             continue
 
         logging.info(
@@ -168,35 +277,45 @@ def process_marginfi_loan_states(
         )
 
         collateral_token_price = token_prices[collateral_token]
-        # The price is usually not found for unused tokens.
-        if not collateral_token_price:
-            continue
 
         # Compute liqidable debt.
-        data = pandas.DataFrame(
+        liquidable_debts = pandas.DataFrame(
             {
                 "collateral_token_price": src.visualizations.main_chart.get_token_range(collateral_token_price),
             }
         )
-        liquidable_debt = data['collateral_token_price'].apply(
+
+        collateral_token_columns = [
+            f'collateral_{x}'
+            for x in underlying_to_bank_mapping[collateral_token]
+        ]
+        debt_token_columns = [
+            f'debt_{x}'
+            for x in underlying_to_bank_mapping[debt_token]
+        ]
+        relevant_loan_states = loan_states[
+            loan_states[collateral_token_columns].sum(axis = 1).astype(bool)
+            & loan_states[debt_token_columns].sum(axis = 1).astype(bool)
+        ]
+
+        liquidable_debt = liquidable_debts['collateral_token_price'].apply(
             lambda x: src.loans.marginfi.compute_liquidable_debt_at_price(
-                loan_states = loan_states.copy(),
+                loan_states = relevant_loan_states.copy(),
                 token_prices = token_prices,
-                debt_token_parameters = debt_token_parameters,
-                mint_to_liquidity_vault_map=MINT_TO_LIQUIDITY_VAULT_MAPPING,
-                collateral_token = collateral_token,
-                target_collateral_token_price = x,
-                debt_token = debt_token,
+                underlying_to_bank_mapping=underlying_to_bank_mapping,
+                underlying_collateral = collateral_token,
+                target_underlying_collateral_price = x,
+                underlying_debt = debt_token,
             )
         )
-        data['amount'] = liquidable_debt.diff().abs()
-        data['protocol'] = PROTOCOL
-        data['slot'] = loan_states['slot'].max()
-        data['collateral_token'] = collateral_token
-        data['debt_token'] = debt_token
-        data.dropna(inplace = True)
+        liquidable_debts['amount'] = liquidable_debt.diff().abs()
+        liquidable_debts['protocol'] = PROTOCOL
+        liquidable_debts['slot'] = loan_states['slot'].max()
+        liquidable_debts['collateral_token'] = collateral_token
+        liquidable_debts['debt_token'] = debt_token
+        liquidable_debts.dropna(inplace = True)
         with get_db_session() as session:
-            store_liquidable_debts(data, 'marginfi', session)
+            store_liquidable_debts(liquidable_debts, PROTOCOL, session)
 
 
 def process_mango_loan_states(loan_states: pandas.DataFrame) -> pandas.DataFrame:
@@ -520,6 +639,45 @@ def protocol_to_model(
     raise ValueError(f"invalid protocol {protocol}")
 
 
+def store_marginfi_health_ratios(df: pandas.DataFrame, protocol: Protocol, session: Session):
+    """
+    Stores data from a pandas DataFrame to the health ratios table.
+
+    Args:
+    - df (pandas.DataFrame): A DataFrame with the following columns:
+        - slot (int): Description of slot.
+        - last_update (int): Time of last update.
+        - timestamp (int): Time of last update.
+        - protocol (str): Description of protocol.
+        - user (str): Description of user.
+        - health_factor (str): Health factor as defined by the protocol.
+        - std_health_factor (str): Standardized health factor.
+        - collateral (str): Collateral in USD.
+        - risk_adjusted_collateral (str): Risk-adjusted collateral in USD.
+        - debt (str): Debt in USD.
+        - risk_adjusted_debt (str): Risk-adjusted debt in USD.
+
+    - session (sqlalchemy.orm.session.Session): A SQLAlchemy session object.
+    """
+
+    for _, row in df.iterrows():
+        health_ratios = MarginfiHealthRatio(
+            slot=row["slot"],
+            last_update=row["last_update"],
+            timestamp=row["timestamp"],
+            protocol=row["protocol"],
+            user=row["user"],
+            health_factor=row["health_factor"],
+            std_health_factor=row["std_health_factor"],
+            collateral=row["collateral"],
+            risk_adjusted_collateral=row["risk_adjusted_collateral"],
+            debt=row["debt"],
+            risk_adjusted_debt=row["risk_adjusted_debt"],
+        )
+        session.add(health_ratios)
+    session.commit()
+
+
 def store_liquidable_debts(df: pandas.DataFrame, protocol: Protocol, session: Session):
     """
     Stores data from a pandas DataFrame to the liquidable_debts table.
@@ -551,6 +709,58 @@ def store_liquidable_debts(df: pandas.DataFrame, protocol: Protocol, session: Se
     session.commit()
 
 
+def fetch_marginfi_health_ratios(protocol: Protocol, session: Session) -> pandas.DataFrame:
+    """
+    Fetches health ratios with the max slot from the DB and returns them as a DataFrame
+
+    Args:
+    - session (sqlalchemy.orm.session.Session): A SQLAlchemy session object.
+
+    Returns:
+    - df (pandas.DataFrame): A DataFrame with the following columns:
+        - slot (int): Description of slot.
+        - last_update (int): Time of last update.
+        - timestamp (int): Time of last update.
+        - protocol (str): Description of protocol.
+        - user (str): Description of user.
+        - health_factor (str): Health factor as defined by the protocol.
+        - std_health_factor (str): Standardized health factor.
+        - collateral (str): Collateral in USD.
+        - risk_adjusted_collateral (str): Risk-adjusted collateral in USD.
+        - debt (str): Debt in USD.
+        - risk_adjusted_debt (str): Risk-adjusted debt in USD.
+    """
+    # Define a subquery for the maximum slot value
+    max_slot_subquery = session.query(func.max(MarginfiHealthRatio.slot)).subquery()
+
+    try:
+        # Retrieve entries from the loan_states table where slot equals the maximum slot value
+        query_result = (
+            session.query(MarginfiHealthRatio).filter(MarginfiHealthRatio.slot == max_slot_subquery).all()
+        )
+    except:
+        query_result = []
+
+    return pandas.DataFrame(
+        [
+            {
+                "slot": record.slot,
+                "last_update": record.last_update,
+                "timestamp": record.timestamp,
+                "protocol": record.protocol,
+                "user": record.user,
+                "health_factor": record.health_factor,
+                "std_health_factor": record.std_health_factor,
+                "collateral": record.collateral,
+                "risk_adjusted_collateral": record.risk_adjusted_collateral,
+                "debt": record.debt,
+                "risk_adjusted_debt": record.risk_adjusted_debt,
+            }
+            for record in query_result  # TODO??? sqlalchemy.exc.PendingRollbackError
+        ]
+    )
+
+
 def fetch_liquidable_debts(protocol: Protocol, session: Session) -> pandas.DataFrame:
     """
     Fetches loan states with the max slot from the DB and returns them as a DataFrame
@@ -562,9 +772,10 @@ def fetch_liquidable_debts(protocol: Protocol, session: Session) -> pandas.DataF
     - df (pandas.DataFrame): A DataFrame with the following columns:
         - slot (int): Description of slot.
         - protocol (str): Description of protocol.
-        - user (str): Description of user.
-        - collateral (json/dict): JSON or dictionary representing collateral.
-        - debt (json/dict): JSON or dictionary representing debt.
+        - collateral_token (str): Description of collateral_token.
+        - debt_token (str): Description of debt_token.
+        - collateral_token_price (str): Description of collateral_token_price.
+        - amount (str): Description of amount.
     """
 
     model = protocol_to_model(protocol)
@@ -580,7 +791,7 @@ def fetch_liquidable_debts(protocol: Protocol, session: Session) -> pandas.DataF
     except:
         query_result = []
 
-    df = pandas.DataFrame(
+    return pandas.DataFrame(
         [
             {
                 "slot": record.slot,
@@ -590,10 +801,9 @@ def fetch_liquidable_debts(protocol: Protocol, session: Session) -> pandas.DataF
                 "collateral_token_price": record.collateral_token_price,
                 "amount": record.amount,
             }
-            for record in query_result
+            for record in query_result  # TODO??? sqlalchemy.exc.PendingRollbackError
         ]
     )
-    return df
 
 
 def process_loan_states_to_liquidable_debts(
@@ -601,30 +811,36 @@ def process_loan_states_to_liquidable_debts(
     process_function: Callable[
         [AnyLoanState],
         pandas.DataFrame,
-    ]
+    ],
+    session: Session,
 ):
-    with get_db_session() as session:
-        current_liquidable_debts = fetch_liquidable_debts(protocol, session)
+    current_liquidable_debts = fetch_liquidable_debts(protocol, session)
     current_liquidable_debts_slot = 0
     if len(current_liquidable_debts) > 0:
-        current_liquidable_debts_slot = int(current_liquidable_debts.iloc[0]["slot"])
+        current_liquidable_debts_slot = int(current_liquidable_debts["slot"].max())
 
-    with get_db_session() as session:
-        current_loan_states: AnyLoanState = src.loans.loan_state.fetch_loan_states(protocol, session)
+    current_loan_states = src.loans.loan_state.fetch_loan_states(protocol, session)
     current_loan_states_slot = 0
     if len(current_liquidable_debts) > 0:
-        current_loan_states_slot = int(current_loan_states.iloc[0]["slot"])
+        current_loan_states_slot = int(current_loan_states["slot"].max())
 
     if not current_liquidable_debts_slot or current_liquidable_debts_slot < current_loan_states_slot:
-        process_function(current_loan_states)
+        if protocol == MARGINFI:
+            current_health_ratios = fetch_marginfi_health_ratios(protocol, session)
+            asyncio.run(process_function(current_loan_states, current_health_ratios))
+        else:
+            process_function(current_loan_states)
 
 
 def process_loan_states_continuously(protocol: Protocol):
-    logging.info("Starting loan states to liquidable_debts processing.")
+    logging.info("Starting loan states to liquidable debts processing.")
+    session = get_db_session()
 
     process_func = protocol_to_process_func(protocol)
 
     while True:
-        process_loan_states_to_liquidable_debts(protocol, process_func)
-        logging.info("Updated liquidable_debts.")
-        time.sleep(120)
+        start_time = time.time()
+        process_loan_states_to_liquidable_debts(protocol, process_func, session)
+        logging.info("Updated liquidable debts.")
+        processing_time = time.time() - start_time
+        time.sleep(max(0, 900 - processing_time))
