@@ -3,7 +3,7 @@ import sys
 
 sys.path.append(".")
 
-from src.loans.liquidable_debt import process_loan_states_continuously
+import src.loans.liquidable_debt
 
 
 if __name__ == "__main__":
@@ -14,4 +14,4 @@ if __name__ == "__main__":
 
     logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
-    process_loan_states_continuously(protocol)
+    src.loans.liquidable_debt.process_loan_states_continuously(protocol)

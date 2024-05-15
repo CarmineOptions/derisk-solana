@@ -1,10 +1,10 @@
+from typing import Callable, Literal, Type, TypeVar
 import logging
 import time
-from typing import Callable, Literal, Type, TypeVar
 
 import pandas
-from sqlalchemy import func
-from sqlalchemy.orm.session import Session
+import sqlalchemy
+import sqlalchemy.orm.session
 
 from db import (
     MangoLoanStates,
@@ -109,7 +109,20 @@ def protocol_to_model(
     raise ValueError(f"invalid protocol {protocol}")
 
 
-def store_loan_states(df: pandas.DataFrame, protocol: Protocol, session: Session):
+def widen_loan_states(loan_states: pandas.DataFrame) -> pandas.DataFrame:
+    if loan_states.empty:
+        return pandas.DataFrame(
+            columns=['protocol', 'slot', 'user', 'collateral_keys', 'collateral_values', 'debt_keys', 'debt_values'],
+        )
+    loan_states = loan_states.copy()
+    for column in ['collateral', 'debt']:
+        loan_states[f'{column}_keys'] = loan_states[column].apply(lambda x: tuple(sorted(x.keys())))
+        loan_states[f'{column}_values'] = loan_states[column].apply(lambda x: tuple(sorted(x.values())))
+    loan_states.drop(columns = ['collateral', 'debt'], inplace = True)
+    return loan_states
+
+
+def store_loan_states(df: pandas.DataFrame, protocol: Protocol, session: sqlalchemy.orm.session.Session):
     """
     Stores data from a pandas DataFrame to the loan_states table.
 
@@ -138,7 +151,7 @@ def store_loan_states(df: pandas.DataFrame, protocol: Protocol, session: Session
     session.commit()
 
 
-def fetch_loan_states(protocol: Protocol, session: Session) -> pandas.DataFrame:
+def fetch_loan_states(protocol: Protocol, session: sqlalchemy.orm.session.Session) -> pandas.DataFrame:
     """
     Fetches loan states with the max slot from the DB and returns them as a DataFrame
 
@@ -156,17 +169,22 @@ def fetch_loan_states(protocol: Protocol, session: Session) -> pandas.DataFrame:
 
     model = protocol_to_model(protocol)
 
-    # Define a subquery for the maximum slot value
-    max_slot_subquery = session.query(func.max(model.slot)).subquery()
+    # Define a subquery for the maximum slot per user.
+    subquery = session.query(
+        model.user,
+        sqlalchemy.func.max(model.slot).label('max_slot')
+    ).group_by(model.user).subquery('t2')
 
-    # Retrieve entries from the loan_states table where slot equals the maximum slot value
-    try:
-        query_result = session.query(model).filter(model.slot == max_slot_subquery).all()
-    except:
-        session.rollback()
-        query_result = session.query(model).filter(model.slot == max_slot_subquery).all()
+    # For each user, query the loan state with tha maximum slot.
+    query_result = session.query(model).join(
+        subquery,
+        sqlalchemy.and_(
+            model.user == subquery.c.user,
+            model.slot == subquery.c.max_slot
+        )
+    )
 
-    df = pandas.DataFrame(
+    return pandas.DataFrame(
         [
             {
                 "slot": record.slot,
@@ -175,13 +193,12 @@ def fetch_loan_states(protocol: Protocol, session: Session) -> pandas.DataFrame:
                 "collateral": record.collateral,
                 "debt": record.debt,
             }
-            for record in query_result
+            for record in query_result.all()
         ]
     )
-    return df
 
 
-def fetch_events(min_slot: int, protocol: Protocol, session: Session) -> AnyEvents:
+def fetch_events(min_slot: int, protocol: Protocol, session: sqlalchemy.orm.session.Session) -> AnyEvents:
     """
     Fetches loan states with the max slot from the DB and returns them as a DataFrame
 
@@ -229,7 +246,7 @@ def process_events_to_loan_states(
         [AnyEvents],
         pandas.DataFrame,
     ],
-    session: Session,
+    session: sqlalchemy.orm.session.Session,
 ):
     current_loan_states = fetch_loan_states(protocol, session)
     min_slot = 0
@@ -239,12 +256,14 @@ def process_events_to_loan_states(
 
     state = protocol_class(
         verbose_users={},
+        # TODO: switch back when the issues are solved
+        # initial_loan_states=current_loan_states,
     )
     state.get_unprocessed_events()
     logging.info('The number of unprocessed events = {} for protocol = {}.'.format(len(state.unprocessed_events), protocol))
     state.process_unprocessed_events()
     logging.info('The number of loan entities = {} for protocol = {}.'.format(len(state.loan_entities), protocol))
-    new_loan_state = pandas.DataFrame(
+    new_loan_states = pandas.DataFrame(
         {
             'protocol': [state.protocol for _ in state.loan_entities.keys()],
             'slot': [state.last_slot for _ in state.loan_entities.keys()],
@@ -255,16 +274,28 @@ def process_events_to_loan_states(
     )
 
     if state.last_slot > min_slot:
-        store_loan_states(new_loan_state, protocol, session)
+        new_loan_states_wide = widen_loan_states(new_loan_states)
+        current_loan_states_wide = widen_loan_states(current_loan_states)
+        COLUMNS = ['protocol', 'user', 'collateral_keys', 'collateral_values', 'debt_keys', 'debt_values']
+        changed_loan_states_users = pandas.concat(
+            [
+                new_loan_states_wide[COLUMNS],
+                current_loan_states_wide[COLUMNS],
+            ],
+        ).drop_duplicates(keep=False)['user'].unique()
+        changed_loan_states = new_loan_states[new_loan_states['user'].isin(changed_loan_states_users)]
+        store_loan_states(changed_loan_states, protocol, session)
 
 
 def process_events_continuously(protocol: Protocol):
-    logging.info("Starting events to loan_states processing.")
+    logging.info("Starting events to loan states processing.")
     session = get_db_session()
 
     protocol_class = protocol_to_protocol_class(protocol)
 
     while True:
+        start_time = time.time()
         process_events_to_loan_states(protocol, protocol_class, session)
-        logging.info("Updated loan_states.")
-        time.sleep(120)
+        logging.info("Updated loan states.")
+        processing_time = time.time() - start_time
+        time.sleep(max(0, 900 - processing_time))

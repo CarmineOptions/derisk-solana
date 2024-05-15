@@ -25,8 +25,6 @@ from sqlalchemy.types import Enum as SQLEnum
 from sqlalchemy import Index
 from sqlalchemy.dialects.postgresql import ARRAY as PG_ARRAY, JSONB
 
-from db.utils import check_bigint
-
 Base = declarative_base()
 
 POSTGRES_USER = os.environ.get("POSTGRES_USER")
@@ -852,6 +850,23 @@ class SolendHealthRatio(Base):
     risk_adjusted_debt = Column(String, nullable=False)
     protocol = Column(String, default='solend', nullable=False)
     timestamp = Column(BigInteger, default=lambda: int(time.time()), nullable=False)
+
+
+class MarginfiHealthRatio(Base):
+    __tablename__ = "marginfi_health_ratios"
+    __table_args__ = {"schema": SCHEMA_LENDERS}
+
+    slot = Column(BigInteger, primary_key=True, nullable=False)
+    last_update = Column(BigInteger, index=True, nullable=True)
+    user = Column(String, primary_key=True, nullable=False)
+    health_factor = Column(String, index=True, nullable=True)
+    std_health_factor = Column(String, index=True, nullable=True)
+    collateral = Column(String, nullable=False)
+    risk_adjusted_collateral = Column(String, nullable=False)
+    debt = Column(String, nullable=False)
+    risk_adjusted_debt = Column(String, nullable=False)
+    protocol = Column(String, default='marginfi', nullable=False)
+    timestamp = Column(BigInteger, default=int(time.time()), nullable=False)
 
 
 class MarginfiLiquidableDebts(Base):
