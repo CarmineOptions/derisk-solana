@@ -589,12 +589,15 @@ def compute_liquidable_debt_for_price_target(
     # get risk factor and define liquidable debt
     loan_states['health_factor'] = loan_states['total_debt_usd'] / loan_states['total_collateral_usd']
     loan_states['liquidable'] = loan_states['health_factor'] > 1
-    # 20% of the debt value is liquidated.
-    liquidable_debt_ratio = 0.2 + 0.05  # TODO liquidation_bonus
-    loan_states['debt_to_be_liquidated'] = liquidable_debt_ratio * loan_states[f'debt_usd_{debt_token}'] * loan_states[
-        'liquidable']
+    loan_states['liquidation_ratio'] = loan_states['health_factor'] - 1
+    loan_states['debt_to_be_liquidated'] = (
+        loan_states['liquidation_ratio']
+        * loan_states[f'debt_usd_{debt_token}']
+        * loan_states['liquidable']
+    )
     liquidatable_value = loan_states['debt_to_be_liquidated'].sum()
     return liquidatable_value
+
 
 def get_reserves() -> pd.DataFrame:
     connection = src.database.establish_connection()
