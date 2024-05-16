@@ -356,6 +356,9 @@ class SolendState(src.loans.state.State):
         :param token:
         :return:
         """
+        price = self.token_prices[token]
+        if price is not None:
+            return price
         last_update = 0
         price = None
         for i in self.reserve_configs.values():

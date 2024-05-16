@@ -154,7 +154,7 @@ class KaminoLoanEntity(src.loans.state.CustomLoanEntity):
             if reserve_config:
                 debt.decimals = reserve_config.liquidity.mint_decimals
                 debt.cumulative_borrow_rate_wad = reserve_config.liquidity.cumulative_borrow_rate_bsf.value[0]
-                price = prices[debt.mint] * SF
+                price = prices[debt.mint]
                 debt.underlying_asset_price_wad = price * SF if price is not None \
                     else reserve_config.liquidity.market_price_sf
                 debt.borrow_factor = reserve_config.config.borrow_factor_pct / 100
@@ -223,7 +223,7 @@ class KaminoState(src.loans.solend.SolendState):
     def _get_reserve_configs(self):
         reserves = []
         decoder = TransactionDecoder(
-            path_to_idl= Path(KAMINO_IDL_PATH),
+            path_to_idl=Path(KAMINO_IDL_PATH),
             program_id=Pubkey.from_string(KAMINO_ADDRESS)
         )
         for market in [LENDING_MARKET_MAIN, JLP_MARKET, ALTCOIN_MARKET]:
@@ -276,6 +276,24 @@ class KaminoState(src.loans.solend.SolendState):
 
                 session.add(new_health_ratio)
             session.commit()
+
+    def get_price_for(self, token: str):
+        """
+        Get the latest price for given token from reserve configs.
+        :param token:
+        :return:
+        """
+        price = self.token_prices[token]
+        if price is not None:
+            return price
+        last_update = 0
+        for reserve_config in self.reserve_configs.values():
+            if str(reserve_config.liquidity.mint_pubkey) == token:
+                if reserve_config.liquidity.market_price_last_updated_ts > last_update:
+                    last_update = reserve_config.liquidity.market_price_last_updated_ts
+                    price = reserve_config.liquidity.market_price_sf
+        assert price, f'failed to fetch price for {token}'
+        return int(price) / SF
 
     @staticmethod
     def fetch_accounts(pool_pubkey: str, client: Client, filters: List[Any]) -> List[RpcKeyedAccount]:

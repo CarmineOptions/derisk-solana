@@ -456,13 +456,13 @@ def process_kamino_loan_states(loan_states: list[KaminoLoanStates]) -> pandas.Da
                 )
             )
             liquidable_debt_data['amount'] = liquidable_debt.diff().abs()
-            liquidable_debt_data['protocol'] = 'solend'
+            liquidable_debt_data['protocol'] = 'kamino'
             liquidable_debt_data['slot'] = loan_states['slot'].max()
             liquidable_debt_data['collateral_token'] = collateral_token
             liquidable_debt_data['debt_token'] = debt_token
             liquidable_debt_data.dropna(inplace=True)
             with get_db_session() as session:
-                store_liquidable_debts(liquidable_debt_data, "solend", session)
+                store_liquidable_debts(liquidable_debt_data, "kamino", session)
                 LOGGER.info("Liquidable debt processing for pair successfully calculated and stored.")
 
         except Exception as e:
