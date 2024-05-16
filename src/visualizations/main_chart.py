@@ -15,7 +15,6 @@ import plotly.express
 import plotly.graph_objs
 
 import db
-import src.cta.cta
 
 # import src.protocols.dexes.amms
 # import src.database
@@ -473,26 +472,3 @@ def get_figure(
     )
     return figure
 
-
-def get_cta_message(data: pd.DataFrame, collateral_token: str, debt_token: str) -> str:  # pylint: disable=W0613
-    data = data.astype(float)
-    data['debt_to_supply_ratio'] = data['amount'] / data['debt_token_supply']
-    example_row = data[
-        data['debt_to_supply_ratio'] > 0.75
-    ].sort_values('collateral_token_price').iloc[-1]
-
-    if not example_row.empty:
-        message = src.cta.cta.generate_message(
-            price=int(example_row['collateral_token_price']),
-            liquidable_debt=example_row['amount'],
-            supply=example_row['debt_token_supply'],
-        )
-        # src.cta.cta.store_cta(
-        #     timestamp = time.time(),
-        #     collateral_token = collateral_token,
-        #     debt_token = debt_token,
-        #     message = message,
-        #     session = db.get_db_session(),
-        # )
-        return message
-    return ''

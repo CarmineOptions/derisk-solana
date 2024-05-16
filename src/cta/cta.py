@@ -222,7 +222,28 @@ def generate_and_store_ctas(session: Session):
 
         logging.info(f'Generated cta for {ix} out of {num_combos} combinations.')
     
+    
+def fetch_latest_cta_message(collateral_token_address: str, debt_token_address: str) -> db.CallToActions | None:
+    '''
+    For given collateral token and debt token, fetches latest CTA entry from DB.
 
+    Parameters: 
+    - collateral_token_address: String
+    - debt_token_address: String
+
+    Returns:
+    - latest CTA entry or None
+    '''
+    with db.get_db_session() as sesh:
+        message = sesh.query(db.CallToActions).filter(
+            (db.CallToActions.collateral_token == collateral_token_address) & 
+            (db.CallToActions.debt_token == debt_token_address)
+        ).order_by(db.CallToActions.timestamp.desc()).limit(1).all()
+
+    if message:
+        return message[0]
+
+    return None
 
 def generate_cta_continuously():
 
