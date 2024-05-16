@@ -25,7 +25,7 @@ def get_unique_token_supply_mints() -> list[str] | None:
 
     return [i[0] for i in addresses]
 
-@st.cache_data(ttl=datetime.timedelta(minutes=10))
+@st.cache_data(ttl=datetime.timedelta(minutes=120))
 def get_lending_tokens_with_tvl(prices, tokens) -> list[tuple[str, Decimal]]:
 
     with db.get_db_session() as session:
