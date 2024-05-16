@@ -75,6 +75,7 @@ class KaminoCollateralPosition(src.loans.state.CollateralPosition):
     def risk_adjusted_market_value(self):
         """ Position market value, USD """
         assert self.decimals is not None, f"Missing collateral mint decimals for {self.mint}"
+        assert self.liquidation_threshold is not None, f"Missing liquidation threshold for {self.mint}"
         assert self.c_token_exchange_rate, f"Missing collateral token exchange rate: " \
                                            f"{self.c_token_exchange_rate} for {self.mint}"
         assert self.underlying_asset_price_wad, f"Missing asset price: {self.underlying_asset_price_wad} for {self.mint}"
@@ -83,6 +84,7 @@ class KaminoCollateralPosition(src.loans.state.CollateralPosition):
                 * float(self.c_token_exchange_rate)
                 * int(self.underlying_asset_price_wad) / SF
                 / 10 ** self.decimals
+                * self.liquidation_threshold
         )
 
 
@@ -95,15 +97,13 @@ class KaminoDebtPosition(src.loans.state.DebtPosition):
         assert self.cumulative_borrow_rate_wad, f"Missing cumBorrowRate: {self.cumulative_borrow_rate_wad}" \
                                                 f" for {self.reserve}"
         assert self.borrow_factor, f"Missing borrow factor: {self.borrow_factor} for {self.reserve}"
-        assert self.liquidation_threshold is not None, f"Missing liquidation threshold for {self.mint}"
         assert self.underlying_asset_price_wad, f"Missing asset price: {self.underlying_asset_price_wad} for {self.reserve}"
         return (
                 self.raw_amount
                 * int(self.cumulative_borrow_rate_wad) / SF
                 * int(self.underlying_asset_price_wad) / SF
                 / 10 ** self.decimals
-                / self.borrow_factor
-                * self.liquidation_threshold
+                * self.borrow_factor
         )
 
     @lru_cache()
