@@ -46,10 +46,9 @@ class TransactionDecoder(ABC):
         self.transaction: EncodedTransactionWithStatusMeta | None = None
         self.error: int = None  # error index for failed transactions
 
-
-    @abstractmethod
-    def parse_transaction(self, transaction_with_meta: EncodedTransactionWithStatusMeta):
-        raise NotImplementedError('Implement me!')
+    # @abstractmethod
+    # def parse_transaction(self, transaction_with_meta: EncodedTransactionWithStatusMeta):
+    #     raise NotImplementedError('Implement me!')
 
     def _create_lending_account(self, event: Event):
         raise NotImplementedError('Implement me!')

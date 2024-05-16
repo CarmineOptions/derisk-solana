@@ -797,22 +797,6 @@ class MangoLoanStates(Base):
             f"debt={self.debt})"
         )
 
-class MangoHealthRatio(Base):
-    __tablename__ = "mango_health_ratios"
-    __table_args__ = {"schema": SCHEMA_LENDERS}
-
-    slot = Column(BigInteger, primary_key=True, nullable=False)
-    last_update = Column(BigInteger, index=True, nullable=True)
-    user = Column(String, primary_key=True, nullable=False)
-    health_factor = Column(String, index=True, nullable=False)
-    std_health_factor = Column(String, index=True, nullable=False)
-    collateral = Column(String, nullable=False)
-    risk_adjusted_collateral = Column(String, nullable=False)
-    debt = Column(String, nullable=False)
-    risk_adjusted_debt = Column(String, nullable=False)
-    protocol = Column(String, default='mango', nullable=False)
-    timestamp = Column(BigInteger, default=int(time.time()), nullable=False)
-
 
 class SolendLoanStates(Base):
     __tablename__ = "solend_loan_states"
@@ -834,11 +818,10 @@ class SolendLoanStates(Base):
             f"debt={self.debt})"
         )
 
-
-class SolendHealthRatio(Base):
-    __tablename__ = "solend_health_ratios"
+class HealthRatio(Base):
+    __abstract__ = True
+    __tablename__ = "health_ratios"
     __table_args__ = {"schema": SCHEMA_LENDERS}
-
     slot = Column(BigInteger, primary_key=True, nullable=False)
     last_update = Column(BigInteger, index=True, nullable=True)
     user = Column(String, primary_key=True, nullable=False)
@@ -848,25 +831,31 @@ class SolendHealthRatio(Base):
     risk_adjusted_collateral = Column(String, nullable=False)
     debt = Column(String, nullable=False)
     risk_adjusted_debt = Column(String, nullable=False)
-    protocol = Column(String, default='solend', nullable=False)
     timestamp = Column(BigInteger, default=lambda: int(time.time()), nullable=False)
 
 
-class MarginfiHealthRatio(Base):
+class MangoHealthRatio(HealthRatio):
+    __tablename__ = "mango_health_ratios"
+    __table_args__ = {"schema": SCHEMA_LENDERS}
+    protocol = Column(String, default='mango', nullable=False)
+
+
+class MarginfiHealthRatio(HealthRatio):
     __tablename__ = "marginfi_health_ratios"
     __table_args__ = {"schema": SCHEMA_LENDERS}
-
-    slot = Column(BigInteger, primary_key=True, nullable=False)
-    last_update = Column(BigInteger, index=True, nullable=True)
-    user = Column(String, primary_key=True, nullable=False)
-    health_factor = Column(String, index=True, nullable=True)
-    std_health_factor = Column(String, index=True, nullable=True)
-    collateral = Column(String, nullable=False)
-    risk_adjusted_collateral = Column(String, nullable=False)
-    debt = Column(String, nullable=False)
-    risk_adjusted_debt = Column(String, nullable=False)
     protocol = Column(String, default='marginfi', nullable=False)
-    timestamp = Column(BigInteger, default=int(time.time()), nullable=False)
+
+
+class SolendHealthRatio(HealthRatio):
+    __tablename__ = "solend_health_ratios"
+    __table_args__ = {"schema": SCHEMA_LENDERS}
+    protocol = Column(String, default='solend', nullable=False)
+
+
+class KaminoHealthRatio(HealthRatio):
+    __tablename__ = "kamino_health_ratios"
+    __table_args__ = {"schema": SCHEMA_LENDERS}
+    protocol = Column(String, default='kamino', nullable=False)
 
 
 class MarginfiLiquidableDebts(Base):

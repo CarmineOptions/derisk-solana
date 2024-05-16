@@ -48,6 +48,8 @@ warnings.simplefilter(action="ignore", category=pandas.errors.PerformanceWarning
 # Ignore all warnings
 warnings.filterwarnings('ignore')
 
+# logger
+LOGGER = logging.getLogger(__name__)
 
 MARGINFI = "marginfi"
 MANGO = "mango"
@@ -417,145 +419,59 @@ def process_mango_loan_states(loan_states: pandas.DataFrame) -> pandas.DataFrame
 
 
 def process_kamino_loan_states(loan_states: list[KaminoLoanStates]) -> pandas.DataFrame:
-    PROTOCOL = 'kamino'
-    logging.info("Processing = {} loan states for protocol = {}.".format(len(loan_states), PROTOCOL))
+    logging.info(f"processing {len(loan_states)} Solend loan states")
+    # Create SolendState instance with current loan states.
+    state = src.loans.kamino.KaminoState(initial_loan_states=loan_states)
+    # get all present collateral/debt token pairs
+    relevant_pairs = state.find_relevant_debt_collateral_pairs()
+    # get all collateral and debt mints that at least once appears within current loan states.
+    collateral_mints, debt_mints = state.get_all_unique_mints()
+    # build dataframe of loan states with flattened positions (debt and collateral)
+    # number of new columns equals to 'len(collateral_mints) + len(debt_mints) + 2`
+    df_new = state.loan_entities_to_df(collateral_mints, debt_mints)
 
-    # Get mappings between mint and LP tokens and mint and supply vaults.
-    MINT_TO_LP_MAPPING = {x: [] for x in src.kamino_vault_map.lp_to_mint_map.values()}
-    for x, y in src.kamino_vault_map.lp_to_mint_map.items():
-        MINT_TO_LP_MAPPING[y].append(x)
-    MINT_TO_SUPPLY_MAPPING = {x: [] for x in src.kamino_vault_map.supply_vault_to_mint_map.values()}
-    for x, y in src.kamino_vault_map.supply_vault_to_mint_map.items():
-        MINT_TO_SUPPLY_MAPPING[y].append(x)
+    # compute liquidable debt values for all debt/collateral token pairs present in current loan states
+    for (debt_token, collateral_token), params in relevant_pairs.items():
+        LOGGER.info(f"Start processing {debt_token} - {collateral_token}")
+        try:
+            ctokens = list(params['collateral_mints'])
+            users = list(params['users'])
+            loan_states = df_new.loc[users].copy()
+            collateral_token_price = state.get_price_for(collateral_token)
 
-    # Extract a set of collateral and debt tokens used.
-    collateral_tokens = {token for collateral in loan_states['collateral'] for token in collateral}
-    debt_tokens = {token for debt in loan_states['debt'] for token in debt}
-
-    # Get underlying token prices.
-    underlying_collateral_tokens = [
-        src.kamino_vault_map.lp_to_mint_map[x]
-        for x in collateral_tokens
-        if x in src.kamino_vault_map.lp_to_mint_map
-    ]
-    underlying_debt_tokens = [
-        src.kamino_vault_map.supply_vault_to_mint_map[x]
-        for x in debt_tokens
-        if x in src.kamino_vault_map.supply_vault_to_mint_map
-    ]
-    token_prices = src.prices.get_prices_for_tokens(underlying_collateral_tokens + underlying_debt_tokens)
-
-    # Get token parameters.
-    collateral_token_parameters = {
-        token: src.kamino_vault_map.lp_to_info_map.get(token, None)
-        for token
-        in collateral_tokens
-    }
-    debt_token_parameters = {
-        debt_token: src.kamino_vault_map.supply_to_info_map.get(debt_token, None)
-        for debt_token
-        in debt_tokens
-    }
-
-    # Put collateral and debt token holdings into the loan states df.
-    for token in collateral_tokens:
-        loan_states[f'collateral_{token}'] = loan_states['collateral'].apply(
-            lambda x: x[token] if token in x else decimal.Decimal('0')
-        )
-    for token in debt_tokens:
-        loan_states[f'debt_{token}'] = loan_states['debt'].apply(
-            lambda x: x[token] if token in x else decimal.Decimal('0')
-        )
-
-    # Compute the USD value of collateral and debt token holdings.
-    for token in collateral_tokens:
-        if not collateral_token_parameters[token]:
-            continue
-        if not collateral_token_parameters[token]['underlying_decs']:
-            continue
-        decimals = collateral_token_parameters[token]['underlying_decs']
-        ltv = collateral_token_parameters[token]['ltv']
-        underlying_token = src.kamino_vault_map.lp_to_mint_map[token]
-        loan_states[f'collateral_usd_{token}'] = (
-            loan_states[f'collateral_{token}'].astype(float)
-            / (10**decimals)
-            * (ltv/100)
-            * token_prices[underlying_token]
-        )
-    for debt_token in debt_tokens:
-        if not debt_token_parameters[debt_token]:
-            continue
-        if not debt_token_parameters[debt_token]['underlying_decs']:
-            continue
-        decimals = debt_token_parameters[debt_token]['underlying_decs']
-        ltv = debt_token_parameters[debt_token]['ltv']
-        underlying_token = src.kamino_vault_map.supply_vault_to_mint_map[debt_token]
-        loan_states[f'debt_usd_{debt_token}'] = (
-            loan_states[f'debt_{debt_token}'].astype(float)
-            / (10**decimals)
-            * (1/(ltv/100) if ltv else 1)
-            * token_prices[underlying_token]
-        )
-
-    # These contain the underlying token addresses.
-    COLLATERAL_TOKENS = {
-        src.kamino_vault_map.lp_to_mint_map[x]
-        for x in collateral_tokens
-        if x in src.kamino_vault_map.lp_to_mint_map
-    }
-    DEBT_TOKENS = {
-        src.kamino_vault_map.supply_vault_to_mint_map[x]
-        for x in debt_tokens
-        if x in src.kamino_vault_map.supply_vault_to_mint_map
-    }
-
-    for collateral_token, debt_token in itertools.product(COLLATERAL_TOKENS, DEBT_TOKENS):
-        if collateral_token == debt_token:
-            continue
-
-        logging.info(
-            'Computing liquidable debt for protocol = {}, collateral token = {} and debt token = {}.'.format(
-                PROTOCOL,
-                collateral_token,
-                debt_token,
+            liquidable_debt_data = pandas.DataFrame(
+                {
+                    "collateral_token_price": get_token_range(collateral_token_price)
+                }
             )
-        )
 
-        collateral_token_price = token_prices[collateral_token]
-        # The price is usually not found for unused tokens.
-        if not collateral_token_price:
+            liquidable_debt = liquidable_debt_data['collateral_token_price'].apply(
+                lambda x: src.loans.kamino.compute_liquidable_debt_for_price_target(
+                    loan_states=loan_states.copy(),
+                    target_price=x,
+                    debt_token=debt_token,
+                    collateral_mints=ctokens,
+                    original_price=collateral_token_price,
+                    collateral_underlying_token=collateral_token
+                )
+            )
+            liquidable_debt_data['amount'] = liquidable_debt.diff().abs()
+            liquidable_debt_data['protocol'] = 'kamino'
+            liquidable_debt_data['slot'] = loan_states['slot'].max()
+            liquidable_debt_data['collateral_token'] = collateral_token
+            liquidable_debt_data['debt_token'] = debt_token
+            liquidable_debt_data.dropna(inplace=True)
+            with get_db_session() as session:
+                store_liquidable_debts(liquidable_debt_data, "kamino", session)
+                LOGGER.info("Liquidable debt processing for pair successfully calculated and stored.")
+
+        except Exception as e:
+            # Log the error with traceback
+            LOGGER.error("An error occurred: %s", traceback.format_exc())
             continue
 
-        # Compute liqidable debt.
-        data = pandas.DataFrame(
-            {
-                "collateral_token_price": src.visualizations.main_chart.get_token_range(collateral_token_price),
-            }
-        )
-        liquidable_debt = data['collateral_token_price'].apply(
-            lambda x: src.loans.kamino.compute_liquidable_debt_at_price(
-                loan_states = loan_states.copy(),
-                token_prices = token_prices,
-                debt_token_parameters = debt_token_parameters,
-                mint_to_lp_map=MINT_TO_LP_MAPPING,
-                mint_to_supply_map=MINT_TO_SUPPLY_MAPPING,
-                collateral_token = collateral_token,
-                target_collateral_token_price = x,
-                debt_token = debt_token,
-            )
-        )
-        data['amount'] = liquidable_debt.diff().abs()
-        data['protocol'] = PROTOCOL
-        data['slot'] = loan_states['slot'].max()
-        data['collateral_token'] = collateral_token
-        data['debt_token'] = debt_token
-        data.dropna(inplace = True)
-        with get_db_session() as session:
-            store_liquidable_debts(data, "kamino", session)
 
-
-def process_solend_loan_states(loan_states: pandas.DataFrame) -> pandas.DataFrame:
-    # TODO: process solend loan_states
+def process_solend_loan_states(loan_states: pandas.DataFrame) -> None:
     logging.info(f"processing {len(loan_states)} Solend loan states")
     # Create SolendState instance with current loan states.
     state = src.loans.solend.SolendState(initial_loan_states=loan_states)
@@ -569,6 +485,7 @@ def process_solend_loan_states(loan_states: pandas.DataFrame) -> pandas.DataFram
 
     # compute liquidable debt values for all debt/collateral token pairs present in current loan states
     for (debt_token, collateral_token), params in relevant_pairs.items():
+        LOGGER.info(f"Start processing {debt_token} - {collateral_token}")
         try:
             ctokens = list(params['collateral_mints'])
             users = list(params['users'])
@@ -599,11 +516,11 @@ def process_solend_loan_states(loan_states: pandas.DataFrame) -> pandas.DataFram
             liquidable_debt_data.dropna(inplace=True)
             with get_db_session() as session:
                 store_liquidable_debts(liquidable_debt_data, "solend", session)
-                logging.info(f"Success.")
+                LOGGER.info("Liquidable debt processing for pair successfully calculated and stored.")
 
         except Exception as e:
             # Log the error with traceback
-            logging.error("An error occurred: %s", traceback.format_exc())
+            LOGGER.error("An error occurred: %s", traceback.format_exc())
             continue
 
 
