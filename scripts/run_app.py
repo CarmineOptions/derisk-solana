@@ -16,6 +16,7 @@ import numpy as np
 # import src.persistent_state
 # import src.prices
 # import src.visualizations.histogram
+import src.cta.cta
 import src.prices
 import src.visualizations.protocol_stats
 import src.protocols
@@ -91,12 +92,13 @@ def main():
 
     # Compute the price at which the liquidable debt to the available supply ratio is dangerous. Create and display the
     # warning message.
-    cta_message = src.visualizations.main_chart.get_cta_message(
-        data=main_chart_data,
-        collateral_token=selected_tokens.collateral.address,
-        debt_token=selected_tokens.loan.address,
+    cta_message = src.cta.cta.fetch_latest_cta_message(
+        collateral_token_address=selected_tokens.collateral.address,
+        debt_token_address=selected_tokens.loan.address,
     )
-    st.write(cta_message)
+
+    if cta_message:
+        st.write(cta_message.message)
 
     # # Select the range of debt in USD and display individual loans with the lowest health factors.
     # streamlit.header("Loans with low health factor")
