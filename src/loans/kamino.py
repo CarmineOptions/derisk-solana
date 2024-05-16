@@ -102,8 +102,8 @@ class KaminoDebtPosition(src.loans.state.DebtPosition):
                 * int(self.cumulative_borrow_rate_wad) / SF
                 * int(self.underlying_asset_price_wad) / SF
                 / 10 ** self.decimals
-                / self.borrow_factor
-                * self.liquidation_threshold
+                * self.borrow_factor
+                / self.liquidation_threshold
         )
 
     @lru_cache()
