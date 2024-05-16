@@ -481,34 +481,38 @@ def compute_liquidable_debt_for_price_target(
     price_ratio = target_price / original_price
     # update risk adjusted market value for relevant cTokens
     for collateral_mint in collateral_mints:
-        loan_states[f'collateral_usd_{collateral_mint}'] = (
-                loan_states[f'collateral_usd_{collateral_mint}']
+        loan_states[f'collateral_usd_risk_adjusted_{collateral_mint}'] = (
+                loan_states[f'collateral_usd_risk_adjusted_{collateral_mint}']
                 * price_ratio
         )
     # update risk adjusted market value of corresponding debt
-    if f'debt_usd_{collateral_underlying_token}' in loan_states.columns:
-        loan_states[f'debt_usd_{collateral_underlying_token}'] = (
-                loan_states[f'debt_usd_{collateral_underlying_token}']
+    if f'debt_usd_risk_adjusted_{collateral_underlying_token}' in loan_states.columns:
+        loan_states[f'debt_usd_risk_adjusted_{collateral_underlying_token}'] = (
+                loan_states[f'debt_usd_risk_adjusted_{collateral_underlying_token}']
                 * price_ratio
         )
 
     # compute total risk adjusted deposited value
-    loan_states['total_collateral_usd'] = loan_states[[
-        x for x in loan_states.columns if 'collateral_usd_' in x
+    loan_states['total_collateral_usd_risk_adjusted'] = loan_states[[
+        x for x in loan_states.columns if 'collateral_usd_risk_adjusted_' in x
     ]].sum(axis=1)
     # compute total risk adjusted debt value
-    loan_states['total_debt_usd'] = loan_states[[x for x in loan_states.columns if 'debt_usd_' in x]].sum(axis=1)
+    loan_states['total_debt_usd_risk_adjusted'] = loan_states[
+        [x for x in loan_states.columns if 'debt_usd_risk_adjusted_' in x]].sum(axis=1)
     # get risk factor and define liquidable debt
-    loan_states['health_factor'] = loan_states['total_debt_usd'] / loan_states['total_collateral_usd']
+    loan_states['health_factor'] = loan_states['total_debt_usd_risk_adjusted'] / loan_states[
+        'total_collateral_usd_risk_adjusted']
     loan_states['liquidable'] = loan_states['health_factor'] > 1
     loan_states['liquidation_ratio'] = loan_states['health_factor'] - 1
-    loan_states['debt_to_be_liquidated'] = (
-        loan_states['liquidation_ratio']
-        * loan_states[f'debt_usd_{debt_token}']
-        * loan_states['liquidable']
-    )
+
+    def calculate_debt_to_be_liquidated(row):
+        calculated_value = row['liquidation_ratio'] * row[f'debt_usd_{debt_token}'] * row['liquidable']
+        return min(calculated_value, row[f'debt_usd_{debt_token}'])
+
+    loan_states['debt_to_be_liquidated'] = loan_states.apply(calculate_debt_to_be_liquidated, axis=1)
     liquidatable_value = loan_states['debt_to_be_liquidated'].sum()
     return liquidatable_value
+
 
 def get_kamino_user_stats_df(loan_states: pandas.DataFrame) -> pandas.DataFrame:
 
