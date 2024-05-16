@@ -218,6 +218,13 @@ Query parameters:
 
 Returns an array of current loan states.
 
+##### `/v1/health-ratios`
+
+Query parameters:
+ - `protocol` - name of the protocol
+
+Returns an array of current loan states.
+
 ##### `/v1/cta`
 
 Query parameters:
