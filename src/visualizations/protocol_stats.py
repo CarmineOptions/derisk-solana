@@ -1,4 +1,5 @@
 from decimal import Decimal
+import logging
 
 import pandas as pd
 import sqlalchemy
@@ -87,7 +88,7 @@ def get_lending_tokens_with_tvl(prices, tokens) -> list[tuple[str, Decimal]]:
         entry["price"] = Decimal(str(price)) if price else None
 
         if not price:
-            print(f'cant find price for addr: {entry["address"]}')
+            logging.warning(f'Cant find price for address: {entry["address"]}')
             continue
 
     tvls = []
