@@ -130,7 +130,7 @@ def protocol_to_model(
 def get_liquidable_debt(
     protocols: list[str],
     token_pair: TokensSelected,
-) -> pd.DataFrame:
+) -> pd.DataFrame | None:
     # db models of all selected protocols
     db_models = [protocol_to_model(protocol) for protocol in protocols]
 
@@ -149,6 +149,8 @@ def get_liquidable_debt(
                 )
             except ValueError:
                 print(f"no data for {db_model}")
+        if not data: 
+            return None
 
         df = pd.DataFrame(
             [
