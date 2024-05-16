@@ -30,6 +30,7 @@ import src.visualizations.user_stats
 
 def main():
     st.title("DeRisk Solana")
+    logging.info('Start loading the Dashboard')
 
     tokens_available = src.visualizations.protocol_stats.get_unique_token_supply_mints()
     if not tokens_available:
@@ -192,6 +193,7 @@ def main():
     user_stats_df = src.visualizations.user_stats.load_users_stats(protocols)
     st.dataframe(user_stats_df, use_container_width=True)
 
+    logging.info('Dashboard loaded')
 # t = data[0][1][['protocol', 'Borrowed', 'Deposits', 'Available']].groupby('protocol').sum()
 
 
