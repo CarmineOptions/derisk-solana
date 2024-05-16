@@ -139,12 +139,20 @@ def get_liquidable_debt(
         for db_model in db_models:
             try:
                 # data over all protocols
+                latest_slot_subquery = (
+                    session.query(db_model.slot)
+                    .filter(db_model.collateral_token == token_pair.collateral.address)
+                    .filter(db_model.debt_token == token_pair.loan.address)
+                    .order_by(db_model.slot.desc())
+                    .limit(1)
+                ).subquery()
+
+                # data over all protocols
                 data += (
                     session.query(db_model)
-                    .filter(
-                        db_model.collateral_token == token_pair.collateral.address
-                    )
+                    .filter(db_model.collateral_token == token_pair.collateral.address)
                     .filter(db_model.debt_token == token_pair.loan.address)
+                    .filter(db_model.slot == latest_slot_subquery.c.slot)
                     .all()
                 )
             except ValueError:
