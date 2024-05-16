@@ -7,12 +7,14 @@ import pandas as pd
 from sqlalchemy.orm.session import Session
 from sqlalchemy.orm import aliased
 from sqlalchemy.sql import func
+import sqlalchemy
 import streamlit as st
 
 import src.loans.mango
 import src.loans.kamino
 import src.loans.marginfi
 import src.loans.solend
+from src.loans.loan_state import protocol_to_model
 
 from src.visualizations.shared import AnyHealthRatioModel, get_health_ratio_protocol_model
 
@@ -70,6 +72,38 @@ def fetch_health_ratios(session: Session, model: AnyHealthRatioModel, n: int) ->
 	return pd.DataFrame(data)
 
 
+def fetch_loan_states_for_users(session: Session, protocol: str, users: list[str]) -> pd.DataFrame:
+
+    model = protocol_to_model(protocol)
+    subquery = session.query(
+        model.user,
+        sqlalchemy.func.max(model.slot).label('max_slot')
+    ).group_by(model.user).subquery('t2')
+
+    # For each user, query the loan state with tha maximum slot.
+    query_result = session.query(model).join(
+        subquery,
+        sqlalchemy.and_(
+            model.user == subquery.c.user,
+            model.slot == subquery.c.max_slot
+        )
+    ).filter(model.user.in_(users))
+
+    df = pd.DataFrame(
+        [
+            {
+                "slot": record.slot,
+                "protocol": record.protocol,
+                "user": record.user,
+                "collateral": record.collateral,
+                "debt": record.debt,
+            }
+            for record in query_result.all()
+        ]
+    )
+    return df
+
+
 @st.cache_data(ttl=datetime.timedelta(minutes=60), show_spinner = 'Loading health ratios.')
 def load_user_health_ratios_single_protocol(_session: Session, protocol: str) -> pd.DataFrame | None:
 	model = get_health_ratio_protocol_model(protocol)
@@ -88,10 +122,12 @@ def load_user_health_ratios_single_protocol(_session: Session, protocol: str) ->
 	health_ratios_df = health_ratios_df.rename(columns={'collateral': 'collateral_usd', 'debt': 'debt_usd'})
 
 	# Fetch loan states 
-	# TODO: Here we're fetching all of loan states, but the health ratios we need
-	# are the ones present in health_ratios_df (there's only 50 of them)
-	# so use custom loan_states fetcher that can specify users to fetch data for
-	loan_states_df = fetch_loan_states(protocol, _session)
+	loan_states_df = fetch_loan_states_for_users(_session, protocol, list(health_ratios_df['user']))
+
+	if len(loan_states_df) == 0:
+		logging.warning(f'No loan states found for protocol "{protocol}"')
+		return None
+
 	# Select only needed columns
 	loan_states_df = loan_states_df[['user', 'collateral', 'debt']]
 
