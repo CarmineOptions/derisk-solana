@@ -83,8 +83,9 @@ def get_transactions():
         abort(400, description="cannot fetch interval longer then 60 seconds")
 
     transactions = (
-        TransactionStatusWithSignature.query.options(load_only("id", "slot"))
-        .filter(
+        TransactionStatusWithSignature.query.options(
+            load_only(TransactionStatusWithSignature.id, TransactionStatusWithSignature.slot)
+        ).filter(
             TransactionStatusWithSignature.block_time >= start_time,
             TransactionStatusWithSignature.block_time <= end_time,
         )
