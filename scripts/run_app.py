@@ -99,8 +99,8 @@ def main():
     )
 
     if cta_message:
-        st.write(cta_message.message)
-
+        st.subheader(":warning:")
+        st.subheader(cta_message.message)
     # # Select the range of debt in USD and display individual loans with the lowest health factors.
     # streamlit.header("Loans with low health factor")
     # loans_table_data = src.visualizations.loans_table.load_data(protocols=protocols, token_pair=token_pair)  # type: ignore
@@ -185,48 +185,19 @@ def main():
                 )
                 st.plotly_chart(figure, True)
 
-    st.subheader("User healths")
-    user_health_ratios_df = src.visualizations.loans_table.load_user_health_ratios(protocols)
-    st.dataframe(user_health_ratios_df.sort_values('Standardized Health Factor', ascending=True).head(50), use_container_width=True)
-    
-    st.subheader("User statistics")
+    st.subheader("Protocol statistics")
     user_stats_df = src.visualizations.user_stats.load_users_stats(protocols)
     st.dataframe(user_stats_df, use_container_width=True)
 
+    st.header("Loans with the lowest health factor")
+    user_health_ratios_df = src.visualizations.loans_table.load_user_health_ratios(protocols)
+    st.dataframe(
+        user_health_ratios_df[user_health_ratios_df['Collateral (USD)'] != '0']
+            .sort_values('Standardized Health Factor', ascending=True)
+            .head(50),
+        use_container_width=True,
+    )
     logging.info('Dashboard loaded')
-# t = data[0][1][['protocol', 'Borrowed', 'Deposits', 'Available']].groupby('protocol').sum()
-
-
-# data = list(df.groupby('symbol'))
-
-# # Plot supply, collateral and debt stats for all lending protocols.
-# collateral_stats = src.visualizations.protocol_stats.load_collateral_stats()
-# debt_stats = src.visualizations.protocol_stats.load_debt_stats()
-# supply_stats = src.visualizations.protocol_stats.load_supply_stats()
-# columns = streamlit.columns(6)
-# for column, token in zip(columns, src.visualizations.settings.TOKENS):
-# 	with column:
-# 		collateral_stats_figure = src.visualizations.protocol_stats.get_collateral_stats_figure(
-# 			data=collateral_stats,
-# 			token=token,
-# 		)
-# 		streamlit.plotly_chart(figure_or_data=collateral_stats_figure, use_container_width=True)
-# 		debt_stats_figure = src.visualizations.protocol_stats.get_debt_stats_figure(
-# 			data=debt_stats,
-# 			token=token,
-# 		)
-# 		streamlit.plotly_chart(figure_or_data=debt_stats_figure, use_container_width=True)
-# 		supply_stats_figure = src.visualizations.protocol_stats.get_supply_stats_figure(
-# 			data=supply_stats,
-# 			token=token,
-# 		)
-# 		streamlit.plotly_chart(figure_or_data=supply_stats_figure, use_container_width=True)
-
-# # Plot histograms of loan size distribution.
-# streamlit.header("Loan size distribution")
-# histogram_data = src.visualizations.histogram.load_data(protocols=protocols, token_pair=token_pair)  # type: ignore
-# histogram_figure = src.visualizations.histogram.get_figure(data=histogram_data)
-# streamlit.plotly_chart(figure_or_data=histogram_figure, use_container_width=True)
 
 # # Display information about the last update.
 # last_update = src.persistent_state.get_last_update()
