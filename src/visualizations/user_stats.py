@@ -17,10 +17,10 @@ from src.visualizations.shared import AnyHealthRatioModel, get_health_ratio_prot
 
 def fetch_protocol_user_stats(session: Session, model: AnyHealthRatioModel) -> dict[str, float]:
     
-    # Subquery to get the latest timestamp for each user
+    # Subquery to get the latest slot for each user
     subquery = session.query(
         model.user,
-        func.max(model.timestamp).label('latest_timestamp')
+        func.max(model.slot).label('latest_slot')
     ).group_by(model.user).subquery()
 
     active_users_case = sqlalchemy.case((model.collateral.cast(Float)>0, 1), else_=None)
@@ -36,7 +36,7 @@ def fetch_protocol_user_stats(session: Session, model: AnyHealthRatioModel) -> d
         subquery,
         and_(
             model.user == subquery.c.user,
-            model.timestamp == subquery.c.latest_timestamp
+            model.slot == subquery.c.latest_slot
         )
     )
     
@@ -51,28 +51,35 @@ def fetch_protocol_user_stats(session: Session, model: AnyHealthRatioModel) -> d
     }
 
 
-@st.cache_data(ttl=datetime.timedelta(minutes=60))
-def get_users_stats(protocols: list[str]) -> pd.DataFrame:
+@st.cache_data(ttl=datetime.timedelta(minutes=60), show_spinner = 'Loading user stats.')
+def load_users_stats_single_protocol(_session: Session, protocol: str) -> dict[str, float|str] | None:
+    # Get the correct model for given protocol
+    model = get_health_ratio_protocol_model(protocol)
+
+    if not model:
+        return None
+
+    logging.info(f'Fetching user stats for "{protocol}"')
+
+    stats = fetch_protocol_user_stats(_session, model)
+
+    stats['protocol'] = protocol.capitalize()
+    return stats
+
+
+def load_users_stats(protocols: list[str]) -> pd.DataFrame:
     """
     For list of protocols it returns a dataframe containg all users stats.
     """
     data = []
-
-    with db.get_db_session() as sesh:
+    with db.get_db_session() as session:
         for protocol in protocols:
-            # Get the correct model for given protocol
-            model = get_health_ratio_protocol_model(protocol)
-
-            if not model:
-                logging.error(f'Unable to find HealthRatio model for protocol "{protocol}"')
+            stats = load_users_stats_single_protocol(session, protocol)
+            
+            if stats is None:
+                logging.error(f'Unable to get user stats data for protocol "{protocol}"')
                 continue
-
-            logging.info(f'Fetching user stats for "{protocol}"')
-
-            stats = fetch_protocol_user_stats(sesh, model)
-
-            stats['protocol'] = protocol.capitalize()
-
+                
             data.append(stats)
 
     full_df = pd.DataFrame(data)   
@@ -83,5 +90,5 @@ def get_users_stats(protocols: list[str]) -> pd.DataFrame:
         'total_debt': "Total debt (USD)",
         'total_risk_adj_collateral': "Total risk adjusted collateral (USD)"
     })
-
+    
     return full_df.set_index('Protocol')

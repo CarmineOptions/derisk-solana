@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+import datetime
 # import math
 from typing import Iterator
 # import decimal
@@ -9,6 +10,7 @@ import time
 
 # import time
 
+import streamlit as st
 import sqlalchemy
 import pandas as pd
 import plotly.express
@@ -370,6 +372,7 @@ def get_debt_token_supply_at_price_point(
     return supply
 
 
+@st.cache_data(ttl=datetime.timedelta(minutes=30))
 def get_main_chart_data(
     protocols: list[str],
     token_selection: TokensSelected,

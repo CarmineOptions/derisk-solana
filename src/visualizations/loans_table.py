@@ -42,13 +42,13 @@ def fetch_health_ratios(session: Session, model: AnyHealthRatioModel, n: int) ->
 	"""
 	subquery = session.query(
 		model.user,
-		func.max(model.timestamp).label('latest_timestamp')
+		func.max(model.slot).label('latest_slot')
 	).group_by(model.user).subquery()
 
 	# Join the subquery with the main table to get the latest entries
 	latest_entries_query = session.query(model).join(
 		subquery,
-		(model.user == subquery.c.user) & (model.timestamp == subquery.c.latest_timestamp)
+		(model.user == subquery.c.user) & (model.slot == subquery.c.latest_slot)
 	).filter(model.health_factor.isnot(None))
 
 	latest_entries = latest_entries_query.order_by(model.std_health_factor.asc()).limit(n).all()
@@ -69,60 +69,68 @@ def fetch_health_ratios(session: Session, model: AnyHealthRatioModel, n: int) ->
 
 	return pd.DataFrame(data)
 
-@st.cache_data(ttl=datetime.timedelta(minutes=60))
+
+@st.cache_data(ttl=datetime.timedelta(minutes=60), show_spinner = 'Loading health ratios.')
+def load_user_health_ratios_single_protocol(_session: Session, protocol: str) -> pd.DataFrame | None:
+	model = get_health_ratio_protocol_model(protocol)
+
+	if not model:
+		return None
+
+	logging.info(f'Fetching user health ratios for "{protocol}"')
+
+	# Fetch health ratios data
+	health_ratios_df = fetch_health_ratios(_session, model, 50)
+	# Drop redundant columns
+	health_ratios_df = health_ratios_df.drop(['timestamp', 'slot', 'last_update'], axis =1)
+	# Rename some collumns that are also present in loan states 
+	# (in loan states these collumns contain the dict with debt/collateral holdings)
+	health_ratios_df = health_ratios_df.rename(columns={'collateral': 'collateral_usd', 'debt': 'debt_usd'})
+
+	# Fetch loan states 
+	# TODO: Here we're fetching all of loan states, but the health ratios we need
+	# are the ones present in health_ratios_df (there's only 50 of them)
+	# so use custom loan_states fetcher that can specify users to fetch data for
+	loan_states_df = fetch_loan_states(protocol, _session)
+	# Select only needed columns
+	loan_states_df = loan_states_df[['user', 'collateral', 'debt']]
+
+	# Merge health ratios and loan states so we have user holdings
+	# also present in the table
+	full_df = health_ratios_df.merge(loan_states_df, on = 'user')
+	# Rename collumns to make it nicer
+	full_df = full_df.rename(columns={
+		'user': 'User',
+		'protocol': 'Protocol',
+		'health_factor': 'Health Factor',
+		'std_health_factor': 'Standardized Health Factor',
+		'collateral_usd': 'Collateral (USD)',
+		'risk_adjusted_collateral': 'Risk. Adj. Collateral',
+		'debt_usd': 'Debt (USD)',
+		'risk_adjusted_debt': 'Risk. Adj. Debt',
+		'collateral': 'Collaterals',
+		'debt': 'Debts'
+	})
+	
+	return full_df
+
+
 def load_user_health_ratios(protocols: list[str]) -> pd.DataFrame:
 	"""
 	For list of protocols it returns a dataframe containg all users health ratios.
 	"""
 
 	data = []
-
-	with db.get_db_session() as sesh:
+	with db.get_db_session() as session:
 		for protocol in protocols:
 
 			# Get the correct model for given protocol
-			model = get_health_ratio_protocol_model(protocol)
-
-			if not model:
-				logging.error(f'Unable to find HealthRatio model for protocol "{protocol}"')
+			df = load_user_health_ratios_single_protocol(session, protocol)
+			if df is None:
+				logging.error(f'Unable to get user health ratios data for protocol "{protocol}"')
 				continue
 
-			logging.info(f'Fetching user health ratios for "{protocol}"')
-
-			# Fetch health ratios data
-			health_ratios_df = fetch_health_ratios(sesh, model, 50)
-			# Drop redundant columns
-			health_ratios_df = health_ratios_df.drop(['timestamp', 'slot', 'last_update'], axis =1)
-			# Rename some collumns that are also present in loan states 
-			# (in loan states these collumns contain the dict with debt/collateral holdings)
-			health_ratios_df = health_ratios_df.rename(columns={'collateral': 'collateral_usd', 'debt': 'debt_usd'})
-
-			# Fetch loan states 
-			# TODO: Here we're fetching all of loan states, but the health ratios we need
-			# are the ones present in health_ratios_df (there's only 50 of them)
-			# so use custom loan_states fetcher that can specify users to fetch data for
-			loan_states_df = fetch_loan_states(protocol, sesh)
-			# Select only needed columns
-			loan_states_df = loan_states_df[['user', 'collateral', 'debt']]
-
-			# Merge health ratios and loan states so we have user holdings
-			# also present in the table
-			full_df = health_ratios_df.merge(loan_states_df, on = 'user')
-			# Rename collumns to make it nicer
-			full_df = full_df.rename(columns={
-				'user': 'User',
-				'protocol': 'Protocol',
-				'health_factor': 'Health Factor',
-				'std_health_factor': 'Standardized Health Factor',
-				'collateral_usd': 'Collateral (USD)',
-				'risk_adjusted_collateral': 'Risk. Adj. Collateral',
-				'debt_usd': 'Debt (USD)',
-				'risk_adjusted_debt': 'Risk. Adj. Debt',
-				'collateral': 'Collaterals',
-				'debt': 'Debts'
-			})
-
-			data.append(full_df)
+			data.append(df)
 
 	return pd.concat(data).set_index('User')
 

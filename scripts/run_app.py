@@ -189,7 +189,7 @@ def main():
     st.dataframe(user_health_ratios_df.sort_values('Standardized Health Factor', ascending=True).head(50), use_container_width=True)
     
     st.subheader("User statistics")
-    user_stats_df = src.visualizations.user_stats.get_users_stats(protocols)
+    user_stats_df = src.visualizations.user_stats.load_users_stats(protocols)
     st.dataframe(user_stats_df, use_container_width=True)
 
 # t = data[0][1][['protocol', 'Borrowed', 'Deposits', 'Available']].groupby('protocol').sum()
@@ -236,7 +236,7 @@ def main():
 
 if __name__ == "__main__":
 
-    logging.basicConfig(level=logging.INFO)
+    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
     st.set_page_config(
         layout="wide",
