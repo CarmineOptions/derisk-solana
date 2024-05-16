@@ -181,8 +181,8 @@ Readiness probe, if the request succeeds, the API is ready to accept requests.
 ##### `/v1/transactions`
 
 Query parameters:
- - `start_block_number` - start of the block range
- - `end_block_number` - end of the block range
+ - `start_time` - start time in unix timestamp format
+ - `end_time` - end time in unix timestamp format
 
 Returns an array of raw transactions within block range.
 
@@ -215,10 +215,8 @@ Returns an array of liquidable debt for given protocol, collateral token and deb
 
 Query parameters:
  - `protocol` - name of the protocol
- - `start_block_number` - start of the block range
- - `end_block_number` - end of the block range
 
-Returns an array of loan states within block range with limit of 1000 entries.
+Returns an array of current loan states.
 
 ##### `/v1/cta`
 
