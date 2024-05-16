@@ -99,12 +99,7 @@ def get_transactions():
     ).all()
 
     # Serialize the query results
-    results = [{
-        'slot': str(transaction.slot),
-        'signature': str(transaction.signature),
-        'transaction': str(transaction.transaction_data),
-        'protocol': str(transaction.source)
-    } for transaction in transactions]
+    results = [to_dict(transaction) for transaction in transactions]
 
     return jsonify(results)
 
@@ -271,38 +266,8 @@ def get_health_ratios():
             description=f'"{protocol}" is not a valid protocol.',
         )
 
-    try:
-        start_block_number = int(request.args.get("start_block_number"))
-        end_block_number = int(request.args.get("end_block_number"))
-    except TypeError:
-        abort(
-            400,
-            description='"start_block_number" and "end_block_number" must be specified and valid integers.',
-        )
-
-    if start_block_number is None or end_block_number is None:
-        abort(
-            400,
-            description='"start_block_number" and "end_block_number" must be specified',
-        )
-
-    if start_block_number > end_block_number:
-        abort(
-            400,
-            description='"end_block_number" must be greater than "start_block_number"',
-        )
-
-    if end_block_number - start_block_number > MAX_BLOCK_AMOUNT:
-        abort(400, description="cannot fetch more than 50 blocks at a time")
-
-    health_ratios = (
-        model.query.filter(
-            model.slot >= start_block_number,
-            model.slot <= end_block_number,
-        )
-        .limit(1000)
-        .all()
-    )
+    latest_slot_number = model.query.order_by(model.slot.desc()).first().slot
+    health_ratios = model.query.filter(model.slot == latest_slot_number).all()
 
     # Serialize the query results
     data = [to_dict(loan_state) for loan_state in health_ratios]
