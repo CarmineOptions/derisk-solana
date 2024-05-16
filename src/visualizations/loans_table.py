@@ -4,6 +4,7 @@ import logging
 import datetime
 
 import pandas as pd
+import sqlalchemy
 from sqlalchemy.orm.session import Session
 from sqlalchemy.orm import aliased
 from sqlalchemy.sql import func
@@ -47,11 +48,16 @@ def fetch_health_ratios(session: Session, model: AnyHealthRatioModel, n: int) ->
 		func.max(model.slot).label('latest_slot')
 	).group_by(model.user).subquery()
 
-	# Join the subquery with the main table to get the latest entries
-	latest_entries_query = session.query(model).join(
-		subquery,
-		(model.user == subquery.c.user) & (model.slot == subquery.c.latest_slot)
-	).filter(model.health_factor.isnot(None))
+	# Join the subquery with the main table to get the latest entries. Ignore loans with suspicious data.
+	latest_entries_query = session.query(model) \
+		.join(
+			subquery,
+			(model.user == subquery.c.user) & (model.slot == subquery.c.latest_slot)
+		) \
+		.filter(model.health_factor.isnot(None)) \
+		.filter(model.risk_adjusted_collateral != '0') \
+		.filter(model.risk_adjusted_collateral != '0.0') \
+		.filter(sqlalchemy.or_(model.std_health_factor.cast(sqlalchemy.Float) > 0.001, model.protocol != 'MarginFi'))
 
 	latest_entries = latest_entries_query.order_by(model.std_health_factor.asc()).limit(n).all()
 
