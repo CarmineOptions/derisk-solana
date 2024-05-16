@@ -8,12 +8,16 @@ from api.extensions import db
 from db import (
     CallToActions,
     DexNormalizedLiquidity,
+    KaminoHealthRatio,
     KaminoLoanStates,
     KaminoParsedTransactions,
+    MangoHealthRatio,
     MangoLoanStates,
     MangoParsedTransactions,
+    MarginfiHealthRatio,
     MarginfiLoanStates,
     MarginfiParsedTransactions,
+    SolendHealthRatio,
     SolendLoanStates,
     SolendParsedTransactions,
     MarginfiLiquidableDebts,
@@ -48,6 +52,13 @@ protocols_loan_states_model_map = {
     "mango": MangoLoanStates,
     "kamino": KaminoLoanStates,
     "solend": SolendLoanStates,
+}
+
+protocols_health_ratio_model_map = {
+    "mango": MangoHealthRatio,
+    "solend": SolendHealthRatio,
+    "marginfi": MarginfiHealthRatio,
+    "kamino": KaminoHealthRatio,
 }
 
 
@@ -88,12 +99,7 @@ def get_transactions():
     ).all()
 
     # Serialize the query results
-    results = [{
-        'slot': str(transaction.slot),
-        'signature': str(transaction.signature),
-        'transaction': str(transaction.transaction_data),
-        'protocol': str(transaction.source)
-    } for transaction in transactions]
+    results = [to_dict(transaction) for transaction in transactions]
 
     return jsonify(results)
 
@@ -238,5 +244,32 @@ def get_loan_states():
 
     # Serialize the query results
     data = [to_dict(loan_state) for loan_state in loan_states]
+
+    return jsonify(data)
+
+
+@v1.route("/health-ratios", methods=["GET"])
+def get_health_ratios():
+    protocol = request.args.get("protocol")
+
+    if protocol is None:
+        abort(
+            400,
+            description='"protocol" query parameter must be specified.',
+        )
+
+    model = protocols_health_ratio_model_map.get(protocol.lower())
+
+    if model is None:
+        abort(
+            400,
+            description=f'"{protocol}" is not a valid protocol.',
+        )
+
+    latest_slot_number = model.query.order_by(model.slot.desc()).first().slot
+    health_ratios = model.query.filter(model.slot == latest_slot_number).all()
+
+    # Serialize the query results
+    data = [to_dict(loan_state) for loan_state in health_ratios]
 
     return jsonify(data)
