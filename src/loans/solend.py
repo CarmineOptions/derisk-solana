@@ -333,17 +333,19 @@ class SolendState(src.loans.state.State):
             }
             # Initialize collateral columns with None
             for mint in collateral_mints:
-                entry[f'collateral_usd_{mint}'] = 0
+                entry[f'collateral_usd_risk_adjusted_{mint}'] = 0
             # Sum up amounts for each collateral mint
             for collateral in loan_entity.collateral:
-                entry[f'collateral_usd_{collateral.mint}'] = collateral.risk_adjusted_market_value()
+                entry[f'collateral_usd_risk_adjusted_{collateral.mint}'] += collateral.risk_adjusted_market_value()
 
             # Initialize debt columns with None
             for mint in debt_mints:
                 entry[f'debt_usd_{mint}'] = 0
+                entry[f'debt_usd_risk_adjusted_{mint}'] = 0
             # Sum up raw amounts for each debt mint
             for debt in loan_entity.debt:
-                entry[f'debt_usd_{debt.mint}'] = debt.risk_adjusted_market_value()
+                entry[f'debt_usd_{debt.mint}'] += debt.market_value()
+                entry[f'debt_usd_risk_adjusted_{debt.mint}'] += debt.risk_adjusted_market_value()
             data.append(entry)
 
         df = pd.DataFrame(data)
@@ -569,32 +571,38 @@ def compute_liquidable_debt_for_price_target(
     price_ratio = target_price / original_price
     # update risk adjusted market value for relevant cTokens
     for collateral_mint in collateral_mints:
-        loan_states[f'collateral_usd_{collateral_mint}'] = (
-                loan_states[f'collateral_usd_{collateral_mint}']
+        loan_states[f'collateral_usd_risk_adjusted_{collateral_mint}'] = (
+                loan_states[f'collateral_usd_risk_adjusted_{collateral_mint}']
                 * price_ratio
         )
     # update risk adjusted market value of corresponding debt
-    if f'debt_usd_{collateral_underlying_token}' in loan_states.columns:
-        loan_states[f'debt_usd_{collateral_underlying_token}'] = (
-                loan_states[f'debt_usd_{collateral_underlying_token}']
+    if f'debt_usd_risk_adjusted_{collateral_underlying_token}' in loan_states.columns:
+        loan_states[f'debt_usd_risk_adjusted_{collateral_underlying_token}'] = (
+                loan_states[f'debt_usd_risk_adjusted_{collateral_underlying_token}']
                 * price_ratio
         )
 
     # compute total risk adjusted deposited value
-    loan_states['total_collateral_usd'] = loan_states[[
-        x for x in loan_states.columns if 'collateral_usd_' in x
+    loan_states['total_collateral_usd_risk_adjusted'] = loan_states[[
+        x for x in loan_states.columns if 'collateral_usd_risk_adjusted_' in x
     ]].sum(axis=1)
     # compute total risk adjusted debt value
-    loan_states['total_debt_usd'] = loan_states[[x for x in loan_states.columns if 'debt_usd_' in x]].sum(axis=1)
+    loan_states['total_debt_usd_risk_adjusted'] = loan_states[
+        [x for x in loan_states.columns if 'debt_usd_risk_adjusted_' in x]].sum(axis=1)
     # get risk factor and define liquidable debt
-    loan_states['health_factor'] = loan_states['total_debt_usd'] / loan_states['total_collateral_usd']
+    loan_states['health_factor'] = loan_states['total_debt_usd_risk_adjusted'] / loan_states[
+        'total_collateral_usd_risk_adjusted']
     loan_states['liquidable'] = loan_states['health_factor'] > 1
-    # 20% of the debt value is liquidated.
-    liquidable_debt_ratio = 0.2 + 0.05  # TODO liquidation_bonus
-    loan_states['debt_to_be_liquidated'] = liquidable_debt_ratio * loan_states[f'debt_usd_{debt_token}'] * loan_states[
-        'liquidable']
+    loan_states['liquidation_ratio'] = loan_states['health_factor'] - 1
+
+    def calculate_debt_to_be_liquidated(row):
+        calculated_value = row['liquidation_ratio'] * row[f'debt_usd_{debt_token}'] * row['liquidable']
+        return min(calculated_value, row[f'debt_usd_{debt_token}'])
+
+    loan_states['debt_to_be_liquidated'] = loan_states.apply(calculate_debt_to_be_liquidated, axis=1)
     liquidatable_value = loan_states['debt_to_be_liquidated'].sum()
     return liquidatable_value
+
 
 def get_reserves() -> pd.DataFrame:
     connection = src.database.establish_connection()
