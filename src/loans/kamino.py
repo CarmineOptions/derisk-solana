@@ -97,7 +97,6 @@ class KaminoDebtPosition(src.loans.state.DebtPosition):
         assert self.cumulative_borrow_rate_wad, f"Missing cumBorrowRate: {self.cumulative_borrow_rate_wad}" \
                                                 f" for {self.reserve}"
         assert self.borrow_factor, f"Missing borrow factor: {self.borrow_factor} for {self.reserve}"
-        assert self.liquidation_threshold is not None, f"Missing liquidation threshold for {self.mint}"
         assert self.underlying_asset_price_wad, f"Missing asset price: {self.underlying_asset_price_wad} for {self.reserve}"
         return (
                 self.raw_amount
