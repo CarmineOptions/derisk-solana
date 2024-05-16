@@ -8,11 +8,13 @@ from api.extensions import db
 from db import (
     CallToActions,
     DexNormalizedLiquidity,
+    KaminoHealthRatio,
     KaminoLoanStates,
     KaminoParsedTransactions,
     MangoHealthRatio,
     MangoLoanStates,
     MangoParsedTransactions,
+    MarginfiHealthRatio,
     MarginfiLoanStates,
     MarginfiParsedTransactions,
     SolendHealthRatio,
@@ -55,9 +57,8 @@ protocols_loan_states_model_map = {
 protocols_health_ratio_model_map = {
     "mango": MangoHealthRatio,
     "solend": SolendHealthRatio,
-    # TODO: uncomment when added into db/__init__.py
-    # "marginfi": MarginfiHealthRatio,
-    # "kamino": KaminoHealthRatio,
+    "marginfi": MarginfiHealthRatio,
+    "kamino": KaminoHealthRatio,
 }
 
 
