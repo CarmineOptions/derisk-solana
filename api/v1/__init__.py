@@ -84,7 +84,13 @@ def get_transactions():
 
     transactions = (
         TransactionStatusWithSignature.query.options(
-            load_only(TransactionStatusWithSignature.id, TransactionStatusWithSignature.slot)
+            load_only(
+                TransactionStatusWithSignature.id,
+                TransactionStatusWithSignature.slot,
+                TransactionStatusWithSignature.signature,
+                TransactionStatusWithSignature.transaction_data,
+                TransactionStatusWithSignature.source
+            )
         ).filter(
             TransactionStatusWithSignature.block_time >= start_time,
             TransactionStatusWithSignature.block_time <= end_time,
@@ -93,7 +99,12 @@ def get_transactions():
     )
 
     # Serialize the query results
-    results = [to_dict(transaction) for transaction in transactions]
+    results = [{
+        'slot': str(transaction.slot),
+        'signature': str(transaction.signature),
+        'transaction': str(transaction.transaction_data),
+        'protocol': str(transaction.source)
+    } for transaction in transactions]
 
     return jsonify(results)
 
