@@ -26,7 +26,7 @@ from db import (
 v1 = Blueprint("v1", __name__)
 
 
-MAX_BLOCK_AMOUNT = 50
+MAX_SECONDS = 60
 
 
 protocols_parsed_transactions_model_map = {
@@ -59,34 +59,34 @@ def readiness():
 @v1.route("/transactions", methods=["GET"])
 def get_transactions():
     try:
-        start_block_number = int(request.args.get("start_block_number"))
-        end_block_number = int(request.args.get("end_block_number"))
+        start_time = int(request.args.get("start_time"))
+        end_time = int(request.args.get("end_time"))
     except TypeError:
         abort(
             400,
-            description='"start_block_number" and "end_block_number" must be specified and valid integers.',
+            description='"start_time" and "end_time" must be specified and valid integers.',
         )
 
-    if start_block_number is None or end_block_number is None:
+    if start_time is None or end_time is None:
         abort(
             400,
-            description='"start_block_number" and "end_block_number" must be specified',
+            description='"start_time" and "end_time" must be specified',
         )
 
-    if start_block_number > end_block_number:
+    if start_time > end_time:
         abort(
             400,
-            description='"end_block_number" must be greater than "start_block_number"',
+            description='"end_time" must be greater than "start_time"',
         )
 
-    if end_block_number - start_block_number > MAX_BLOCK_AMOUNT:
-        abort(400, description="cannot fetch more than 50 blocks at a time")
+    if end_time - start_time > MAX_SECONDS:
+        abort(400, description="cannot fetch interval longer then 60 seconds")
 
     transactions = (
         TransactionStatusWithSignature.query.options(load_only("id", "slot"))
         .filter(
-            TransactionStatusWithSignature.slot >= start_block_number,
-            TransactionStatusWithSignature.slot <= end_block_number,
+            TransactionStatusWithSignature.block_time >= start_time,
+            TransactionStatusWithSignature.block_time <= end_time,
         )
         .all()
     )
@@ -232,34 +232,8 @@ def get_loan_states():
             description=f'"{protocol}" is not a valid protocol.',
         )
 
-    try:
-        start_block_number = int(request.args.get("start_block_number"))
-        end_block_number = int(request.args.get("end_block_number"))
-    except TypeError:
-        abort(
-            400,
-            description='"start_block_number" and "end_block_number" must be specified and valid integers.',
-        )
-
-    if start_block_number is None or end_block_number is None:
-        abort(
-            400,
-            description='"start_block_number" and "end_block_number" must be specified',
-        )
-
-    if start_block_number > end_block_number:
-        abort(
-            400,
-            description='"end_block_number" must be greater than "start_block_number"',
-        )
-
-    if end_block_number - start_block_number > MAX_BLOCK_AMOUNT:
-        abort(400, description="cannot fetch more than 50 blocks at a time")
-
-    loan_states = model.query.filter(
-        model.slot >= start_block_number,
-        model.slot <= end_block_number,
-    ).limit(1000).all()
+    latest_slot_number = model.query.order_by(model.slot.desc()).first().slot
+    loan_states = model.query.filter(model.slot == latest_slot_number).all()
 
     # Serialize the query results
     data = [to_dict(loan_state) for loan_state in loan_states]
