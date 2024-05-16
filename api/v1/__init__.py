@@ -10,10 +10,12 @@ from db import (
     DexNormalizedLiquidity,
     KaminoLoanStates,
     KaminoParsedTransactions,
+    MangoHealthRatio,
     MangoLoanStates,
     MangoParsedTransactions,
     MarginfiLoanStates,
     MarginfiParsedTransactions,
+    SolendHealthRatio,
     SolendLoanStates,
     SolendParsedTransactions,
     MarginfiLiquidableDebts,
@@ -48,6 +50,14 @@ protocols_loan_states_model_map = {
     "mango": MangoLoanStates,
     "kamino": KaminoLoanStates,
     "solend": SolendLoanStates,
+}
+
+protocols_health_ratio_model_map = {
+    "mango": MangoHealthRatio,
+    "solend": SolendHealthRatio,
+    # TODO: uncomment when added into db/__init__.py
+    # "marginfi": MarginfiHealthRatio,
+    # "kamino": KaminoHealthRatio,
 }
 
 
@@ -238,5 +248,62 @@ def get_loan_states():
 
     # Serialize the query results
     data = [to_dict(loan_state) for loan_state in loan_states]
+
+    return jsonify(data)
+
+
+@v1.route("/health-ratios", methods=["GET"])
+def get_health_ratios():
+    protocol = request.args.get("protocol")
+
+    if protocol is None:
+        abort(
+            400,
+            description='"protocol" query parameter must be specified.',
+        )
+
+    model = protocols_health_ratio_model_map.get(protocol.lower())
+
+    if model is None:
+        abort(
+            400,
+            description=f'"{protocol}" is not a valid protocol.',
+        )
+
+    try:
+        start_block_number = int(request.args.get("start_block_number"))
+        end_block_number = int(request.args.get("end_block_number"))
+    except TypeError:
+        abort(
+            400,
+            description='"start_block_number" and "end_block_number" must be specified and valid integers.',
+        )
+
+    if start_block_number is None or end_block_number is None:
+        abort(
+            400,
+            description='"start_block_number" and "end_block_number" must be specified',
+        )
+
+    if start_block_number > end_block_number:
+        abort(
+            400,
+            description='"end_block_number" must be greater than "start_block_number"',
+        )
+
+    if end_block_number - start_block_number > MAX_BLOCK_AMOUNT:
+        abort(400, description="cannot fetch more than 50 blocks at a time")
+
+    health_ratios = (
+        model.query.filter(
+            model.slot >= start_block_number,
+            model.slot <= end_block_number,
+        )
+        .limit(1000)
+        .all()
+    )
+
+    # Serialize the query results
+    data = [to_dict(loan_state) for loan_state in health_ratios]
 
     return jsonify(data)
