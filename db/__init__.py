@@ -88,6 +88,25 @@ class TransactionStatusWithSignature(Base):
         )
 
 
+class TransactionsForAPI(Base):
+    __tablename__ = 'transactions'
+
+    id = Column(Integer, primary_key=True)
+    source = Column(String, ForeignKey(f'{SCHEMA_LENDERS}.protocols.public_key'), nullable=False)
+    signature = Column(String, nullable=False)
+    slot = Column(BigInteger, nullable=False)
+    block_time = Column(BigInteger, nullable=False)
+    transaction_data = Column(String, nullable=True)  # column to store json with transaction's data
+    collection_stream = Column(String, nullable=True)
+
+    __table_args__ = (
+        Index("ix_transactions_slot", "slot"),
+        Index("ix_transactions_block_time", "block_time"),
+        Index("ix_transactions_signature", "signature"),
+        Index("ix_transactions_source", "source"),
+        {"schema": SCHEMA_LENDERS},
+    )
+
 class TransactionStatusError(Base):
     __tablename__ = "tx_status_errors"
     __table_args__ = {"schema": SCHEMA_LENDERS}

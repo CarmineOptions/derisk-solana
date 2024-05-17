@@ -24,7 +24,7 @@ from db import (
     MangoLiquidableDebts,
     KaminoLiquidableDebts,
     SolendLiquidableDebts,
-    TransactionStatusWithSignature,
+    TransactionsForAPI,
     CollectionStreamTypes
 )
 
@@ -94,15 +94,15 @@ def get_transactions():
     if end_time - start_time > MAX_SECONDS:
         abort(400, description="cannot fetch interval longer then 60 seconds")
 
-    transactions = TransactionStatusWithSignature.query(
-        TransactionStatusWithSignature.signature,
-        TransactionStatusWithSignature.slot,
-        TransactionStatusWithSignature.transaction_data,
-        TransactionStatusWithSignature.source,
-        TransactionStatusWithSignature.block_time
+    transactions = TransactionsForAPI.query(
+        TransactionsForAPI.signature,
+        TransactionsForAPI.slot,
+        TransactionsForAPI.transaction_data,
+        TransactionsForAPI.source,
+        TransactionsForAPI.block_time
     ).filter(
-        TransactionStatusWithSignature.block_time >= start_time,
-        TransactionStatusWithSignature.block_time <= end_time,
+        TransactionsForAPI.block_time >= start_time,
+        TransactionsForAPI.block_time <= end_time,
     ).all()
 
     # Serialize the query results
