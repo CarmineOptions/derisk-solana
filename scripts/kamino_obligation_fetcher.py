@@ -115,7 +115,7 @@ def process_collateral(obligation: Any, reserve_to_supply_map: Dict[str, Any]):
             continue
         reserve = str(position.deposit_reserve)
         collateral_mint = reserve_to_supply_map[reserve]['collateralMint']
-        collateral[str(collateral_mint)] = {'amount': amount, 'reserve': reserve}
+        collateral[str(collateral_mint)] = {'amount': amount, 'reserve': reserve, 'egroup': obligation.elevation_group}
     return collateral
 
 
@@ -185,7 +185,8 @@ async def obtain_loan_states():
             'protocol': 'kamino',
             'user': user,
             'collateral': process_collateral(obligation, reserve_to_supply_map),
-            'debt': process_debt(obligation, reserve_to_supply_map)
+            'debt': process_debt(obligation, reserve_to_supply_map),
+            'egroup': obligation.elevation_group
         }
         obligations_processed.append(processed_obligation)
     new_loan_states = pd.DataFrame(obligations_processed)
