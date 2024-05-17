@@ -107,6 +107,12 @@ class TransactionsForAPI(Base):
         {"schema": SCHEMA_LENDERS},
     )
 
+
+# Use extend_existing=True to modify the table if already exists
+transactions_table = TransactionsForAPI.__table__
+transactions_table.extend_existing = True
+
+
 class TransactionStatusError(Base):
     __tablename__ = "tx_status_errors"
     __table_args__ = {"schema": SCHEMA_LENDERS}
