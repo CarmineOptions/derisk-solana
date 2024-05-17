@@ -8,6 +8,7 @@ import datetime
 
 import src.protocols.addresses
 import db
+from src.prices import PricesType
 
 # TODO: Add type hints
 # TODO: Make sth like ProtocolStats class that will hold the info
@@ -25,7 +26,6 @@ def get_unique_token_supply_mints() -> list[str] | None:
 
     return [i[0] for i in addresses]
 
-PricesType = dict[str, float | None]
 TokensInfoType = dict[str, dict[str, str | int]]
 custom_hash_function = lambda x: hash(str(x))
 
@@ -164,7 +164,15 @@ def get_top_12_lending_supplies_df(prices, tokens) -> pd.DataFrame:
     return prepare_latest_lending_supplies_df(df, prices, tokens)
 
 
-def get_token_utilizations_df(prices, tokens) -> pd.DataFrame:
+@st.cache_data(
+    ttl=datetime.timedelta(minutes=120), 
+    hash_funcs={
+        PricesType: custom_hash_function, 
+        TokensInfoType: custom_hash_function
+    },
+    show_spinner = 'Loading token utilizations.'
+)
+def get_token_utilizations_df(prices: PricesType, tokens: TokensInfoType) -> pd.DataFrame:
     top_tvl_mint_addresses = get_lending_tokens_with_tvl(prices, tokens)
     lending_suplies = get_latest_lending_suplies_for_mints(
         [i[0] for i in top_tvl_mint_addresses]

@@ -10,6 +10,7 @@ import time
 
 # import time
 
+from sqlalchemy.orm.session import Session
 import streamlit as st
 import sqlalchemy
 import pandas as pd
@@ -17,6 +18,8 @@ import plotly.express
 import plotly.graph_objs
 
 import db
+
+from src.prices import PricesType
 
 # import src.protocols.dexes.amms
 # import src.database
@@ -107,15 +110,16 @@ def token_addresses_to_Token_list( # pylint: disable=C0103
 
     return tokens
 
-
-def protocol_to_model(
-    protocol: str,
-) -> (
+AnyLiquidableDebtModel = (
     db.MarginfiLiquidableDebts
     | db.MangoLiquidableDebts
     | db.KaminoLiquidableDebts
     | db.SolendLiquidableDebts
-):
+)
+
+def protocol_to_model(
+    protocol: str,
+) -> AnyLiquidableDebtModel:
     protocol = protocol.lower()
     if protocol == "marginfi":
         return db.MarginfiLiquidableDebts
@@ -128,39 +132,34 @@ def protocol_to_model(
     raise ValueError(f"invalid protocol {protocol}")
 
 
-def get_liquidable_debt(
-    protocols: list[str],
-    token_pair: TokensSelected,
+@st.cache_data(ttl=datetime.timedelta(minutes=60), show_spinner = 'Loading liquidable debt.')
+def get_liquidable_debt_single_protocol(
+    _session: Session,
+    protocol: str, 
+    collateral_token_address: str, 
+    debt_token_address: str
 ) -> pd.DataFrame | None:
-    # db models of all selected protocols
-    db_models = [protocol_to_model(protocol) for protocol in protocols]
 
-    with db.get_db_session() as session:
-        data = []
-        for db_model in db_models:
-            try:
-                # data over all protocols
-                latest_slot_subquery = (
-                    session.query(db_model.slot)
-                    .filter(db_model.collateral_token == token_pair.collateral.address)
-                    .filter(db_model.debt_token == token_pair.loan.address)
-                    .order_by(db_model.slot.desc())
-                    .limit(1)
-                ).subquery()
+    model = protocol_to_model(protocol)
 
-                # data over all protocols
-                data += (
-                    session.query(db_model)
-                    .filter(db_model.collateral_token == token_pair.collateral.address)
-                    .filter(db_model.debt_token == token_pair.loan.address)
-                    .filter(db_model.slot == latest_slot_subquery.c.slot)
-                    .all()
-                )
-            except ValueError:
-                print(f"no data for {db_model}")
-        if not data: 
-            return None
+    try:
+        # data over all protocols
+        latest_slot_subquery = (
+            _session.query(model.slot)
+            .filter(model.collateral_token == collateral_token_address)
+            .filter(model.debt_token == debt_token_address)
+            .order_by(model.slot.desc())
+            .limit(1)
+        ).subquery()
 
+        # data over all protocols
+        data = (
+            _session.query(model)
+            .filter(model.collateral_token == collateral_token_address)
+            .filter(model.debt_token == debt_token_address)
+            .filter(model.slot == latest_slot_subquery.c.slot)
+            .all()
+        )
         df = pd.DataFrame(
             [
                 {
@@ -172,6 +171,42 @@ def get_liquidable_debt(
                 for d in data
             ]
         )
+        return df
+
+    except ValueError:
+        logging.error(f"No data for {_db_model}")
+        return None
+
+    
+
+
+@st.cache_data(ttl=datetime.timedelta(minutes=60))
+def get_liquidable_debt(
+    protocols: list[str],
+    token_pair: TokensSelected,
+) -> pd.DataFrame | None:
+
+    with db.get_db_session() as session:
+        data = []
+        for protocol in protocols:
+        
+            debt = get_liquidable_debt_single_protocol(
+                session, 
+                protocol,
+                token_pair.collateral.address,
+                token_pair.loan.address,
+            )
+
+            if debt is None: 
+                continue
+
+            data.append(debt)
+
+        if not data:
+            logging.error(f'No liquidable debt found for protocols: {protocols}, pair: {token_pair}')
+            return None
+
+        df = pd.concat(data)
 
         aggregated_data = (
             df.groupby(["collateral_token", "debt_token", "collateral_token_price"])
@@ -372,7 +407,16 @@ def get_debt_token_supply_at_price_point(
     return supply
 
 
-@st.cache_data(ttl=datetime.timedelta(minutes=30))
+custom_hash_function = lambda x: hash(str(x))
+@st.cache_data(
+    ttl=datetime.timedelta(minutes=30), 
+    show_spinner='Loading liquidity vs. debt comparison chart.',
+    hash_funcs={
+        list[str]: custom_hash_function, 
+        TokensSelected: custom_hash_function,
+        PricesType: custom_hash_function
+    }
+)
 def get_main_chart_data(
     protocols: list[str],
     token_selection: TokensSelected,
