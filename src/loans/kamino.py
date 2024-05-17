@@ -287,7 +287,7 @@ class KaminoState(src.loans.solend.SolendState):
                     health_factor=loan_entity.health_ratio(),
                     std_health_factor=loan_entity.std_health_ratio(),
                     collateral=str(round(loan_entity.collateral_market_value(), 6)),
-                    risk_adjusted_collateral=str(round(loan_entity.collateral_risk_adjusted_market_value(), 6)),
+                    risk_adjusted_collateral=str(round(loan_entity.collateral_market_value(), 6)),
                     debt=str(round(loan_entity.debt_market_value(), 6)),
                     risk_adjusted_debt=str(round(loan_entity.debt_risk_adjusted_market_value(), 6))
                 )
