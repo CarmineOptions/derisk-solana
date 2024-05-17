@@ -26,6 +26,7 @@ from sqlalchemy import Index
 from sqlalchemy.dialects.postgresql import ARRAY as PG_ARRAY, JSONB
 
 Base = declarative_base()
+Base2 = declarative_base()
 
 POSTGRES_USER = os.environ.get("POSTGRES_USER")
 if POSTGRES_USER is None:
@@ -88,11 +89,11 @@ class TransactionStatusWithSignature(Base):
         )
 
 
-class TransactionsForAPI(Base):
+class TransactionsForAPI(Base2):
     __tablename__ = 'transactions'
 
     id = Column(Integer, primary_key=True)
-    source = Column(String, ForeignKey(f'{SCHEMA_LENDERS}.protocols.public_key'), nullable=False)
+    source = Column(String, nullable=False)
     signature = Column(String, nullable=False)
     slot = Column(BigInteger, nullable=False)
     block_time = Column(BigInteger, nullable=False)
@@ -106,11 +107,6 @@ class TransactionsForAPI(Base):
         Index("ix_transactions_source", "source"),
         {"schema": SCHEMA_LENDERS},
     )
-
-
-# Use extend_existing=True to modify the table if already exists
-transactions_table = TransactionsForAPI.__table__
-transactions_table.extend_existing = True
 
 
 class TransactionStatusError(Base):
