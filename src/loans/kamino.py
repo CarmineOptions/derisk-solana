@@ -270,7 +270,7 @@ class KaminoState(src.loans.solend.SolendState):
             for elevation_group in lending_market.elevation_groups:
                 if elevation_group.id == 0:
                     continue
-                elevation_groups_to_liquidation_threshold[market][elevation_group.id] = elevation_group.liquidation_threshold_pct
+                self.elevation_groups_to_liquidation_threshold[market][elevation_group.id] = elevation_group.liquidation_threshold_pct
 
             for reserve in market_reserves:
                 reserves.append(reserve)
