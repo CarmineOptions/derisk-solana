@@ -302,7 +302,11 @@ class KaminoState(src.loans.solend.SolendState):
             self._get_reserve_configs()
         with get_db_session() as session:
             for loan_entity in self.loan_entities.values():
-                loan_entity.update_positions_from_reserve_config(self.reserve_configs, self.token_prices)
+                loan_entity.update_positions_from_reserve_config(
+                    self.reserve_configs,
+                    self.token_prices,
+                    self.elevation_groups_to_liquidation_threshold
+                )
                 new_health_ratio = KaminoHealthRatio(
                     slot=int(self.last_slot),
                     user=loan_entity.obligation,
