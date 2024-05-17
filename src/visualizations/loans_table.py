@@ -59,7 +59,7 @@ def fetch_health_ratios(session: Session, model: AnyHealthRatioModel, n: int) ->
 		.filter(model.risk_adjusted_collateral != '0.0') \
 		.filter(sqlalchemy.or_(model.std_health_factor.cast(sqlalchemy.Float) > 0.001, model.protocol != 'MarginFi'))
 
-	latest_entries = latest_entries_query.order_by(model.std_health_factor.asc()).limit(n).all()
+	latest_entries = latest_entries_query.order_by(model.std_health_factor.cast(sqlalchemy.Float).asc()).all()
 
 	data = [{
 		'slot': entry.slot,
@@ -74,7 +74,6 @@ def fetch_health_ratios(session: Session, model: AnyHealthRatioModel, n: int) ->
 		'protocol': entry.protocol,
 		'timestamp': entry.timestamp
 	} for entry in latest_entries]
-
 	return pd.DataFrame(data)
 
 
