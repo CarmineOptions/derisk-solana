@@ -3,7 +3,7 @@ import sqlalchemy
 from sqlalchemy.orm import load_only
 
 from api.utils import to_dict
-from api.extensions import db
+from api.extensions import db, db2
 
 from db import (
     CallToActions,
@@ -94,15 +94,15 @@ def get_transactions():
     if end_time - start_time > MAX_SECONDS:
         abort(400, description="cannot fetch interval longer then 60 seconds")
 
-    transactions = TransactionsForAPI.query(
-        TransactionsForAPI.signature,
-        TransactionsForAPI.slot,
-        TransactionsForAPI.transaction_data,
-        TransactionsForAPI.source,
-        TransactionsForAPI.block_time
+    transactions = db2.TransactionsForAPI.query(
+        db2.TransactionsForAPI.signature,
+        db2.TransactionsForAPI.slot,
+        db2.TransactionsForAPI.transaction_data,
+        db2.TransactionsForAPI.source,
+        db2.TransactionsForAPI.block_time
     ).filter(
-        TransactionsForAPI.block_time >= start_time,
-        TransactionsForAPI.block_time <= end_time,
+        db2.TransactionsForAPI.block_time >= start_time,
+        db2.TransactionsForAPI.block_time <= end_time,
     ).all()
 
     # Serialize the query results
