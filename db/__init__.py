@@ -4,7 +4,6 @@ Module containing functionality related to Postgres DB used throughout the repo.
 import os
 import time
 from enum import Enum
-import time
 
 from sqlalchemy import (
     create_engine,
@@ -26,7 +25,6 @@ from sqlalchemy import Index
 from sqlalchemy.dialects.postgresql import ARRAY as PG_ARRAY, JSONB
 
 Base = declarative_base()
-Base2 = declarative_base()
 
 POSTGRES_USER = os.environ.get("POSTGRES_USER")
 if POSTGRES_USER is None:
@@ -87,26 +85,6 @@ class TransactionStatusWithSignature(Base):
             f"<TransactionStatusWithSignature(signature='{self.signature}',"
             f" slot={self.slot}, block_time={self.block_time} )>"
         )
-
-
-class TransactionsForAPI(Base2):
-    __tablename__ = 'transactions'
-
-    id = Column(Integer, primary_key=True)
-    source = Column(String, nullable=False)
-    signature = Column(String, nullable=False)
-    slot = Column(BigInteger, nullable=False)
-    block_time = Column(BigInteger, nullable=False)
-    transaction_data = Column(String, nullable=True)  # column to store json with transaction's data
-    collection_stream = Column(String, nullable=True)
-
-    __table_args__ = (
-        Index("ix_transactions_slot", "slot"),
-        Index("ix_transactions_block_time", "block_time"),
-        Index("ix_transactions_signature", "signature"),
-        Index("ix_transactions_source", "source"),
-        {"schema": SCHEMA_LENDERS},
-    )
 
 
 class TransactionStatusError(Base):
