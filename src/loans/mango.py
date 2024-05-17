@@ -62,7 +62,9 @@ OPEN_ORDERS_LAYOUT = cStruct(
 def get_group_token_index_to_index_map():
     r = requests.get('https://api.mngo.cloud/data/v4/group-metadata')
     if r.status_code != 200:
-        raise ValueError('Unable to fetch group -> token index -> mint info map')
+        time.sleep(100)
+        logging.error('Cant fecht group token index to index map')
+        return get_group_token_index_to_index_map()
     
     m = {}
 

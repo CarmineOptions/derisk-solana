@@ -1,4 +1,5 @@
 from decimal import Decimal
+import logging
 import time
 import asyncio
 import os
@@ -15,7 +16,11 @@ def get_banks_addresses() -> list[Pubkey]:
 
     try:
         r = requests.get('https://api.mngo.cloud/data/v4/group-metadata', timeout = 30)
-        r.raise_for_status()
+
+        if r.status_code !=200:
+            time.sleep(100)
+            logging.warning('Cant fetch banks addresses')
+            return get_banks_addresses()
 
         main_group = [i for i in r.json()['groups'] if i['name'] == 'MAINNET.0'][0]
         banks = [Pubkey.from_string(i['banks'][0]['publicKey']) for i in main_group['tokens']]
