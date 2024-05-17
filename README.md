@@ -2,21 +2,17 @@
 
 Monorepo with components required for the implementation of DeRisk on Solana.
 
-## Project Setup
+## Components
 
-The setup consists of:
+1. [`Database`] Database for both raw and processed data.
+2. [`Raw Data Fetching`] Scripts that fetch raw transactions and dex data and store it the database.
+4. [`Data Processing`] Scripts that process both raw data and previously processed data.
+3. [`API`] API with enpoints for fetching data from the database.
+5. [`Frontend`] Frontend with visualizations of the processed data.
 
-1. [`Database`] Creating an empty database for raw data.
-2. [`Raw Data Fetching`] Running a script that feeds the database with raw data.
-3. [`API`] Creating an API for fetching the raw data from the database.
-4. [`Raw Data Processing`] Running a script which processes the raw data.
-5. [`Frontend`] Running a frontend with visualizations of the processed data.
+Each component is described in detail below.
 
-Each step is described in detail below.
-
-The relevant commit for which the following commands for running individual containers were tested is `3d40c20cca42425f2d2584cae6592ab75ee08eab`.
-
-### Database
+## Database
 
 The project uses _Postgres 15_ as database. The schema can be found in `db/schema.sql`. To start the database run:
 
@@ -28,9 +24,11 @@ export POSTGRES_PASSWORD=<password>
 docker run -p 5432:5432 db
 ```
 
-### Raw Data Fetching
+## Raw Data Fetching
 
-For fetching raw data, the following ENV variables are needed:
+### Transactions
+
+For fetching transactions, the following ENV variables are needed:
 
 - `POSTGRES_USER` name of the database user
 - `POSTGRES_PASSWORD` database user's password
@@ -143,115 +141,7 @@ The amm_liquidity table is structured to accommodate data from multiple DEXes ef
 - `token_x_decimals` and `token_y_decimals`: Define the decimal precision for each token in the pair.
 - `additional_info`: Additional info provided by DEXes.
 
-### API
-
-The API exposes an endpoint that allows access to data in the database.
-
-To run the API, the following environmental variables are required:
-
-- `POSTGRES_USER` name of the database user
-- `POSTGRES_PASSWORD` database user's password
-- `POSTGRES_HOST` host address, IP address or DNS of the database
-- `POSTGRES_DB` database name
-
-Then, run the following commands:
-
-```sh
-docker build --file ./Dockerfile.api -t api .
-docker run -d --name api -e POSTGRES_USER=$POSTGRES_USER -e POSTGRES_PASSWORD=$POSTGRES_PASSWORD -e POSTGRES_HOST=$POSTGRES_HOST -e POSTGRES_DB=$POSTGRES_DB -p 3000:3000 api
-```
-
-The API exposes endpoints that allows access to data in the database.
-
-Since some response may be large, the API uses `Gzip` for compression of the responses. It is advised to use the accept encoding header:
-```sh
-Accept-Encoding: gzip
-```
-This will speed up the resolution of requests.
-
-#### Endpoints
-
-##### `/v1/readiness`
-
-Query parameters:
- - none
-
-Readiness probe, if the request succeeds, the API is ready to accept requests.
-
-##### `/v1/transactions`
-
-Query parameters:
- - `start_time` - start time in unix timestamp format
- - `end_time` - end time in unix timestamp format
-
-Returns an array of raw transactions within block range.
-
-##### `/v1/parsed-transactions`
-
-Query parameters:
- - `limit` - number of last blocks from which parsed transactions should be retrieved
- - `protocol` - name of the protocol
-
-Returns an array of parsed transactions within block range for the given protocol.
-
-##### `/v1/liquidity`
-
-Query parameters:
- - `token_x` - address of the first token
- - `token_y` - address of the second token
-
-Returns bids and asks for the given token pair.
-
-##### `/v1/liquidable-debt`
-
-Query parameters:
- - `protocol` - name of the protocol
- - `collateral_token` - collateral token address
- - `debt_token` - debt token address
-
-Returns an array of liquidable debt for given protocol, collateral token and debt token.
-
-##### `/v1/loan-states`
-
-Query parameters:
- - `protocol` - name of the protocol
-
-Returns an array of current loan states.
-
-##### `/v1/health-ratios`
-
-Query parameters:
- - `protocol` - name of the protocol
-
-Returns an array of current loan states.
-
-##### `/v1/cta`
-
-Query parameters:
- - none
-
-Returns an array of call-to-action items.
-
-### Raw Data Processing
-
-The pipeline has the following steps:
-
-1. Fetching raw data, i.e., transactions from the database.
-2. Transforming transactions into events. Events are parsed transactions from which we can infer the action that occured within the given transaction, e.g., that some user deposited collateral, borrowed some tokens, or was liquidated.
-3. Interpreting all events since origin to get the current state of all loans on the chain.
-4. Model the expected volume of liquidations for a given price level, aggregated across all loans.
-5. Gather information about available liquidity for a given price level in the amm pools.
-6. Compute information about individual loans, e.g., the health ratio or the total debt in USD.
-7. Compute comparison statistics for all lending protocols, e.g., the number of users or utilization rates.
-8. Save the processed data and the information about the last update, so that next time, we do not need to start the computations from origin.
-
-For running the data processing pipeline, run the following commands:
-
-```sh
-docker build -t data-processing -f Dockerfile.data-processing .
-docker run data-processing
-```
-Currently, the script outlines all of the above-mentioned steps, but their implementation is part of the future milestones.
+## Data Processing
 
 ### Transaction Parsers
 Parsing of collected transactions is dockerized. 
@@ -273,6 +163,7 @@ docker run -e POSTGRES_USER=<db_user> \
 The orchestration of data parsing is managed by `Dockerfile.parsing-pipeline`. To run the pipelines, an environment variable `PROTOCOL` must be set, specifying which protocol's parser to execute. Example of usage can be find below.
 
 Transaction parsing are handled in the following classes:
+
 #### KaminoTransactionParserV2 Class
 
 ##### Overview
@@ -384,8 +275,6 @@ The parsed data is stored in tables such as `solend_reserves` and `solend_sbliga
 ##### Usage
 Instantiate the parser with the Solend program's public key.
 
-
-
 ### Parsing pipelines
 Data parsing orchestration is assured by `Dockerfile.parsing-pipeline`. 
 To run pipelines ENV variable `PROTOCOL` is required. 
@@ -414,9 +303,44 @@ The `kamino_loan_states`, `mango_loan_states`, `marginfi_loan_states` and `solen
 - `collateral`: Contains information about the user's collateral in a dictionary format where the keys are token addresses and values are amounts.
 - `debt`: Contains information about the user's debt in a dictionary format where the keys are token addresses and values are amounts.
 
+### Health factors
+
+Loans states relevant for the slot witch the last available parsed transactions are computed utilizing `Dockerfile.event_processing`. To run the container, an ENV variable `PROTOCOL` is required. The loan state for the given protocol will then be computed and saved to the database. The computation is achieved by "replaying" all historical transactions that adjust the holdings of tokens of the given protocol. Deposit events increase the users' collateral, the withdrawal events decrease it. Borrowing events increase the users' debt, the repayment events decrease it. Liquidation events decrease both the users' collateral and debt.
+
+#### Standardized Health Factor
+
+While every lending protocol implements their own version of health factor, it is important to have one unified metric that can be used to compare user healths across the whole ecosystem. For that reason we compute the standardized health factor that is, for every user, defined as `total risk-adjusted collateral / total risk-adjusted debt`. The standardized health factor ranges from zero to infinity and factors below one signify that the loan can be liquidated. Standardized health factors are stored in `{protocol}_health_ratios` tables (protocol can be "solend", "kamino" etc.). They are updated whenever the health factor changes by 1% or more from the latest stored value if the health factor is >= 1.2, or with every 0.25% change if it's below 1.2.
+
+#### Database Schema
+
+The `kamino_health_factors`, `mango_health_factors`, `marginfi_health_factors` and `solend_health_factors` tables are structured in the following way:
+
+- `slot`: Stores the slot for which the data is relevant.
+- `protocol`: Identifies the protocol, i.e. `kamino`, `mango`, `marginfi`, or `solend`.
+- `user`: Users address
+- `health_factor`: Health factor as defined by the corresponding lending protocol
+- `std_health_factor`: Standardized health factor
+- `collateral`: Users total collateral in USD
+- `risk_adjusted_collateral`: Users total collateral in USD, risk adjusted
+- `debt`: Users total debt in USD
+- `risk_adjusted_debt`: Users total debt in USD, risk adjusted
+- `timestamp`: When was the entry generated
+- `last_update`: Timestamp of the last update
+
 ### Liquidable debts
 
 Liquidable debts relevant for the slot witch the last available loan states are computed utilizing `Dockerfile.liquidable_debt_processing`. To run the container, an ENV variable `PROTOCOL` is required. The liquidable debts for the given protocol will then be computed and saved to the database. The computation is achieved by taking all loan states of the given protocol and simulating liquidations that would occur had the collateral token price reached any price level in a range from 0 to the current price + 30%. We then sum (accross all users of the given lending protocol) all debt that the liquidators would need to repay in order to liquidate all liquidable loans at the given price level. This way, we obtain the total liquidable debt at the given price for the given protocol. Then, we take the differences between individual price levels, these differences represent the amounts of debt liquidated at the given price level, subject to the assumption that all loans that were liquidable at higher collateral token prices were in fact liquidated. These amounts are then stored in the database.
+
+#### Database Schema
+
+The `kamino_liquidable_debts`, `mango_liquidable_debts`, `marginfi_liquidable_debts` and `solend_liquidable_debts` tables are structured in the following way:
+
+- `slot`: Stores the slot for which the data is relevant.
+- `protocol`: Identifies the protocol, i.e. `kamino`, `mango`, `marginfi`, or `solend`.
+- `collateral_token`: Collateral token for which the liquidable debt is measured
+- `debt_token`: Debt token for which the liquidable debt is measured
+- `collateral_token_price`: Hypothetical price of collateral token for which the liquidable debt is measured
+- `amount`: Amount of liquidable debt at the given price which wasn't liquidable at higher price levels
 
 ### Token supplies
 
@@ -457,30 +381,6 @@ In contrast with AMMs, it's not very simple to simulate liquidity that would ava
 ##### Normalized liquidity
 In order to have unified representation of on-chain liquidity in the database, liquidity normalization is conducted via `Dockerfile.liquidity-normalizer`, which fetches latest AMM/CLMM/CLOB liquidity from database, normalizes it (basically transforming all data to orderbook-like data) and then pushes it to `public.dex_normalized_liquidity` table. POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_HOST, POSTGRES_DB and AUTHENTICATED_RPC_URL environment variables are needed in order to run this service.
 
-
-### Frontend
-
-The frontend is a `streamlit` app which spawns a data updating process in the background. The process repeatedly loads new raw data, processes it and saves the outputs. The app then loads the latest outputs to visualize the following:
-
-1. Select boxes for the user the choose protocols and tokens of interest.
-2. Chart of the liquidable debt against the available supply, based on the parameters chosen above.
-3. Warning message informing the user about the risk of under-the-water loans.
-4. Statistics on individual loans with the lowest health factor. The loans fall within the range of debt in USD chosen by the user.
-5. Tables depicting various statistics based in which we can compare the lending protocols, e.g., the number of users or utilization rates.
-6. Pie charts showing each protocol's collateral, debt and supply for various tokens.
-7. Histograms visualizing the distribution of debt sizes across all lending protocols.
-8. Timestamp and block number corresponding to when the data was last updated.
-
-For running the frontend, run the following commands:
-
-```sh
-docker build -t frontend -f Dockerfile.frontend .
-# default port for Streamlit is 8501
-docker run -p 8501:8501 frontend
-```
-
-Currently, the app visualizes all of the above-mentioned items, but the data is empty and relies on completing future milestones.
-
 ### Call to Actions
 
 In order to provide signals of possible under-the-water loans Derisk project also implements so called Call to Actions (CTAs), which are generated by service found in `Dockerfile.call-to-actions`, which needs following environment variables:
@@ -492,15 +392,111 @@ In order to provide signals of possible under-the-water loans Derisk project als
 
 This service fetches the available liqduidity and liquidable debt for every possible pair and then calculates price levels at which the liquidable debt exceeds the available liquidity. These price levels are then used to generate a CTA message that is stored in the database and can be queried with collateral token address, debt token address and timestamp.
 
-## Standardized Health Factor
+## API
 
-While every lending protocol implements their own version of health factor, it is important to have one unified metric that can be used to compare user healths across the whole ecosystem. For that reason we also generate standardized health factor that is, for every user, defined as `total assets / total debt`. Factor ranges from zero to infinity and factor below one means that debt has exceeded the assets. Standardized health factors are stored in `{protocol}_health_ratios` tables (protocol can be "solend", "kamino" etc.). Examples of data stored in these tables:
+The API exposes an endpoint that allows access to data in the database.
 
-- `user`: Users address
-- `health_factor`: Health factor as defined by corresponding venue
-- `std_health_factor`: Standardized health factor
-- `collateral`: Users total collateral in USD
-- `risk_adjusted_collateral`: Users total collateral in USD, risk adjusted
-- `debt`: Users total debt in USD
-- `risk_adjusted_debt`: Users total debt in USD, risk adjusted
-- `timestamp`: When was the entry generated
+To run the API, the following environmental variables are required:
+
+- `POSTGRES_USER` name of the database user
+- `POSTGRES_PASSWORD` database user's password
+- `POSTGRES_HOST` host address, IP address or DNS of the database
+- `POSTGRES_DB` database name
+
+Then, run the following commands:
+
+```sh
+docker build --file ./Dockerfile.api -t api .
+docker run -d --name api -e POSTGRES_USER=$POSTGRES_USER -e POSTGRES_PASSWORD=$POSTGRES_PASSWORD -e POSTGRES_HOST=$POSTGRES_HOST -e POSTGRES_DB=$POSTGRES_DB -p 3000:3000 api
+```
+
+The API exposes endpoints that allows access to data in the database.
+
+Since some response may be large, the API uses `Gzip` for compression of the responses. It is advised to use the accept encoding header:
+```sh
+Accept-Encoding: gzip
+```
+This will speed up the resolution of requests.
+
+### Endpoints
+
+#### `/v1/readiness`
+
+Query parameters:
+ - none
+
+Readiness probe, if the request succeeds, the API is ready to accept requests.
+
+#### `/v1/transactions`
+
+Query parameters:
+ - `start_time` - start time in unix timestamp format
+ - `end_time` - end time in unix timestamp format
+
+Returns an array of raw transactions within block range.
+
+#### `/v1/parsed-transactions`
+
+Query parameters:
+ - `limit` - number of last blocks from which parsed transactions should be retrieved
+ - `protocol` - name of the protocol
+
+Returns an array of parsed transactions within block range for the given protocol.
+
+#### `/v1/liquidity`
+
+Query parameters:
+ - `token_x` - address of the first token
+ - `token_y` - address of the second token
+
+Returns bids and asks for the given token pair.
+
+#### `/v1/liquidable-debt`
+
+Query parameters:
+ - `protocol` - name of the protocol
+ - `collateral_token` - collateral token address
+ - `debt_token` - debt token address
+
+Returns an array of liquidable debt for given protocol, collateral token and debt token.
+
+#### `/v1/loan-states`
+
+Query parameters:
+ - `protocol` - name of the protocol
+
+Returns an array of current loan states.
+
+#### `/v1/health-ratios`
+
+Query parameters:
+ - `protocol` - name of the protocol
+
+Returns an array of current loan states.
+
+#### `/v1/cta`
+
+Query parameters:
+ - none
+
+Returns an array of call-to-action items.
+
+## Frontend
+
+The frontend is a `streamlit` app which loads the latest outputs to visualize the following:
+
+1. Select boxes for the user the choose protocols and tokens of interest.
+2. Chart of the liquidable debt against the available supply, based on the parameters chosen above.
+3. Warning message informing the user about the risk of under-the-water loans.
+4. Table depicting utilization rates for various tokens.
+5. Pie charts showing each protocol's collateral, debt and supply for various tokens.
+6. Table depicting various statistics based on which we can compare the lending protocols, e.g., the number of users or total debt.
+7. Statistics on individual loans with the lowest health factor.
+
+For running the frontend, run the following commands:
+
+```sh
+docker build -t frontend -f Dockerfile.frontend .
+# default port for Streamlit is 8501
+docker run -p 8501:8501 frontend
+```
