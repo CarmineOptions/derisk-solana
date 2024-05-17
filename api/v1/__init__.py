@@ -2,7 +2,7 @@ from flask import Blueprint, jsonify, request, abort
 import sqlalchemy
 
 from api.utils import to_dict
-from api.extensions import db, db2
+from api.extensions import db
 
 from db import (
     CallToActions,
