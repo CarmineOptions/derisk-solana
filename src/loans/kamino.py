@@ -174,7 +174,7 @@ class KaminoLoanEntity(src.loans.state.CustomLoanEntity):
 
     def health_ratio(self) -> str | None:
         """
-        Compute Solend health ratio:
+        Compute Kamino health ratio:
             health_ratio = risk adjusted debt / risk adjusted collateral
         :return:
         """
@@ -341,7 +341,7 @@ class KaminoState(src.loans.solend.SolendState):
 
     @staticmethod
     def get_account_info(market: str, client: Client):
-        """ Fetch Solend obligations for pool. """
+        """ Fetch Kamino obligations for pool. """
         try:
             response = client.get_account_info_json_parsed(Pubkey.from_string(market))
             return response
@@ -353,7 +353,7 @@ class KaminoState(src.loans.solend.SolendState):
 
     @staticmethod
     def fetch_accounts(pool_pubkey: str, client: Client, filters: List[Any]) -> List[RpcKeyedAccount]:
-        """ Fetch Solend obligations for pool. """
+        """ Fetch Kamino obligations for pool. """
         try:
             response = client.get_program_accounts(
                 KAMINO_PROGRAM_ID,
