@@ -232,6 +232,7 @@ class SolendState(src.loans.state.State):
                         reserve=collateral_info['reserve'],
                         mint=mint,
                         amount=collateral_info['amount'],
+                        elevation_group=collateral_info['elevation_group']
                     )
                     self.loan_entities[obligation].collateral.append(new_collateral_position)
 
@@ -296,7 +297,17 @@ class SolendState(src.loans.state.State):
 
         market_values = {}
         for loan_entity in self.loan_entities.values():
-            loan_entity.update_positions_from_reserve_config(self.reserve_configs, self.token_prices)
+            if hasattr(self, 'elevation_groups_to_liquidation_threshold'):
+                loan_entity.update_positions_from_reserve_config(
+                    self.reserve_configs,
+                    self.token_prices,
+                    self.elevation_groups_to_liquidation_threshold
+                )
+            else:
+                loan_entity.update_positions_from_reserve_config(
+                    self.reserve_configs,
+                    self.token_prices
+                )
             for debt in loan_entity.debt:
                 if debt.raw_amount > 0:
                     debt_value = debt.market_value()  # Compute market value of the debt

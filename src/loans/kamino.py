@@ -24,6 +24,7 @@ from src.parser import TransactionDecoder
 from src.prices import get_prices_for_tokens
 from src.protocols.addresses import KAMINO_ADDRESS
 from src.protocols.anchor_clients.kamino_client.accounts import Reserve
+from src.protocols.anchor_clients.kamino_client.accounts.lending_market import LendingMarket
 from src.protocols.idl_paths import KAMINO_IDL_PATH
 
 # Keys are values of the "instruction_name" column in the database, values are the respective method names.
@@ -125,7 +126,12 @@ class KaminoDebtPosition(src.loans.state.DebtPosition):
 class KaminoLoanEntity(src.loans.state.CustomLoanEntity):
     """ A class that describes the Kamino loan entity. """
 
-    def update_positions_from_reserve_config(self, reserve_configs: Dict[str, Any], prices: Dict[str, Any]):
+    def update_positions_from_reserve_config(
+            self,
+            reserve_configs: Dict[str, Any],
+            prices: Dict[str, Any],
+            elevation_groups_info: Dict[str, Any]
+    ):
         """ Fill missing data in position object with parameters from reserve configs. """
         # Update collateral positions
         for collateral in self.collateral:
@@ -144,7 +150,12 @@ class KaminoLoanEntity(src.loans.state.CustomLoanEntity):
                 price = prices[str(reserve_config.liquidity.mint_pubkey)]
                 collateral.underlying_asset_price_wad = price * SF if price is not None \
                     else reserve_config.liquidity.market_price_sf
-                collateral.liquidation_threshold = reserve_config.config.liquidation_threshold_pct / 100
+                if collateral.elevation_group:
+                    collateral.liquidation_threshold = elevation_groups_info[
+                        '7u3HeHxYDLhnCoErrtycNokbQYbWGzLs6JSDqGAv5PfF'
+                    ][collateral.elevation_group] / 100
+                else:
+                    collateral.liquidation_threshold = reserve_config.config.liquidation_threshold_pct / 100
                 collateral.liquidation_bonus = reserve_config.config.min_liquidation_bonus_bps / 10000
                 collateral.underlying_token = str(reserve_config.liquidity.mint_pubkey)
 
@@ -163,7 +174,7 @@ class KaminoLoanEntity(src.loans.state.CustomLoanEntity):
 
     def health_ratio(self) -> str | None:
         """
-        Compute Solend health ratio:
+        Compute Kamino health ratio:
             health_ratio = risk adjusted debt / risk adjusted collateral
         :return:
         """
@@ -189,8 +200,8 @@ class KaminoLoanEntity(src.loans.state.CustomLoanEntity):
             return 'inf'
         if self.is_zero_deposit:
             return '0'
-        deposited_value = self.collateral_market_value()
-        borrowed_value = self.debt_risk_adjusted_market_value()
+        deposited_value = self.collateral_risk_adjusted_market_value()
+        borrowed_value = self.debt_market_value()
         if borrowed_value == 0:  # for cases with health ratios equal to 0
             return 'inf'
         return str(round(deposited_value / borrowed_value, 6))
@@ -228,6 +239,7 @@ class KaminoState(src.loans.solend.SolendState):
         initial_loan_states: pandas.DataFrame = pandas.DataFrame(),
     ) -> None:
         self.reserve_configs = dict()
+        self.elevation_groups_to_liquidation_threshold = dict()
         self.loan_entity_class = KaminoLoanEntity
         super().__init__(
             protocol='kamino',
@@ -260,6 +272,16 @@ class KaminoState(src.loans.solend.SolendState):
                 for reserve in market_accounts
             ]
 
+            lending_market = KaminoState.get_account_info(market, KaminoState.client)
+            lending_market = LendingMarket.decode(lending_market.value.data)
+
+            self.elevation_groups_to_liquidation_threshold[market] = {}
+            
+            for elevation_group in lending_market.elevation_groups:
+                if elevation_group.id == 0:
+                    continue
+                self.elevation_groups_to_liquidation_threshold[market][elevation_group.id] = elevation_group.liquidation_threshold_pct
+
             for reserve in market_reserves:
                 reserves.append(reserve)
 
@@ -280,14 +302,18 @@ class KaminoState(src.loans.solend.SolendState):
             self._get_reserve_configs()
         with get_db_session() as session:
             for loan_entity in self.loan_entities.values():
-                loan_entity.update_positions_from_reserve_config(self.reserve_configs, self.token_prices)
+                loan_entity.update_positions_from_reserve_config(
+                    self.reserve_configs,
+                    self.token_prices,
+                    self.elevation_groups_to_liquidation_threshold
+                )
                 new_health_ratio = KaminoHealthRatio(
                     slot=int(self.last_slot),
                     user=loan_entity.obligation,
                     health_factor=loan_entity.health_ratio(),
                     std_health_factor=loan_entity.std_health_ratio(),
                     collateral=str(round(loan_entity.collateral_market_value(), 6)),
-                    risk_adjusted_collateral=str(round(loan_entity.collateral_market_value(), 6)),
+                    risk_adjusted_collateral=str(round(loan_entity.collateral_risk_adjusted_market_value(), 6)),
                     debt=str(round(loan_entity.debt_market_value(), 6)),
                     risk_adjusted_debt=str(round(loan_entity.debt_risk_adjusted_market_value(), 6))
                 )
@@ -314,8 +340,20 @@ class KaminoState(src.loans.solend.SolendState):
         return int(price) / SF
 
     @staticmethod
+    def get_account_info(market: str, client: Client):
+        """ Fetch Kamino obligations for pool. """
+        try:
+            response = client.get_account_info_json_parsed(Pubkey.from_string(market))
+            return response
+
+        except SolanaRpcException as e:
+            LOGGER.error(f"SolanaRpcException: {e} while collecting obligations for `{market}`.")
+            time.sleep(0.5)
+            return KaminoState.get_account_info(market, client)
+
+    @staticmethod
     def fetch_accounts(pool_pubkey: str, client: Client, filters: List[Any]) -> List[RpcKeyedAccount]:
-        """ Fetch Solend obligations for pool. """
+        """ Fetch Kamino obligations for pool. """
         try:
             response = client.get_program_accounts(
                 KAMINO_PROGRAM_ID,
