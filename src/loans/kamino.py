@@ -253,7 +253,7 @@ class KaminoState(src.loans.solend.SolendState):
     def _get_reserve_configs(self):
         reserves = []
         decoder = TransactionDecoder(
-            path_to_idl='../src/protocols/idls/kamino_idl.json',    #Path(KAMINO_IDL_PATH),
+            path_to_idl=Path(KAMINO_IDL_PATH),
             program_id=Pubkey.from_string(KAMINO_ADDRESS)
         )
         for market in [LENDING_MARKET_MAIN, JLP_MARKET, ALTCOIN_MARKET]:

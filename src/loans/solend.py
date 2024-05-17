@@ -216,37 +216,36 @@ class SolendState(src.loans.state.State):
         )
 
     def set_initial_loan_states(self, initial_loan_states: pd.DataFrame) -> None:
-        pass
-        # # Iterate over each row in the DataFrame
-        # self.last_slot = initial_loan_states.slot.max()
-        # for index, row in initial_loan_states.iterrows():
-        #     obligation = row['user']
-        #     last_update = row['slot']
-        #
-        #     if obligation not in self.loan_entities:
-        #         self.loan_entities[obligation] = self.loan_entity_class(obligation=obligation, slot=last_update)
-        #     # Process collateral positions
-        #     collateral_data = row['collateral']
-        #     for mint, collateral_info in collateral_data.items():
-        #         if collateral_info:  # Check if there is data present for the collateral
-        #             new_collateral_position = self.collateral_position_class(
-        #                 reserve=collateral_info['reserve'],
-        #                 mint=mint,
-        #                 amount=collateral_info['amount'],
-        #                 elevation_group=collateral_info['elevation_group']
-        #             )
-        #             self.loan_entities[obligation].collateral.append(new_collateral_position)
-        #
-        #     # Process debt positions
-        #     debt_data = row['debt']
-        #     for mint, debt_info in debt_data.items():
-        #         if debt_info:  # Check if there is data present for the debt
-        #             new_debt_position = self.debt_position_class(
-        #                 reserve=debt_info['reserve'],
-        #                 mint=mint,
-        #                 raw_amount=debt_info['rawAmount'],
-        #             )
-        #             self.loan_entities[obligation].debt.append(new_debt_position)
+        # Iterate over each row in the DataFrame
+        self.last_slot = initial_loan_states.slot.max()
+        for index, row in initial_loan_states.iterrows():
+            obligation = row['user']
+            last_update = row['slot']
+
+            if obligation not in self.loan_entities:
+                self.loan_entities[obligation] = self.loan_entity_class(obligation=obligation, slot=last_update)
+            # Process collateral positions
+            collateral_data = row['collateral']
+            for mint, collateral_info in collateral_data.items():
+                if collateral_info:  # Check if there is data present for the collateral
+                    new_collateral_position = self.collateral_position_class(
+                        reserve=collateral_info['reserve'],
+                        mint=mint,
+                        amount=collateral_info['amount'],
+                        elevation_group=collateral_info['elevation_group']
+                    )
+                    self.loan_entities[obligation].collateral.append(new_collateral_position)
+
+            # Process debt positions
+            debt_data = row['debt']
+            for mint, debt_info in debt_data.items():
+                if debt_info:  # Check if there is data present for the debt
+                    new_debt_position = self.debt_position_class(
+                        reserve=debt_info['reserve'],
+                        mint=mint,
+                        raw_amount=debt_info['rawAmount'],
+                    )
+                    self.loan_entities[obligation].debt.append(new_debt_position)
 
     def _get_reserve_configs(self):
         reserve_addresses = {
