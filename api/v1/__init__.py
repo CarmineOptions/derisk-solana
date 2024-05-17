@@ -1,6 +1,5 @@
 from flask import Blueprint, jsonify, request, abort
 import sqlalchemy
-from sqlalchemy.orm import load_only
 
 from api.utils import to_dict
 from api.extensions import db
@@ -24,8 +23,7 @@ from db import (
     MangoLiquidableDebts,
     KaminoLiquidableDebts,
     SolendLiquidableDebts,
-    TransactionsForAPI,
-    CollectionStreamTypes
+    TransactionStatusWithSignature,
 )
 
 v1 = Blueprint("v1", __name__)
@@ -94,21 +92,28 @@ def get_transactions():
     if end_time - start_time > MAX_SECONDS:
         abort(400, description="cannot fetch interval longer then 60 seconds")
 
-    transactions = TransactionsForAPI.query(
-        TransactionsForAPI.signature,
-        TransactionsForAPI.slot,
-        TransactionsForAPI.transaction_data,
-        TransactionsForAPI.source,
-        TransactionsForAPI.block_time
-    ).filter(
-        TransactionsForAPI.block_time >= start_time,
-        TransactionsForAPI.block_time <= end_time,
+    results = TransactionStatusWithSignature.query.filter(
+        TransactionStatusWithSignature.block_time >= start_time,
+        TransactionStatusWithSignature.block_time <= end_time,
     ).all()
 
-    # Serialize the query results
-    results = [to_dict(transaction) for transaction in transactions]
+    # Convert results to list of dictionaries
+    transactions = []
+    for result in results:
+        transaction = {
+            "id": result.id,
+            "source": result.source,
+            "slot": result.slot,
+            "block_time": result.block_time,
+            "transaction_data": result.transaction_data,
+            # Serialize the enum type
+            "collection_stream": (
+                result.collection_stream.value if result.collection_stream else None
+            ),
+        }
+        transactions.append(transaction)
 
-    return jsonify(results)
+    return jsonify(transactions)
 
 
 @v1.route("/parsed-transactions", methods=["GET"])
