@@ -24,6 +24,7 @@ from src.parser import TransactionDecoder
 from src.prices import get_prices_for_tokens
 from src.protocols.addresses import KAMINO_ADDRESS
 from src.protocols.anchor_clients.kamino_client.accounts import Reserve
+from src.protocols.anchor_clients.kamino_client.accounts.lending_market import LendingMarket
 from src.protocols.idl_paths import KAMINO_IDL_PATH
 
 # Keys are values of the "instruction_name" column in the database, values are the respective method names.
@@ -228,6 +229,7 @@ class KaminoState(src.loans.solend.SolendState):
         initial_loan_states: pandas.DataFrame = pandas.DataFrame(),
     ) -> None:
         self.reserve_configs = dict()
+        self.elevation_groups_to_liquidation_threshold = dict()
         self.loan_entity_class = KaminoLoanEntity
         super().__init__(
             protocol='kamino',
@@ -259,6 +261,16 @@ class KaminoState(src.loans.solend.SolendState):
                 }
                 for reserve in market_accounts
             ]
+
+            lending_market = client.get_account_info_json_parsed(Pubkey.from_string(market))
+            lending_market = LendingMarket.decode(data.value.data)
+
+            self.elevation_groups_to_liquidation_threshold[market] = {}
+            
+            for elevation_group in lending_market.elevation_groups:
+                if elevation_group.id == 0:
+                    continue
+                elevation_groups_to_liquidation_threshold[market][elevation_group.id] = elevation_group.liquidation_threshold_pct
 
             for reserve in market_reserves:
                 reserves.append(reserve)
