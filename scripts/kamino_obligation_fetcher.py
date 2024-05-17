@@ -5,6 +5,7 @@ Script for Kamino loan states collection.
 import asyncio
 import logging
 import os
+import sys
 import time
 from pathlib import Path
 from typing import Any, Dict, List
@@ -17,6 +18,8 @@ from solana.rpc.types import MemcmpOpts
 from solders.pubkey import Pubkey
 from solders.rpc.responses import RpcKeyedAccount
 
+sys.path.append('.')
+
 # Local application/library specific imports
 import db
 from src.loans.kamino import KaminoState
@@ -27,6 +30,8 @@ from src.protocols.anchor_clients.kamino_client.accounts.obligation import Oblig
 from src.protocols.anchor_clients.kamino_client.accounts.reserve import Reserve
 from src.protocols.idl_paths import KAMINO_IDL_PATH
 
+
+
 # logger
 LOGGER = logging.getLogger(__name__)
 
@@ -36,6 +41,7 @@ AUTHENTICATED_RPC_URL = os.getenv("RPC_URL")
 LENDING_MARKET_MAIN = '7u3HeHxYDLhnCoErrtycNokbQYbWGzLs6JSDqGAv5PfF'
 JLP_MARKET = 'DxXdAyU3kCjnyggvHmY5nAwg5cRbbmdyX3npfDMjjMek'
 ALTCOIN_MARKET = 'ByYiZxp8QrdN9qbdtaAiePN8AAr3qvTPppNJDpf5DVJ5'
+
 
 
 async def fetch_accounts(pool_pubkey: str, client: AsyncClient, filters: List[Any]) -> List[RpcKeyedAccount]:
@@ -115,7 +121,11 @@ def process_collateral(obligation: Any, reserve_to_supply_map: Dict[str, Any]):
             continue
         reserve = str(position.deposit_reserve)
         collateral_mint = reserve_to_supply_map[reserve]['collateralMint']
-        collateral[str(collateral_mint)] = {'amount': amount, 'reserve': reserve}
+        collateral[str(collateral_mint)] = {
+            'amount': amount,
+            'reserve': reserve,
+            'elevation_group': obligation.elevation_group,
+        }
     return collateral
 
 
