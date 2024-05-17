@@ -263,7 +263,7 @@ class KaminoState(src.loans.solend.SolendState):
             ]
 
             lending_market = client.get_account_info_json_parsed(Pubkey.from_string(market))
-            lending_market = LendingMarket.decode(data.value.data)
+            lending_market = LendingMarket.decode(lending_market.value.data)
 
             self.elevation_groups_to_liquidation_threshold[market] = {}
             
