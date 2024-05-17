@@ -10,13 +10,13 @@ from db import (
     DexNormalizedLiquidity,
     KaminoHealthRatio,
     KaminoLoanStates,
-    KaminoParsedTransactions,
+    KaminoParsedTransactionsV2,
     MangoHealthRatio,
     MangoLoanStates,
-    MangoParsedTransactions,
+    MangoParsedEvents,
     MarginfiHealthRatio,
     MarginfiLoanStates,
-    MarginfiParsedTransactions,
+    MarginfiParsedTransactionsV2,
     SolendHealthRatio,
     SolendLoanStates,
     SolendParsedTransactions,
@@ -31,12 +31,12 @@ v1 = Blueprint("v1", __name__)
 
 
 MAX_SECONDS = 60
-
+MAX_SECONDS_EVENTS = 300
 
 protocols_parsed_transactions_model_map = {
-    "marginfi": MarginfiParsedTransactions,
-    "mango": MangoParsedTransactions,
-    "kamino": KaminoParsedTransactions,
+    "marginfi": MarginfiParsedTransactionsV2,
+    "mango": MangoParsedEvents,
+    "kamino": KaminoParsedTransactionsV2,
     "solend": SolendParsedTransactions,
 }
 
@@ -110,23 +110,42 @@ def get_lender_parsed_transactions():
     max_limit = 100
 
     try:
-        limit = int(request.args.get("limit", default_limit))
-        if limit > max_limit:
-            abort(400, description=f"Bad limit. Maximum limit is {max_limit}")
-
-        protocol = request.args.get("protocol", "marginfi")
+        protocol = request.args.get("protocol", "")
         if protocol not in protocols_parsed_transactions_model_map:
             abort(
                 400,
                 description=f"Bad protocol. Allowed protocols are {list(protocols_parsed_transactions_model_map.keys())}",
             )
 
+        try:
+            start_time = int(request.args.get("start_time"))
+            end_time = int(request.args.get("end_time"))
+        except TypeError:
+            abort(
+                400,
+                description='"start_time" and "end_time" must be specified and valid integers.',
+            )
+
+        if start_time is None or end_time is None:
+            abort(
+                400,
+                description='"start_time" and "end_time" must be specified',
+            )
+
+        if start_time > end_time:
+            abort(
+                400,
+                description='"end_time" must be greater than "start_time"',
+            )
+
+        if end_time - start_time > MAX_SECONDS_EVENTS:
+            abort(400, description="cannot fetch interval longer then 300 seconds")
+
         model = protocols_parsed_transactions_model_map[protocol.lower()]
 
-        # Example of a more idiomatic query assuming some common schema
-        max_block = db.session.query(sqlalchemy.func.max(model.block)).scalar()
         transactions = model.query.filter(
-            model.block.between(max_block - limit, max_block)
+            model.created_at >= start_time,
+            model.created_at <= end_time,
         ).all()
 
         return jsonify([to_dict(transaction) for transaction in transactions])

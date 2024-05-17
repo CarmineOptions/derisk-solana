@@ -438,10 +438,11 @@ Returns an array of raw transactions within block range.
 #### `/v1/parsed-transactions`
 
 Query parameters:
- - `limit` - number of last blocks from which parsed transactions should be retrieved
+ - `start_time` - start time in unix timestamp format
+ - `end_time` - end time in unix timestamp format
  - `protocol` - name of the protocol
 
-Returns an array of parsed transactions within block range for the given protocol.
+Returns an array of parsed transactions within time range for the given protocol.
 
 #### `/v1/liquidity`
 
