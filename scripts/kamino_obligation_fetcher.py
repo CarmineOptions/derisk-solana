@@ -185,8 +185,7 @@ async def obtain_loan_states():
             'protocol': 'kamino',
             'user': user,
             'collateral': process_collateral(obligation, reserve_to_supply_map),
-            'debt': process_debt(obligation, reserve_to_supply_map),
-            'egroup': obligation.elevation_group
+            'debt': process_debt(obligation, reserve_to_supply_map)
         }
         obligations_processed.append(processed_obligation)
     new_loan_states = pd.DataFrame(obligations_processed)
