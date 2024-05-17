@@ -1,21 +1,11 @@
-# import datetime
 import logging
-
-# import multiprocessing
-# import os
 import sys
 
+import plotly.express as px
 import streamlit as st
 
 sys.path.append(".")
 
-import plotly.express as px
-import numpy as np
-
-# import src.data_processing
-# import src.persistent_state
-# import src.prices
-# import src.visualizations.histogram
 import src.cta.cta
 import src.prices
 import src.visualizations.protocol_stats
@@ -26,6 +16,7 @@ from src.prices import get_prices_for_tokens
 from src.protocols.dexes.amms.utils import get_tokens_address_to_info_map
 import src.visualizations.loans_table
 import src.visualizations.user_stats
+
 
 
 def main():
@@ -90,7 +81,6 @@ def main():
     )
     st.plotly_chart(figure_or_data=main_chart_figure, use_container_width=True)
 
-
     # Compute the price at which the liquidable debt to the available supply ratio is dangerous. Create and display the
     # warning message.
     cta_message = src.cta.cta.fetch_latest_cta_message(
@@ -101,28 +91,8 @@ def main():
     if cta_message:
         st.subheader(":warning:")
         st.subheader(cta_message.message)
-    # # Select the range of debt in USD and display individual loans with the lowest health factors.
-    # streamlit.header("Loans with low health factor")
-    # loans_table_data = src.visualizations.loans_table.load_data(protocols=protocols, token_pair=token_pair)  # type: ignore
-    # col1, _ = streamlit.columns([1, 3])
-    # with col1:
-    # 	# TODO: Use `int(loans_table_data["Debt (USD)"].max())`.
-    # 	max_debt_usd = 100
-    # 	debt_usd_lower_bound, debt_usd_upper_bound = streamlit.slider(
-    # 		label="Select range of USD debt",
-    # 		min_value=0,
-    # 		max_value=max_debt_usd,
-    # 		value=(0, max_debt_usd),
-    # 	)
-    # streamlit.dataframe(
-    # 	loans_table_data[
-    # 		loans_table_data["Debt (USD)"].between(debt_usd_lower_bound, debt_usd_upper_bound)
-    # 	].sort_values("Health factor").iloc[:20],
-    # 	use_container_width=True,
-    # )
 
-
-    # # Display comparison stats for all lending protocols.
+    # Display comparison stats for all lending protocols.
     st.header("Comparison of lending protocols")
 
     st.subheader("Token utilizations")
@@ -191,10 +161,18 @@ def main():
 
     st.header("Loans with the lowest health factor")
     user_health_ratios_df = src.visualizations.loans_table.load_user_health_ratios(protocols)
+    col1, _ = st.columns([1, 3])
+    with col1:
+        debt_usd_lower_bound, debt_usd_upper_bound = st.slider(
+            label="Select range of USD debt",
+            min_value=0,
+            max_value=int(user_health_ratios_df["Debt (USD)"].astype(float).max()),
+            value=(0, int(user_health_ratios_df["Debt (USD)"].astype(float).max())),
+        )
     st.dataframe(
-        user_health_ratios_df[user_health_ratios_df['Collateral (USD)'] != '0']
-            .sort_values('Standardized Health Factor', ascending=True)
-            .head(50),
+        user_health_ratios_df[
+            user_health_ratios_df["Debt (USD)"].astype(float).between(debt_usd_lower_bound, debt_usd_upper_bound)
+        ].sort_values('Standardized Health Factor', ascending=True).head(50),
         use_container_width=True,
     )
     logging.info('Dashboard loaded')
