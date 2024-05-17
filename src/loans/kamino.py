@@ -126,7 +126,12 @@ class KaminoDebtPosition(src.loans.state.DebtPosition):
 class KaminoLoanEntity(src.loans.state.CustomLoanEntity):
     """ A class that describes the Kamino loan entity. """
 
-    def update_positions_from_reserve_config(self, reserve_configs: Dict[str, Any], prices: Dict[str, Any]):
+    def update_positions_from_reserve_config(
+            self,
+            reserve_configs: Dict[str, Any],
+            prices: Dict[str, Any],
+            elevation_groups_info: Dict[str, Any]
+    ):
         """ Fill missing data in position object with parameters from reserve configs. """
         # Update collateral positions
         for collateral in self.collateral:
@@ -145,7 +150,12 @@ class KaminoLoanEntity(src.loans.state.CustomLoanEntity):
                 price = prices[str(reserve_config.liquidity.mint_pubkey)]
                 collateral.underlying_asset_price_wad = price * SF if price is not None \
                     else reserve_config.liquidity.market_price_sf
-                collateral.liquidation_threshold = reserve_config.config.liquidation_threshold_pct / 100
+                if collateral.elevation_group:
+                    collateral.liquidation_threshold = elevation_groups_info[
+                        '7u3HeHxYDLhnCoErrtycNokbQYbWGzLs6JSDqGAv5PfF'
+                    ][collateral.elevation_group] / 100
+                else:
+                    collateral.liquidation_threshold = reserve_config.config.liquidation_threshold_pct / 100
                 collateral.liquidation_bonus = reserve_config.config.min_liquidation_bonus_bps / 10000
                 collateral.underlying_token = str(reserve_config.liquidity.mint_pubkey)
 
@@ -243,7 +253,7 @@ class KaminoState(src.loans.solend.SolendState):
     def _get_reserve_configs(self):
         reserves = []
         decoder = TransactionDecoder(
-            path_to_idl=Path(KAMINO_IDL_PATH),
+            path_to_idl='../src/protocols/idls/kamino_idl.json',    #Path(KAMINO_IDL_PATH),
             program_id=Pubkey.from_string(KAMINO_ADDRESS)
         )
         for market in [LENDING_MARKET_MAIN, JLP_MARKET, ALTCOIN_MARKET]:

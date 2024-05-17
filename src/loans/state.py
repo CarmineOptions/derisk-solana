@@ -17,6 +17,7 @@ class CollateralPosition:
     amount: float
     decimals: int | None = None
     ltv: float | None = None
+    elevation_group: int | None = None
     c_token_exchange_rate: float = ''
     liquidation_threshold: float | None = None
     liquidation_bonus: float | None = None
