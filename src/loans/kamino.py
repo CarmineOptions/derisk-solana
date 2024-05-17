@@ -177,6 +177,24 @@ class KaminoLoanEntity(src.loans.state.CustomLoanEntity):
         borrowed_value = self.debt_market_value()
         return str(round(borrowed_value / deposited_value, 6))
 
+    def std_health_ratio(self) -> str:
+        """
+        Compute standardized health ratio:
+            std_health_ratio = collateral / risk adjusted debt
+        :return:
+        """
+        if self.is_zero_debt and self.is_zero_deposit:
+            return None
+        if self.is_zero_debt:
+            return 'inf'
+        if self.is_zero_deposit:
+            return '0'
+        deposited_value = self.collateral_market_value()
+        borrowed_value = self.debt_risk_adjusted_market_value()
+        if borrowed_value == 0:  # for cases with health ratios equal to 0
+            return 'inf'
+        return str(round(deposited_value / borrowed_value, 6))
+
 
 @lru_cache()
 def _compute_ctoken_exchange_rate(
@@ -269,7 +287,7 @@ class KaminoState(src.loans.solend.SolendState):
                     health_factor=loan_entity.health_ratio(),
                     std_health_factor=loan_entity.std_health_ratio(),
                     collateral=str(round(loan_entity.collateral_market_value(), 6)),
-                    risk_adjusted_collateral=str(round(loan_entity.collateral_risk_adjusted_market_value(), 6)),
+                    risk_adjusted_collateral=str(round(loan_entity.collateral_market_value(), 6)),
                     debt=str(round(loan_entity.debt_market_value(), 6)),
                     risk_adjusted_debt=str(round(loan_entity.debt_risk_adjusted_market_value(), 6))
                 )
