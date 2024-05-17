@@ -262,7 +262,7 @@ class KaminoState(src.loans.solend.SolendState):
                 for reserve in market_accounts
             ]
 
-            lending_market = client.get_account_info_json_parsed(Pubkey.from_string(market))
+            lending_market = KaminoState.get_account_info(market, KaminoState.client)
             lending_market = LendingMarket.decode(lending_market.value.data)
 
             self.elevation_groups_to_liquidation_threshold[market] = {}
@@ -324,6 +324,18 @@ class KaminoState(src.loans.solend.SolendState):
                     price = reserve_config.liquidity.market_price_sf
         assert price, f'failed to fetch price for {token}'
         return int(price) / SF
+
+    @staticmethod
+    def get_account_info(market: str, client: Client):
+        """ Fetch Solend obligations for pool. """
+        try:
+            response = client.get_account_info_json_parsed(Pubkey.from_string(market))
+            return response
+
+        except SolanaRpcException as e:
+            LOGGER.error(f"SolanaRpcException: {e} while collecting obligations for `{market}`.")
+            time.sleep(0.5)
+            return KaminoState.get_account_info(market, client)
 
     @staticmethod
     def fetch_accounts(pool_pubkey: str, client: Client, filters: List[Any]) -> List[RpcKeyedAccount]:
