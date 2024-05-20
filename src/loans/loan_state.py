@@ -11,9 +11,9 @@ from db import (
     MarginfiLoanStates,
     KaminoLoanStates,
     SolendLoanStates,
-    MangoParsedTransactions,
-    MarginfiParsedTransactions,
-    KaminoParsedTransactions,
+    MangoParsedEvents,
+    MarginfiParsedTransactionsV2,
+    KaminoParsedTransactionsV2,
     SolendParsedTransactions,
     get_db_session,
 )
@@ -23,8 +23,6 @@ import src.loans.mango
 import src.loans.solend
 
 
-
-
 MARGINFI = "marginfi"
 MANGO = "mango"
 KAMINO = "kamino"
@@ -32,9 +30,9 @@ SOLEND = "solend"
 
 Protocol = Literal["marginfi", "mango", "kamino", "solend"]
 AnyEvents = list[
-    MangoParsedTransactions
-    | MarginfiParsedTransactions
-    | KaminoParsedTransactions
+    MangoParsedEvents
+    | MarginfiParsedTransactionsV2
+    | KaminoParsedTransactionsV2
     | SolendParsedTransactions
 ]
 
@@ -45,9 +43,9 @@ AnyProtocolModel = (
     | Type[SolendLoanStates]
 )
 
-TypeMarginfi = TypeVar("TypeMarginfi", bound=MarginfiParsedTransactions)
-TypeMango = TypeVar("TypeMango", bound=MangoParsedTransactions)
-TypeKamino = TypeVar("TypeKamino", bound=KaminoParsedTransactions)
+TypeMarginfi = TypeVar("TypeMarginfi", bound=MarginfiParsedTransactionsV2)
+TypeMango = TypeVar("TypeMango", bound=MangoParsedEvents)
+TypeKamino = TypeVar("TypeKamino", bound=KaminoParsedTransactionsV2)
 TypeSolend = TypeVar("TypeSolend", bound=SolendParsedTransactions)
 
 ProcessFuncTypeMarginfi = Callable[[list[TypeMarginfi]], pandas.DataFrame]
@@ -63,9 +61,8 @@ ProtocolFunc = (
 )
 
 
-
 # TODO: these are redundant
-def process_mango_events(events: list[MangoParsedTransactions]) -> pandas.DataFrame:
+def process_mango_events(events: list[MangoParsedEvents]) -> pandas.DataFrame:
     # TODO: process mango events
     print(events)
 
@@ -212,20 +209,20 @@ def fetch_events(min_slot: int, protocol: Protocol, session: sqlalchemy.orm.sess
     """
     if protocol == "mango":
         return (
-            session.query(MangoParsedTransactions)
-            .filter(MangoParsedTransactions.block > min_slot)
+            session.query(MangoParsedEvents)
+            .filter(MangoParsedEvents.block > min_slot)
             .all()
         )
     if protocol == "marginfi":
         return (
-            session.query(MarginfiParsedTransactions)
-            .filter(MarginfiParsedTransactions.block > min_slot)
+            session.query(MarginfiParsedTransactionsV2)
+            .filter(MarginfiParsedTransactionsV2.block > min_slot)
             .all()
         )
     if protocol == "kamino":
         return (
-            session.query(KaminoParsedTransactions)
-            .filter(KaminoParsedTransactions.block > min_slot)
+            session.query(KaminoParsedTransactionsV2)
+            .filter(KaminoParsedTransactionsV2.block > min_slot)
             .all()
         )
 
@@ -267,8 +264,11 @@ def process_events_to_loan_states(
         {
             'protocol': [state.protocol for _ in state.loan_entities.keys()],
             'slot': [state.last_slot for _ in state.loan_entities.keys()],
-            'user': [user for user in state.loan_entities],
-            'collateral': [{token: float(amount) for token, amount in loan.collateral.items()} for loan in state.loan_entities.values()],
+            'user': list(state.loan_entities),
+            'collateral': [
+                {token: float(amount) for token, amount in loan.collateral.items()}
+                for loan in state.loan_entities.values()
+            ],
             'debt': [{token: float(amount) for token, amount in loan.debt.items()} for loan in state.loan_entities.values()],
         }
     )
@@ -276,11 +276,11 @@ def process_events_to_loan_states(
     if state.last_slot > min_slot:
         new_loan_states_wide = widen_loan_states(new_loan_states)
         current_loan_states_wide = widen_loan_states(current_loan_states)
-        COLUMNS = ['protocol', 'user', 'collateral_keys', 'collateral_values', 'debt_keys', 'debt_values']
+        columns = ['protocol', 'user', 'collateral_keys', 'collateral_values', 'debt_keys', 'debt_values']
         changed_loan_states_users = pandas.concat(
             [
-                new_loan_states_wide[COLUMNS],
-                current_loan_states_wide[COLUMNS],
+                new_loan_states_wide[columns],
+                current_loan_states_wide[columns],
             ],
         ).drop_duplicates(keep=False)['user'].unique()
         changed_loan_states = new_loan_states[new_loan_states['user'].isin(changed_loan_states_users)]
