@@ -234,6 +234,9 @@ class MangoState(src.loans.state.State):
 
                 # Parse Serum order
                 parsed_order = OPEN_ORDERS_LAYOUT.parse(fetched_order.value.data)
+                if parsed_order is None:
+                    logging.error(f'Unable to parse serum order {order.open_orders} for account: {mango_account}')
+                    continue
 
                 # Total contains the amount locked in order, the filled amount, 
                 base_amount = parsed_order.base_token_total
