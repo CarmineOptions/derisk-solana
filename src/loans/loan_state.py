@@ -264,8 +264,11 @@ def process_events_to_loan_states(
         {
             'protocol': [state.protocol for _ in state.loan_entities.keys()],
             'slot': [state.last_slot for _ in state.loan_entities.keys()],
-            'user': [user for user in state.loan_entities],
-            'collateral': [{token: float(amount) for token, amount in loan.collateral.items()} for loan in state.loan_entities.values()],
+            'user': list(state.loan_entities),
+            'collateral': [
+                {token: float(amount) for token, amount in loan.collateral.items()}
+                for loan in state.loan_entities.values()
+            ],
             'debt': [{token: float(amount) for token, amount in loan.debt.items()} for loan in state.loan_entities.values()],
         }
     )
@@ -273,11 +276,11 @@ def process_events_to_loan_states(
     if state.last_slot > min_slot:
         new_loan_states_wide = widen_loan_states(new_loan_states)
         current_loan_states_wide = widen_loan_states(current_loan_states)
-        COLUMNS = ['protocol', 'user', 'collateral_keys', 'collateral_values', 'debt_keys', 'debt_values']
+        columns = ['protocol', 'user', 'collateral_keys', 'collateral_values', 'debt_keys', 'debt_values']
         changed_loan_states_users = pandas.concat(
             [
-                new_loan_states_wide[COLUMNS],
-                current_loan_states_wide[COLUMNS],
+                new_loan_states_wide[columns],
+                current_loan_states_wide[columns],
             ],
         ).drop_duplicates(keep=False)['user'].unique()
         changed_loan_states = new_loan_states[new_loan_states['user'].isin(changed_loan_states_users)]
