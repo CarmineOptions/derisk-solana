@@ -229,12 +229,19 @@ class SolendState(src.loans.state.State):
             collateral_data = row['collateral']
             for mint, collateral_info in collateral_data.items():
                 if collateral_info:  # Check if there is data present for the collateral
-                    new_collateral_position = self.collateral_position_class(
-                        reserve=collateral_info['reserve'],
-                        mint=mint,
-                        amount=collateral_info['amount'],
-                        elevation_group=collateral_info['elevation_group']
-                    )
+                    if self.protocol == 'kamino':
+                        new_collateral_position = self.collateral_position_class(
+                            reserve=collateral_info['reserve'],
+                            mint=mint,
+                            amount=collateral_info['amount'],
+                            elevation_group=collateral_info['elevation_group']
+                        )
+                    else:
+                        new_collateral_position = self.collateral_position_class(
+                            reserve=collateral_info['reserve'],
+                            mint=mint,
+                            amount=collateral_info['amount']
+                        )
                     self.loan_entities[obligation].collateral.append(new_collateral_position)
 
             # Process debt positions
