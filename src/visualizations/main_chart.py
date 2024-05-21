@@ -207,6 +207,9 @@ def get_liquidable_debt(
 
         df = pd.concat(data)
 
+        if not df.shape[0]:
+            return None
+
         aggregated_data = (
             df.groupby(["collateral_token", "debt_token", "collateral_token_price"])
             .agg({"amount": "sum"})
