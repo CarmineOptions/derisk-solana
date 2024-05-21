@@ -301,29 +301,37 @@ class KaminoState(src.loans.solend.SolendState):
         """
         if not self.reserve_configs:
             self._get_reserve_configs()
-        with get_db_session() as session:
-            for loan_entity in self.loan_entities.values():
-                loan_entity.update_positions_from_reserve_config(
-                    self.reserve_configs,
-                    self.token_prices,
-                    self.elevation_groups_to_liquidation_threshold
-                )
-                table_name = KaminoHealthRatioEA.__tablename__
-                assert table_name.endswith('easy_access'), f"Wrong table type is collected." \
-                                                           f" *_easy_access expected, got {table_name}"
-                session.execute(sqlalchemy.text(f"TRUNCATE TABLE {SCHEMA_LENDERS}.{table_name};"))
-                new_health_ratio = KaminoHealthRatioEA(
-                    slot=int(self.last_slot),
-                    user=loan_entity.obligation,
-                    health_factor=loan_entity.health_ratio(),
-                    std_health_factor=loan_entity.std_health_ratio(),
-                    collateral=str(round(loan_entity.collateral_market_value(), 6)),
-                    risk_adjusted_collateral=str(round(loan_entity.collateral_risk_adjusted_market_value(), 6)),
-                    debt=str(round(loan_entity.debt_market_value(), 6)),
-                    risk_adjusted_debt=str(round(loan_entity.debt_risk_adjusted_market_value(), 6))
-                )
+        data = []
 
-                session.add(new_health_ratio)
+        for loan_entity in self.loan_entities.values():
+            loan_entity.update_positions_from_reserve_config(self.reserve_configs, self.token_prices)
+            data.append({
+                'slot': int(self.last_slot),
+                'user': loan_entity.obligation,
+                'health_factor': loan_entity.health_ratio(),
+                'std_health_factor': loan_entity.std_health_ratio(),
+                'collateral': str(round(loan_entity.collateral_market_value(), 6)),
+                'risk_adjusted_collateral': str(round(loan_entity.collateral_risk_adjusted_market_value(), 6)),
+                'debt': str(round(loan_entity.debt_market_value(), 6)),
+                'risk_adjusted_debt': str(round(loan_entity.debt_risk_adjusted_market_value(), 6))
+            })
+
+        # Convert to DataFrame
+        df = pandas.DataFrame(data)
+
+        # Step 2: Save the DataFrame to the database
+        with get_db_session() as session:
+            table_name = KaminoHealthRatioEA.__tablename__
+            assert table_name.endswith('easy_access'), f"Wrong table type is collected." \
+                                                       f" *_easy_access expected, got {table_name}"
+
+            # Truncate the table
+            session.execute(sqlalchemy.text(f"TRUNCATE TABLE {SCHEMA_LENDERS}.{table_name};"))
+
+            # Bulk insert the data
+            session.bulk_insert_mappings(KaminoHealthRatioEA, df.to_dict(orient='records'))
+
+            # Commit the transaction
             session.commit()
 
     def get_price_for(self, token: str):
