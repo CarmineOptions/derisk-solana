@@ -86,7 +86,6 @@ def get_cta_data(
     - dataframe or None
     """
 
-    collateral_token = token_selection.collateral
     liquidity_entries = src.visualizations.main_chart.get_normalized_liquidity(token_selection)
     if not liquidity_entries:
         # logging.warning(f'No liquidity entries available for tokens: {token_selection}')
@@ -205,9 +204,7 @@ def generate_and_store_ctas(session: Session):
         
         # Get CTA message
         message = get_cta_message(
-            data = df, 
-            collateral_token = collateral_token, 
-            debt_token = debt_token
+            data = df
         )
         
         if not message:
