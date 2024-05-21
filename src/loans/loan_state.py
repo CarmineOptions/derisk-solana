@@ -16,6 +16,7 @@ from db import (
     KaminoParsedTransactionsV2,
     SolendParsedTransactions,
     get_db_session,
+    MangoLoanStatesEA, SolendLoanStatesEA, KaminoLoanStatesEA, MarginfiLoanStatesEA, SCHEMA_LENDERS
 )
 import src.loans.kamino
 import src.loans.marginfi
@@ -41,6 +42,10 @@ AnyProtocolModel = (
     | Type[MarginfiLoanStates]
     | Type[KaminoLoanStates]
     | Type[SolendLoanStates]
+    | Type[MangoLoanStatesEA]
+    | Type[MarginfiLoanStatesEA]
+    | Type[KaminoLoanStatesEA]
+    | Type[SolendLoanStatesEA]
 )
 
 TypeMarginfi = TypeVar("TypeMarginfi", bound=MarginfiParsedTransactionsV2)
@@ -91,17 +96,15 @@ def protocol_to_protocol_class(
     raise ValueError(f"invalid protocol {protocol}")
 
 
-def protocol_to_model(
-    protocol: Protocol,
-) -> AnyProtocolModel:
+def protocol_to_model(protocol: Protocol) -> AnyProtocolModel:
     if protocol == MARGINFI:
-        return MarginfiLoanStates
+        return MarginfiLoanStates, MarginfiLoanStatesEA
     if protocol == MANGO:
-        return MangoLoanStates
+        return MangoLoanStates, MangoLoanStatesEA
     if protocol == KAMINO:
-        return KaminoLoanStates
+        return KaminoLoanStates, KaminoLoanStatesEA
     if protocol == SOLEND:
-        return SolendLoanStates
+        return SolendLoanStates, SolendLoanStatesEA
     # Unreachable
     raise ValueError(f"invalid protocol {protocol}")
 
@@ -134,7 +137,7 @@ def store_loan_states(df: pandas.DataFrame, protocol: Protocol, session: sqlalch
     - session (sqlalchemy.orm.session.Session): A SQLAlchemy session object.
     """
 
-    model = protocol_to_model(protocol)
+    model, _ = protocol_to_model(protocol)
 
     for _, row in df.iterrows():
         loan_state = model(
@@ -146,6 +149,35 @@ def store_loan_states(df: pandas.DataFrame, protocol: Protocol, session: sqlalch
         )
         session.add(loan_state)
     session.commit()
+
+
+def store_loan_states_for_easy_access(df: pandas.DataFrame, protocol: Protocol) -> str:
+    """
+    Stores data from a pandas DataFrame to the loan_states_easy_access table.
+
+    """
+    _, model = protocol_to_model(protocol)
+    with get_db_session() as session:
+        table_name = model.__tablename__
+        assert table_name.endswith('easy_access'), f"Wrong table type is collected." \
+                                                   f" *_easy_access expected, got {table_name}"
+        session.execute(sqlalchemy.text(f"TRUNCATE TABLE {SCHEMA_LENDERS}.{table_name};"))
+        # Prepare data for bulk insert
+        data_to_insert = [
+            {
+                "slot": row["slot"],
+                "protocol": row["protocol"],
+                "user": row["user"],
+                "collateral": row["collateral"],
+                "debt": row["debt"],
+            }
+            for _, row in df.iterrows()
+        ]
+
+        # Insert new data using bulk_insert_mappings for efficiency
+        session.bulk_insert_mappings(model, data_to_insert)
+        session.commit()
+    return table_name
 
 
 def fetch_loan_states(protocol: Protocol, session: sqlalchemy.orm.session.Session) -> pandas.DataFrame:
@@ -164,7 +196,7 @@ def fetch_loan_states(protocol: Protocol, session: sqlalchemy.orm.session.Sessio
         - debt (json/dict): JSON or dictionary representing debt.
     """
 
-    model = protocol_to_model(protocol)
+    model, _ = protocol_to_model(protocol)
 
     # Define a subquery for the maximum slot per user.
     subquery = session.query(
@@ -272,6 +304,8 @@ def process_events_to_loan_states(
             'debt': [{token: float(amount) for token, amount in loan.debt.items()} for loan in state.loan_entities.values()],
         }
     )
+    easy_access_table_name = store_loan_states_for_easy_access(new_loan_states, protocol)
+    logging.info(f"New loan states are available in {easy_access_table_name}")
 
     if state.last_slot > min_slot:
         new_loan_states_wide = widen_loan_states(new_loan_states)

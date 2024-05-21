@@ -581,6 +581,22 @@ class SolendLoanStates(LoanStates):
     __tablename__ = "solend_loan_states"
 
 
+class MarginfiLoanStatesEA(LoanStates):
+    __tablename__ = "marginfi_loan_states_easy_access"
+
+
+class KaminoLoanStatesEA(LoanStates):
+    __tablename__ = "kamino_loan_states_easy_access"
+
+
+class MangoLoanStatesEA(LoanStates):
+    __tablename__ = "mango_loan_states_easy_access"
+
+
+class SolendLoanStatesEA(LoanStates):
+    __tablename__ = "solend_loan_states_easy_access"
+
+
 class HealthRatio(Base):
     __abstract__ = True
     __tablename__ = "health_ratios"

@@ -23,7 +23,7 @@ sys.path.append('.')
 # Local application/library specific imports
 import db
 from src.loans.kamino import KaminoState
-from src.loans.loan_state import store_loan_states
+from src.loans.loan_state import store_loan_states, store_loan_states_for_easy_access
 from src.parser import TransactionDecoder
 from src.protocols.addresses import KAMINO_ADDRESS
 from src.protocols.anchor_clients.kamino_client.accounts.obligation import Obligation
@@ -200,6 +200,8 @@ async def obtain_loan_states():
         obligations_processed.append(processed_obligation)
     new_loan_states = pd.DataFrame(obligations_processed)
     # store loan states to database
+    easy_access_table_name = store_loan_states_for_easy_access(new_loan_states, 'kamino')
+    logging.info(f"New loan states are available in {easy_access_table_name}")
     with db.get_db_session() as session:
         store_loan_states(new_loan_states, 'kamino', session)
     LOGGER.info(f"{new_loan_states.shape[0]} loan states successfully collected and saved for `{slot}` block.")

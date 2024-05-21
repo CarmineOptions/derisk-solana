@@ -22,7 +22,7 @@ from solders.rpc.responses import GetProgramAccountsResp
 
 # Local application/library specific imports
 import db
-from src.loans.loan_state import store_loan_states
+from src.loans.loan_state import store_loan_states, store_loan_states_for_easy_access
 from src.loans.solend import SolendState
 
 # logger
@@ -210,6 +210,9 @@ def obtain_loan_states():
         }
         obligations_processed.append(processed_obligation)
     new_loan_states = pd.DataFrame(obligations_processed)
+
+    easy_access_table_name = store_loan_states_for_easy_access(new_loan_states, 'solend')
+    logging.info(f"New loan states are available in {easy_access_table_name}")
 
     # store loan states to database
     with db.get_db_session() as session:
