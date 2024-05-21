@@ -196,22 +196,10 @@ def fetch_loan_states(protocol: Protocol, session: sqlalchemy.orm.session.Sessio
         - debt (json/dict): JSON or dictionary representing debt.
     """
 
-    model, _ = protocol_to_model(protocol)
-
-    # Define a subquery for the maximum slot per user.
-    subquery = session.query(
-        model.user,
-        sqlalchemy.func.max(model.slot).label('max_slot')
-    ).group_by(model.user).subquery('t2')
+    _, model = protocol_to_model(protocol)
 
     # For each user, query the loan state with tha maximum slot.
-    query_result = session.query(model).join(
-        subquery,
-        sqlalchemy.and_(
-            model.user == subquery.c.user,
-            model.slot == subquery.c.max_slot
-        )
-    )
+    query_result = session.query(model)
 
     return pandas.DataFrame(
         [

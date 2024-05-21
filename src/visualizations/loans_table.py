@@ -126,7 +126,7 @@ def load_user_health_ratios_single_protocol(_session: Session, protocol: str) ->
 	health_ratios_df = health_ratios_df.rename(columns={'collateral': 'collateral_usd', 'debt': 'debt_usd'})
 
 	# Fetch loan states 
-	loan_states_df = fetch_loan_states_for_users(_session, protocol, list(health_ratios_df['user']))
+	loan_states_df = fetch_loan_states(protocol, _session)
 
 	if len(loan_states_df) == 0:
 		logging.warning(f'No loan states found for protocol "{protocol}"')
