@@ -541,8 +541,9 @@ class Protocols(Base):
     last_block_collected = Column(Integer, nullable=True)
 
 
-class MarginfiLoanStates(Base):
-    __tablename__ = "marginfi_loan_states"
+class LoanStates(Base):
+    __abstract__ = True
+    __tablename__ = 'loan_states'
     __table_args__ = {"schema": SCHEMA_LENDERS}
 
     slot = Column(BigInteger, primary_key=True, nullable=False)
@@ -550,10 +551,11 @@ class MarginfiLoanStates(Base):
     user = Column(String, primary_key=True, nullable=False)
     collateral = Column(JSONB, nullable=False)
     debt = Column(JSONB, nullable=False)
+    is_disabled = Column(Boolean, default=False, nullable=False)
 
     def __repr__(self):
         return (
-            "MarginfiLoanStates("
+            "LoanStates("
             f"slot={self.slot},"
             f"protocol={self.protocol},"
             f"user={self.user},"
@@ -562,67 +564,21 @@ class MarginfiLoanStates(Base):
         )
 
 
-class KaminoLoanStates(Base):
+class MarginfiLoanStates(LoanStates):
+    __tablename__ = "marginfi_loan_states"
+
+
+class KaminoLoanStates(LoanStates):
     __tablename__ = "kamino_loan_states"
     __table_args__ = {"schema": SCHEMA_LENDERS}
 
-    slot = Column(BigInteger, primary_key=True, nullable=False)
-    protocol = Column(String, primary_key=True, nullable=False)
-    user = Column(String, primary_key=True, nullable=False)
-    collateral = Column(JSONB, nullable=False)
-    debt = Column(JSONB, nullable=False)
 
-    def __repr__(self):
-        return (
-            "KaminoLoanStates("
-            f"slot={self.slot},"
-            f"protocol={self.protocol},"
-            f"user={self.user},"
-            f"collateral={self.collateral},"
-            f"debt={self.debt})"
-        )
-
-
-class MangoLoanStates(Base):
+class MangoLoanStates(LoanStates):
     __tablename__ = "mango_loan_states"
-    __table_args__ = {"schema": SCHEMA_LENDERS}
-
-    slot = Column(BigInteger, primary_key=True, nullable=False)
-    protocol = Column(String, primary_key=True, nullable=False)
-    user = Column(String, primary_key=True, nullable=False)
-    collateral = Column(JSONB, nullable=False)
-    debt = Column(JSONB, nullable=False)
-
-    def __repr__(self):
-        return (
-            "MangoLoanStates("
-            f"slot={self.slot},"
-            f"protocol={self.protocol},"
-            f"user={self.user},"
-            f"collateral={self.collateral},"
-            f"debt={self.debt})"
-        )
 
 
-class SolendLoanStates(Base):
+class SolendLoanStates(LoanStates):
     __tablename__ = "solend_loan_states"
-    __table_args__ = {"schema": SCHEMA_LENDERS}
-
-    slot = Column(BigInteger, primary_key=True, nullable=False)
-    protocol = Column(String, primary_key=True, nullable=False)
-    user = Column(String, primary_key=True, nullable=False)
-    collateral = Column(JSONB, nullable=False)
-    debt = Column(JSONB, nullable=False)
-
-    def __repr__(self):
-        return (
-            "SolendLoanStates("
-            f"slot={self.slot},"
-            f"protocol={self.protocol},"
-            f"user={self.user},"
-            f"collateral={self.collateral},"
-            f"debt={self.debt})"
-        )
 
 
 class HealthRatio(Base):
