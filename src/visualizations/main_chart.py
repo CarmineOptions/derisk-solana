@@ -491,7 +491,10 @@ def get_figure(
         name=f"Liquidable {token_pair.collateral.symbol} debt",
     )
     figure.update_traces(
-        selector={"name": "debt_token_supply"}, name=f"{token_pair.loan.symbol} supply"
+        selector={"name": "debt_token_supply"}, name=f"{token_pair.loan.symbol} available liquidity"
+    )
+    figure.update_traces(
+        selector={"name": "amount"}, name=f"{token_pair.loan.symbol} liquidable amount"
     )
     figure.update_xaxes(title_text=f"{token_pair.collateral.symbol} Price (USD)")
     figure.update_yaxes(title_text="Volume (USD)")
