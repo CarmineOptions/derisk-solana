@@ -267,7 +267,7 @@ class MangoState(src.loans.state.State):
         now = int(time.time())
 
         entries = [
-            db.MangoHealthRatio(
+            db.MangoHealthRatioEA(
                 slot = self.last_slot,
                 last_update = now, 
                 user = entry['user'],
@@ -285,6 +285,7 @@ class MangoState(src.loans.state.State):
         with db.get_db_session() as sesh:
             sesh.add_all(entries)
             sesh.commit()
+
 
 def liq_debt(x: pd.Series, collateral_collumn: str, debt_collumn: str) -> float:
     if x['health'] > 0:

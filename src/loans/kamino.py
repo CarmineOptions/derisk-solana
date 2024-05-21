@@ -8,6 +8,7 @@ from typing import Any, Dict, List
 
 import numpy
 import pandas
+import sqlalchemy
 from solana.exceptions import SolanaRpcException
 from solana.rpc.api import Client
 from solana.rpc.types import MemcmpOpts
@@ -19,7 +20,7 @@ import src.loans.helpers
 import src.loans.types
 import src.loans.state
 import src.loans.solend
-from db import KaminoHealthRatio, get_db_session
+from db import get_db_session, KaminoHealthRatioEA, SCHEMA_LENDERS
 from src.parser import TransactionDecoder
 from src.prices import get_prices_for_tokens
 from src.protocols.addresses import KAMINO_ADDRESS
@@ -307,7 +308,11 @@ class KaminoState(src.loans.solend.SolendState):
                     self.token_prices,
                     self.elevation_groups_to_liquidation_threshold
                 )
-                new_health_ratio = KaminoHealthRatio(
+                table_name = KaminoHealthRatioEA.__tablename__
+                assert table_name.endswith('easy_access'), f"Wrong table type is collected." \
+                                                           f" *_easy_access expected, got {table_name}"
+                session.execute(sqlalchemy.text(f"TRUNCATE TABLE {SCHEMA_LENDERS}.{table_name};"))
+                new_health_ratio = KaminoHealthRatioEA(
                     slot=int(self.last_slot),
                     user=loan_entity.obligation,
                     health_factor=loan_entity.health_ratio(),

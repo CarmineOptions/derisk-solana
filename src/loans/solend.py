@@ -7,6 +7,7 @@ from typing import Any, List, Dict, Tuple
 
 import numpy
 import pandas as pd
+import sqlalchemy
 
 import db
 import src.database
@@ -275,7 +276,11 @@ class SolendState(src.loans.state.State):
         with db.get_db_session() as session:
             for loan_entity in self.loan_entities.values():
                 loan_entity.update_positions_from_reserve_config(self.reserve_configs, self.token_prices)
-                new_health_ratio = db.SolendHealthRatio(
+                table_name = db.SolendHealthRatioEA.__tablename__
+                assert table_name.endswith('easy_access'), f"Wrong table type is collected." \
+                                                           f" *_easy_access expected, got {table_name}"
+                session.execute(sqlalchemy.text(f"TRUNCATE TABLE {db.SCHEMA_LENDERS}.{table_name};"))
+                new_health_ratio = db.SolendHealthRatioEA(
                     slot=int(self.last_slot),
                     user=loan_entity.obligation,
                     health_factor=loan_entity.health_ratio(),

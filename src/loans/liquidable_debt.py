@@ -13,6 +13,7 @@ import numpy
 import pandas
 import solana.rpc.async_api
 import solders.pubkey
+import sqlalchemy
 from sqlalchemy import func
 from sqlalchemy.orm.session import Session
 
@@ -24,11 +25,12 @@ from db import (
     KaminoLoanStates,
     SolendLoanStates,
     MarginfiHealthRatio,
+    MarginfiHealthRatioEA,
     MangoLiquidableDebts,
     MarginfiLiquidableDebts,
     KaminoLiquidableDebts,
     SolendLiquidableDebts,
-    get_db_session,
+    get_db_session, SCHEMA_LENDERS,
 )
 import src.kamino_vault_map
 import src.loans.helpers
@@ -228,6 +230,8 @@ async def process_marginfi_loan_states(
     health_ratios['risk_adjusted_debt'] = loan_states['risk_adjusted_debt_usd'].round(5)
     health_ratios['health_factor'] = loan_states['health_factor'].round(5)
     health_ratios['std_health_factor'] = loan_states['std_health_factor'].round(5)
+    easy_access_table_name = store_marginfi_health_ratios_for_easy_access(health_ratios)
+    LOGGER.info(f"New loan states are available in {easy_access_table_name}")
 
     # Save health ratios to the database.
     with get_db_session() as session:
@@ -593,6 +597,51 @@ def store_marginfi_health_ratios(df: pandas.DataFrame, protocol: Protocol, sessi
     session.commit()
 
 
+def store_marginfi_health_ratios_for_easy_access(df: pandas.DataFrame) -> str:
+    """
+    Stores data from a pandas DataFrame to the health ratios table.
+
+    Args:
+    - df (pandas.DataFrame): A DataFrame with the following columns:
+        - slot (int): Description of slot.
+        - last_update (int): Time of last update.
+        - timestamp (int): Time of last update.
+        - protocol (str): Description of protocol.
+        - user (str): Description of user.
+        - health_factor (str): Health factor as defined by the protocol.
+        - std_health_factor (str): Standardized health factor.
+        - collateral (str): Collateral in USD.
+        - risk_adjusted_collateral (str): Risk-adjusted collateral in USD.
+        - debt (str): Debt in USD.
+        - risk_adjusted_debt (str): Risk-adjusted debt in USD.
+
+    - session (sqlalchemy.orm.session.Session): A SQLAlchemy session object.
+    """
+    with get_db_session() as session:
+        table_name = MarginfiHealthRatioEA.__tablename__
+        assert table_name.endswith('easy_access'), f"Wrong table type is collected." \
+                                                   f" *_easy_access expected, got {table_name}"
+        session.execute(sqlalchemy.text(f"TRUNCATE TABLE {SCHEMA_LENDERS}.{table_name};"))
+
+        for _, row in df.iterrows():
+            health_ratios = MarginfiHealthRatioEA(
+                slot=row["slot"],
+                last_update=row["last_update"],
+                timestamp=row["timestamp"],
+                protocol=row["protocol"],
+                user=row["user"],
+                health_factor=row["health_factor"],
+                std_health_factor=row["std_health_factor"],
+                collateral=row["collateral"],
+                risk_adjusted_collateral=row["risk_adjusted_collateral"],
+                debt=row["debt"],
+                risk_adjusted_debt=row["risk_adjusted_debt"],
+            )
+            session.add(health_ratios)
+        session.commit()
+    return table_name
+
+
 def store_liquidable_debts(df: pandas.DataFrame, protocol: Protocol, session: Session):
     """
     Stores data from a pandas DataFrame to the liquidable_debts table.
@@ -624,7 +673,7 @@ def store_liquidable_debts(df: pandas.DataFrame, protocol: Protocol, session: Se
     session.commit()
 
 
-def fetch_marginfi_health_ratios(protocol: Protocol, session: Session) -> pandas.DataFrame:
+def fetch_marginfi_health_ratios(session: Session) -> pandas.DataFrame:
     """
     Fetches health ratios with the max slot from the DB and returns them as a DataFrame
 
@@ -645,13 +694,9 @@ def fetch_marginfi_health_ratios(protocol: Protocol, session: Session) -> pandas
         - debt (str): Debt in USD.
         - risk_adjusted_debt (str): Risk-adjusted debt in USD.
     """
-    # Define a subquery for the maximum slot value
-    max_slot_subquery = session.query(func.max(MarginfiHealthRatio.slot)).subquery()
-
     try:
-        # Retrieve entries from the loan_states table where slot equals the maximum slot value
         query_result = (
-            session.query(MarginfiHealthRatio).filter(MarginfiHealthRatio.slot == max_slot_subquery).all()
+            session.query(MarginfiHealthRatioEA).all()
         )
     except:
         query_result = []
@@ -741,7 +786,7 @@ def process_loan_states_to_liquidable_debts(
 
     if not current_liquidable_debts_slot or current_liquidable_debts_slot < current_loan_states_slot:
         if protocol == MARGINFI:
-            current_health_ratios = fetch_marginfi_health_ratios(protocol, session)
+            current_health_ratios = fetch_marginfi_health_ratios(session)
             asyncio.run(process_function(current_loan_states, current_health_ratios))
         else:
             process_function(current_loan_states)

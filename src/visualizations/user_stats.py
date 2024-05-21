@@ -54,7 +54,7 @@ def fetch_protocol_user_stats(session: Session, model: AnyHealthRatioModel) -> d
 @st.cache_data(ttl=datetime.timedelta(minutes=60), show_spinner = 'Loading user stats.')
 def load_users_stats_single_protocol(_session: Session, protocol: str) -> dict[str, float|str] | None:
     # Get the correct model for given protocol
-    model = get_health_ratio_protocol_model(protocol)
+    model, _ = get_health_ratio_protocol_model(protocol)
 
     if not model:
         return None

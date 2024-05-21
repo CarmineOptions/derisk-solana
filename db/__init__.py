@@ -499,6 +499,7 @@ class DexNormalizedLiquidity(Base):
             f"asks={self.asks})"
         )
 
+
 class TokenLendingSupplies(Base):
     __tablename__ = 'token_lending_supplies'
     __table_args__ = (
@@ -570,7 +571,6 @@ class MarginfiLoanStates(LoanStates):
 
 class KaminoLoanStates(LoanStates):
     __tablename__ = "kamino_loan_states"
-    __table_args__ = {"schema": SCHEMA_LENDERS}
 
 
 class MangoLoanStates(LoanStates):
@@ -619,10 +619,18 @@ class MangoHealthRatio(HealthRatio):
     protocol = Column(String, default='mango', nullable=False)
 
 
+class MangoHealthRatioEA(MangoHealthRatio):
+    __tablename__ = "mango_health_ratios_easy_access"
+
+
 class MarginfiHealthRatio(HealthRatio):
     __tablename__ = "marginfi_health_ratios"
     __table_args__ = {"schema": SCHEMA_LENDERS}
     protocol = Column(String, default='marginfi', nullable=False)
+
+
+class MarginfiHealthRatioEA(MarginfiHealthRatio):
+    __tablename__ = "marginfi_health_ratios_easy_access"
 
 
 class SolendHealthRatio(HealthRatio):
@@ -631,10 +639,18 @@ class SolendHealthRatio(HealthRatio):
     protocol = Column(String, default='solend', nullable=False)
 
 
+class SolendHealthRatioEA(SolendHealthRatio):
+    __tablename__ = "solend_health_ratios_easy_access"
+
+
 class KaminoHealthRatio(HealthRatio):
     __tablename__ = "kamino_health_ratios"
     __table_args__ = {"schema": SCHEMA_LENDERS}
     protocol = Column(String, default='kamino', nullable=False)
+
+
+class KaminoHealthRatioEA(KaminoHealthRatio):
+    __tablename__ = "kamino_health_ratios_easy_access"
 
 
 class MarginfiLiquidableDebts(Base):

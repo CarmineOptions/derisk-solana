@@ -43,17 +43,7 @@ def fetch_health_ratios(session: Session, model: AnyHealthRatioModel, n: int) ->
 	
 	Note: Does not close the session.
 	"""
-	subquery = session.query(
-		model.user,
-		func.max(model.slot).label('latest_slot')
-	).group_by(model.user).subquery()
-
-	# Join the subquery with the main table to get the latest entries. Ignore loans with suspicious data.
 	latest_entries_query = session.query(model) \
-		.join(
-			subquery,
-			(model.user == subquery.c.user) & (model.slot == subquery.c.latest_slot)
-		) \
 		.filter(model.health_factor.isnot(None)) \
 		.filter(model.risk_adjusted_collateral != '0') \
 		.filter(model.risk_adjusted_collateral != '0.0') \
@@ -110,7 +100,7 @@ def fetch_loan_states_for_users(session: Session, protocol: str, users: list[str
 
 @st.cache_data(ttl=datetime.timedelta(minutes=60), show_spinner = 'Loading health ratios.')
 def load_user_health_ratios_single_protocol(_session: Session, protocol: str) -> pd.DataFrame | None:
-	model = get_health_ratio_protocol_model(protocol)
+	_, model = get_health_ratio_protocol_model(protocol)
 
 	if not model:
 		return None
@@ -121,8 +111,8 @@ def load_user_health_ratios_single_protocol(_session: Session, protocol: str) ->
 	health_ratios_df = fetch_health_ratios(_session, model, 50)
 	# Drop redundant columns
 	health_ratios_df = health_ratios_df.drop(['timestamp', 'slot', 'last_update'], axis =1)
-	# Rename some collumns that are also present in loan states 
-	# (in loan states these collumns contain the dict with debt/collateral holdings)
+	# Rename some columns that are also present in loan states
+	# (in loan states these columns contain the dict with debt/collateral holdings)
 	health_ratios_df = health_ratios_df.rename(columns={'collateral': 'collateral_usd', 'debt': 'debt_usd'})
 
 	# Fetch loan states 
