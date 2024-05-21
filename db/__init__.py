@@ -619,8 +619,10 @@ class MangoHealthRatio(HealthRatio):
     protocol = Column(String, default='mango', nullable=False)
 
 
-class MangoHealthRatioEA(MangoHealthRatio):
+class MangoHealthRatioEA(HealthRatio):
     __tablename__ = "mango_health_ratios_easy_access"
+    __table_args__ = {"schema": SCHEMA_LENDERS}
+    protocol = Column(String, default='mango', nullable=False)
 
 
 class MarginfiHealthRatio(HealthRatio):
@@ -629,8 +631,10 @@ class MarginfiHealthRatio(HealthRatio):
     protocol = Column(String, default='marginfi', nullable=False)
 
 
-class MarginfiHealthRatioEA(MarginfiHealthRatio):
+class MarginfiHealthRatioEA(HealthRatio):
     __tablename__ = "marginfi_health_ratios_easy_access"
+    __table_args__ = {"schema": SCHEMA_LENDERS}
+    protocol = Column(String, default='marginfi', nullable=False)
 
 
 class SolendHealthRatio(HealthRatio):
@@ -639,8 +643,10 @@ class SolendHealthRatio(HealthRatio):
     protocol = Column(String, default='solend', nullable=False)
 
 
-class SolendHealthRatioEA(SolendHealthRatio):
+class SolendHealthRatioEA(HealthRatio):
     __tablename__ = "solend_health_ratios_easy_access"
+    __table_args__ = {"schema": SCHEMA_LENDERS}
+    protocol = Column(String, default='solend', nullable=False)
 
 
 class KaminoHealthRatio(HealthRatio):
@@ -649,8 +655,10 @@ class KaminoHealthRatio(HealthRatio):
     protocol = Column(String, default='kamino', nullable=False)
 
 
-class KaminoHealthRatioEA(KaminoHealthRatio):
+class KaminoHealthRatioEA(HealthRatio):
     __tablename__ = "kamino_health_ratios_easy_access"
+    __table_args__ = {"schema": SCHEMA_LENDERS}
+    protocol = Column(String, default='kamino', nullable=False)
 
 
 class MarginfiLiquidableDebts(Base):
