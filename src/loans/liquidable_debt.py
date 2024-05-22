@@ -626,10 +626,12 @@ def store_marginfi_health_ratios_for_easy_access(df: pandas.DataFrame) -> str:
         try:
             # Get the current users in the table
             current_users = {row.user for row in session.query(MarginfiHealthRatioEA.user).all()}
+            LOGGER.info(f"Current users found: {len(current_users)}")
             df_users = set(df['user'])
-
+            LOGGER.info(f"New users: {len(current_users)}")
             # Update existing users or add new users from the DataFrame
             for _, row in df.iterrows():
+                LOGGER.info(f"Process {_ + 1} user.")
                 user = row["user"]
                 health_ratios = session.query(MarginfiHealthRatioEA).filter_by(user=user).first()
                 if health_ratios:
@@ -660,9 +662,11 @@ def store_marginfi_health_ratios_for_easy_access(df: pandas.DataFrame) -> str:
                         risk_adjusted_debt=row["risk_adjusted_debt"],
                     )
                     session.add(new_health_ratios)
+                    LOGGER.info(f"New user added")
 
             # Delete users that are not in the DataFrame
             users_to_delete = current_users - df_users
+            LOGGER.info("Ready to delete disabled users.")
             if users_to_delete:
                 session.query(MarginfiHealthRatioEA).filter(MarginfiHealthRatioEA.user.in_(users_to_delete)).delete(
                     synchronize_session=False)
