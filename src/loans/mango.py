@@ -295,7 +295,7 @@ class MangoState(src.loans.state.State):
                 logging.info(f"Old data removed from {db.SCHEMA_LENDERS}.{table_name}")
 
                 # Insert new data from DataFrame
-                session.bulk_insert_mappings(db.MangoHealthRatioEA, entries)
+                session.add_all(entries)
                 logging.info(f"New data inserted into the table {db.SCHEMA_LENDERS}.{table_name}")
 
                 # Commit the transaction
