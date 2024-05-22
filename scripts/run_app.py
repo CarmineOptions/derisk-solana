@@ -76,10 +76,15 @@ def main():
         token_selection=selected_tokens,  # type: ignore
         prices=tokens_prices,
     )
-    main_chart_figure = src.visualizations.main_chart.get_figure(
-        token_pair=selected_tokens, data=main_chart_data, prices=tokens_prices
-    )
-    st.plotly_chart(figure_or_data=main_chart_figure, use_container_width=True)
+    if main_chart_data is None:
+        st.plotly_chart(px.bar(), use_container_width=True)
+    else: 
+        main_chart_figure = src.visualizations.main_chart.get_figure(
+            token_pair=selected_tokens,
+            data=main_chart_data,
+            prices=tokens_prices
+        )
+        st.plotly_chart(figure_or_data=main_chart_figure, use_container_width=True)
 
     # Compute the price at which the liquidable debt to the available supply ratio is dangerous. Create and display the
     # warning message.
@@ -91,6 +96,8 @@ def main():
     if cta_message:
         st.subheader(":warning:")
         st.subheader(cta_message.message)
+    else: 
+        st.subheader(':question::exclamation: No liquidable data found for selected pair.')
 
     # Display comparison stats for all lending protocols.
     st.header("Comparison of lending protocols")
@@ -158,7 +165,6 @@ def main():
     st.subheader("Protocol statistics")
     user_stats_df = src.visualizations.user_stats.load_users_stats(protocols)
     st.dataframe(user_stats_df, use_container_width=True)
-
     st.header("Loans with the lowest health factor")
     user_health_ratios_df = src.visualizations.loans_table.load_user_health_ratios(protocols)
     col1, _ = st.columns([1, 3])
