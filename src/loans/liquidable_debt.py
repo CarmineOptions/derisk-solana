@@ -620,56 +620,51 @@ def store_marginfi_health_ratios_for_easy_access(df: pandas.DataFrame) -> str:
     """
     with get_db_session() as session:
         table_name = MarginfiHealthRatioEA.__tablename__
-        assert table_name.endswith('easy_access'), f"Wrong table type is collected." \
-                                                   f" *_easy_access expected, got {table_name}"
+        temp_table_name = f"{table_name}_temp"
+
+        assert table_name.endswith(
+            'easy_access'), f"Wrong table type is collected. *_easy_access expected, got {table_name}"
 
         try:
-            # Get the current users in the table
-            current_users = {row.user for row in session.query(MarginfiHealthRatioEA.user).all()}
-            LOGGER.info(f"Current users found: {len(current_users)}")
-            df_users = set(df['user'])
-            LOGGER.info(f"New users: {len(current_users)}")
-            # Update existing users or add new users from the DataFrame
-            for _, row in df.iterrows():
-                LOGGER.info(f"Process {_ + 1} user.")
-                user = row["user"]
-                health_ratios = session.query(MarginfiHealthRatioEA).filter_by(user=user).first()
-                if health_ratios:
-                    # Update existing user
-                    health_ratios.slot = row["slot"]
-                    health_ratios.last_update = row["last_update"]
-                    health_ratios.timestamp = row["timestamp"]
-                    health_ratios.protocol = row["protocol"]
-                    health_ratios.health_factor = row["health_factor"]
-                    health_ratios.std_health_factor = row["std_health_factor"]
-                    health_ratios.collateral = row["collateral"]
-                    health_ratios.risk_adjusted_collateral = row["risk_adjusted_collateral"]
-                    health_ratios.debt = row["debt"]
-                    health_ratios.risk_adjusted_debt = row["risk_adjusted_debt"]
-                else:
-                    # Add new user
-                    new_health_ratios = MarginfiHealthRatioEA(
-                        slot=row["slot"],
-                        last_update=row["last_update"],
-                        timestamp=row["timestamp"],
-                        protocol=row["protocol"],
-                        user=row["user"],
-                        health_factor=row["health_factor"],
-                        std_health_factor=row["std_health_factor"],
-                        collateral=row["collateral"],
-                        risk_adjusted_collateral=row["risk_adjusted_collateral"],
-                        debt=row["debt"],
-                        risk_adjusted_debt=row["risk_adjusted_debt"],
-                    )
-                    session.add(new_health_ratios)
-                    LOGGER.info(f"New user added")
+            # Lock the table for exclusive access
+            session.execute(sqlalchemy.text(f"LOCK TABLE {SCHEMA_LENDERS}.{table_name} IN ACCESS EXCLUSIVE MODE;"))
+            LOGGER.info(f"{table_name} locked for exclusive access.")
 
-            # Delete users that are not in the DataFrame
-            users_to_delete = current_users - df_users
-            LOGGER.info("Ready to delete disabled users.")
-            if users_to_delete:
-                session.query(MarginfiHealthRatioEA).filter(MarginfiHealthRatioEA.user.in_(users_to_delete)).delete(
-                    synchronize_session=False)
+            # Create a temporary table
+            session.execute(
+                sqlalchemy.text(f"CREATE TEMPORARY TABLE {SCHEMA_LENDERS}.{temp_table_name} AS TABLE {SCHEMA_LENDERS}.{table_name} WITH NO DATA;"))
+            LOGGER.info(f"Temporary table {SCHEMA_LENDERS}.{temp_table_name} created.")
+
+            # Insert data from DataFrame into the temporary table
+            df.to_sql(temp_table_name, session.bind, if_exists='append', index=False)
+            LOGGER.info(f"Data inserted into temporary table {SCHEMA_LENDERS}.{temp_table_name}.")
+
+            # Replace the data in the original table
+            session.execute(sqlalchemy.text(f"""
+                DELETE FROM {SCHEMA_LENDERS}.{table_name} 
+                WHERE user NOT IN (SELECT user FROM {SCHEMA_LENDERS}.{temp_table_name});
+            """))
+            session.execute(sqlalchemy.text(f"""
+                INSERT INTO {SCHEMA_LENDERS}.{table_name} 
+                SELECT * FROM {SCHEMA_LENDERS}.{temp_table_name}
+                ON CONFLICT (user) 
+                DO UPDATE SET
+                    slot = EXCLUDED.slot,
+                    last_update = EXCLUDED.last_update,
+                    timestamp = EXCLUDED.timestamp,
+                    protocol = EXCLUDED.protocol,
+                    health_factor = EXCLUDED.health_factor,
+                    std_health_factor = EXCLUDED.std_health_factor,
+                    collateral = EXCLUDED.collateral,
+                    risk_adjusted_collateral = EXCLUDED.risk_adjusted_collateral,
+                    debt = EXCLUDED.debt,
+                    risk_adjusted_debt = EXCLUDED.risk_adjusted_debt;
+            """))
+            LOGGER.info(f"Data from temporary table {temp_table_name} merged into {table_name}.")
+
+            # Drop the temporary table
+            session.execute(sqlalchemy.text(f"DROP TABLE {SCHEMA_LENDERS}.{temp_table_name};"))
+            LOGGER.info(f"Temporary table {temp_table_name} dropped.")
 
             # Commit the transaction
             session.commit()
