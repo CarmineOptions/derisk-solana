@@ -171,7 +171,7 @@ def store_loan_states_for_easy_access(df: pandas.DataFrame, protocol: Protocol) 
             LOGGER.info(f"Old data removed from {SCHEMA_LENDERS}.{table_name}")
 
             # Insert new data from DataFrame
-            df.to_sql(table_name, session.bind, if_exists='append', index=False, schema=SCHEMA_LENDERS)
+            session.bulk_insert_mappings(model, df.to_dict(orient='records'))
             LOGGER.info(f"New data inserted into the table {SCHEMA_LENDERS}.{table_name}")
 
             # Commit the transaction
