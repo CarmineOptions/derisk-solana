@@ -209,7 +209,7 @@ async def process_marginfi_loan_states(
         )
     risk_adjusted_debt_columns = [x for x in loan_states.columns if 'risk_adjusted_debt_usd_' in x]
     loan_states['risk_adjusted_debt_usd'] = loan_states[risk_adjusted_debt_columns].sum(axis = 1)
-
+    LOGGER.info('Loan states are computed. Start computing health ratios...')
     # Compute health ratios.
     loan_states['health_factor'] = (
         loan_states['risk_adjusted_collateral_usd'] - loan_states['risk_adjusted_debt_usd']
@@ -230,6 +230,7 @@ async def process_marginfi_loan_states(
     health_ratios['risk_adjusted_debt'] = loan_states['risk_adjusted_debt_usd'].round(5)
     health_ratios['health_factor'] = loan_states['health_factor'].round(5)
     health_ratios['std_health_factor'] = loan_states['std_health_factor'].round(5)
+    LOGGER.info(f"Health ratios are computed. Sore health ratios to database.")
     easy_access_table_name = store_marginfi_health_ratios_for_easy_access(health_ratios)
     LOGGER.info(f"New loan states are available in {easy_access_table_name}")
 
@@ -622,6 +623,7 @@ def store_marginfi_health_ratios_for_easy_access(df: pandas.DataFrame) -> str:
         assert table_name.endswith('easy_access'), f"Wrong table type is collected." \
                                                    f" *_easy_access expected, got {table_name}"
         session.execute(sqlalchemy.text(f"TRUNCATE TABLE {SCHEMA_LENDERS}.{table_name};"))
+        LOGGER.info(f"{table_name} is truncated, but the change was not commited yet.")
 
         for _, row in df.iterrows():
             health_ratios = MarginfiHealthRatioEA(
@@ -639,6 +641,7 @@ def store_marginfi_health_ratios_for_easy_access(df: pandas.DataFrame) -> str:
             )
             session.add(health_ratios)
         session.commit()
+        LOGGER.info(f"Health ratios have been successfully updated in {table_name}")
     return table_name
 
 

@@ -24,6 +24,9 @@ import src.loans.mango
 import src.loans.solend
 
 
+LOGGER = logging.getLogger(__name__)
+
+
 MARGINFI = "marginfi"
 MANGO = "mango"
 KAMINO = "kamino"
@@ -162,6 +165,7 @@ def store_loan_states_for_easy_access(df: pandas.DataFrame, protocol: Protocol) 
         assert table_name.endswith('easy_access'), f"Wrong table type is collected." \
                                                    f" *_easy_access expected, got {table_name}"
         session.execute(sqlalchemy.text(f"TRUNCATE TABLE {SCHEMA_LENDERS}.{table_name};"))
+        LOGGER.info(f"{table_name} is truncated, but the change was not commited yet.")
         # Prepare data for bulk insert
         data_to_insert = [
             model(
@@ -177,6 +181,7 @@ def store_loan_states_for_easy_access(df: pandas.DataFrame, protocol: Protocol) 
         # Insert new data using bulk_insert_mappings for efficiency
         session.add_all(data_to_insert)
         session.commit()
+        LOGGER.info(f"Health ratios have been successfully updated in {table_name}")
     return table_name
 
 
