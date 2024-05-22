@@ -164,18 +164,18 @@ def store_loan_states_for_easy_access(df: pandas.DataFrame, protocol: Protocol) 
         session.execute(sqlalchemy.text(f"TRUNCATE TABLE {SCHEMA_LENDERS}.{table_name};"))
         # Prepare data for bulk insert
         data_to_insert = [
-            {
-                "slot": row["slot"],
-                "protocol": row["protocol"],
-                "user": row["user"],
-                "collateral": row["collateral"],
-                "debt": row["debt"],
-            }
+            model(
+                slot= row["slot"],
+                protocol=row["protocol"],
+                user=row["user"],
+                collateral=row["collateral"],
+                debt=row["debt"]
+            )
             for _, row in df.iterrows()
         ]
 
         # Insert new data using bulk_insert_mappings for efficiency
-        session.bulk_insert_mappings(model, data_to_insert)
+        session.add_all(data_to_insert)
         session.commit()
     return table_name
 

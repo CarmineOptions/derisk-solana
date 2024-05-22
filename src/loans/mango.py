@@ -7,6 +7,7 @@ from decimal import Decimal
 
 import requests
 import pandas as pd
+import sqlalchemy
 from solders.pubkey import Pubkey
 from solana.exceptions import SolanaRpcException
 from solana.rpc.api import Client
@@ -283,6 +284,12 @@ class MangoState(src.loans.state.State):
         ]
 
         with db.get_db_session() as sesh:
+            table_name = db.MangoHealthRatioEA.__tablename__
+            assert table_name.endswith('easy_access'), f"Wrong table type is collected." \
+                                                       f" *_easy_access expected, got {table_name}"
+
+            # Truncate the table
+            sesh.execute(sqlalchemy.text(f"TRUNCATE TABLE {db.SCHEMA_LENDERS}.{table_name};"))
             sesh.add_all(entries)
             sesh.commit()
 
