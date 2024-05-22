@@ -262,10 +262,10 @@ def process_events_to_loan_states(
     protocol_class: Callable[
         [AnyEvents],
         pandas.DataFrame,
-    ],
-    session: sqlalchemy.orm.session.Session,
+    ]
 ):
-    current_loan_states = fetch_loan_states(protocol, session)
+    with get_db_session() as session:
+        current_loan_states = fetch_loan_states(protocol, session)
     min_slot = 0
 
     if len(current_loan_states) > 0:
@@ -306,18 +306,18 @@ def process_events_to_loan_states(
             ],
         ).drop_duplicates(keep=False)['user'].unique()
         changed_loan_states = new_loan_states[new_loan_states['user'].isin(changed_loan_states_users)]
-        store_loan_states(changed_loan_states, protocol, session)
+        with get_db_session() as session:
+            store_loan_states(changed_loan_states, protocol, session)
 
 
 def process_events_continuously(protocol: Protocol):
     logging.info("Starting events to loan states processing.")
-    session = get_db_session()
 
     protocol_class = protocol_to_protocol_class(protocol)
 
     while True:
         start_time = time.time()
-        process_events_to_loan_states(protocol, protocol_class, session)
+        process_events_to_loan_states(protocol, protocol_class)
         logging.info("Updated loan states.")
         processing_time = time.time() - start_time
         time.sleep(max(0, 900 - processing_time))
