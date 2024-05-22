@@ -1,26 +1,13 @@
-import decimal
-from typing import Literal, Callable, Type
 import logging
 import datetime
 
-import pandas as pd
-import sqlalchemy
 from sqlalchemy.orm.session import Session
-from sqlalchemy.orm import aliased
-from sqlalchemy.sql import func
 import sqlalchemy
 import streamlit as st
+import pandas as pd
 
-import src.loans.mango
-import src.loans.kamino
-import src.loans.marginfi
-import src.loans.solend
-from src.loans.loan_state import protocol_to_model
-
+from src.loans.loan_state import protocol_to_model, fetch_loan_states
 from src.visualizations.shared import AnyHealthRatioModel, get_health_ratio_protocol_model
-
-from src.loans.loan_state import fetch_loan_states
-
 import db
 
 
@@ -68,20 +55,9 @@ def fetch_health_ratios(session: Session, model: AnyHealthRatioModel, n: int) ->
 
 
 def fetch_loan_states_for_users(session: Session, protocol: str, users: list[str]) -> pd.DataFrame:
-	model, _ = protocol_to_model(protocol)
-	subquery = session.query(
-		model.user,
-		sqlalchemy.func.max(model.slot).label('max_slot')
-	).group_by(model.user).subquery('t2')
+	_, model = protocol_to_model(protocol)
 
-	# For each user, query the loan state with tha maximum slot.
-	query_result = session.query(model).join(
-		subquery,
-		sqlalchemy.and_(
-			model.user == subquery.c.user,
-			model.slot == subquery.c.max_slot
-		)
-	).filter(model.user.in_(users))
+	query_result = session.query(model).filter(model.user.in_(users))
 
 	df = pd.DataFrame(
 		[
