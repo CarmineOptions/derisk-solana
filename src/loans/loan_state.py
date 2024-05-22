@@ -176,7 +176,7 @@ def store_loan_states_for_easy_access(df: pandas.DataFrame, protocol: Protocol) 
 
             # Commit the transaction
             session.commit()
-            LOGGER.info(f"Health ratios have been successfully updated in {table_name}")
+            LOGGER.info(f"Loan states have been successfully updated in {table_name}")
 
         except Exception as e:
             # Rollback the transaction in case of an error

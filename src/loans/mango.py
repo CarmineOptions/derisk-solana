@@ -267,6 +267,22 @@ class MangoState(src.loans.state.State):
 
         now = int(time.time())
 
+        entries = [
+            db.MangoHealthRatioEA(
+                slot=self.last_slot,
+                last_update=now,
+                user=entry['user'],
+                health_factor=str(entry['health']),
+                std_health_factor=str(entry['std_health']),
+                collateral=str(entry['collateral_usd']),
+                risk_adjusted_collateral=str(entry['risk_adj_collateral_usd']),
+                debt=str(entry['debt_usd']),
+                risk_adjusted_debt=str(entry['risk_adj_debt_usd']),
+                protocol=self.protocol,
+                timestamp=now,
+            ) for entry in health_ratio_df.to_dict('records')
+        ]
+
         with db.get_db_session() as session:
             table_name = db.MangoHealthRatioEA.__tablename__
             assert table_name.endswith('easy_access'), f"Wrong table type is collected." \
@@ -279,7 +295,7 @@ class MangoState(src.loans.state.State):
                 logging.info(f"Old data removed from {db.SCHEMA_LENDERS}.{table_name}")
 
                 # Insert new data from DataFrame
-                health_ratio_df.to_sql(table_name, session.bind, if_exists='append', index=False, schema=db.SCHEMA_LENDERS)
+                session.bulk_insert_mappings(db.MangoHealthRatioEA, entries)
                 logging.info(f"New data inserted into the table {db.SCHEMA_LENDERS}.{table_name}")
 
                 # Commit the transaction
