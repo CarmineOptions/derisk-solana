@@ -423,11 +423,15 @@ def get_main_chart_data(
     protocols: list[str],
     token_selection: TokensSelected,
     prices: dict[str, float | None],
-) -> pd.DataFrame:
+) -> pd.DataFrame | None:
 
     collateral_token = token_selection.collateral
     collateral_token_price = prices.get(collateral_token.address)
     liquidity_entries = get_normalized_liquidity(token_selection)
+    if len(liquidity_entries) == 0:
+        logging.error(f'No liquidity entries found for {token_selection}')
+        return None
+
     adjusted_entries = adjust_liquidity(liquidity_entries, token_selection.loan)
 
     collateral_token_price = prices.get(token_selection.collateral.address)
@@ -445,6 +449,10 @@ def get_main_chart_data(
 
     # TODO: use protocols
     liquidable_dept = get_liquidable_debt(protocols=protocols, token_pair=token_selection)
+    if liquidable_dept is None:
+        logging.error(f'No liquidable debt found for: {token_selection}')
+        return None
+        
     data = pd.merge(
         data,
         liquidable_dept[['collateral_token_price', 'amount']],
