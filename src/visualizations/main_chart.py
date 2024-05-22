@@ -1,3 +1,4 @@
+import logging
 from dataclasses import dataclass
 import datetime
 # import math
@@ -174,10 +175,8 @@ def get_liquidable_debt_single_protocol(
         return df
 
     except ValueError:
-        logging.error(f"No data for {_db_model}")
+        logging.error(f"No data for pair: {collateral_token_address} - {debt_token_address}")
         return None
-
-    
 
 
 @st.cache_data(ttl=datetime.timedelta(minutes=60))
@@ -207,6 +206,9 @@ def get_liquidable_debt(
             return None
 
         df = pd.concat(data)
+
+        if not df.shape[0]:
+            return None
 
         aggregated_data = (
             df.groupby(["collateral_token", "debt_token", "collateral_token_price"])

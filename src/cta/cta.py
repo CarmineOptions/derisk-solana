@@ -12,6 +12,7 @@ import src.visualizations.main_chart
 from src.protocols.dexes.amms.utils import get_tokens_address_to_info_map
 from src.prices import get_prices_for_tokens
 
+
 def generate_message(
     price: int | float, liquidable_debt: int | float, supply: int | float
 ) -> str:
@@ -25,19 +26,20 @@ def generate_message(
     Returns:
         CTA message
     """
-    ratio = round(liquidable_debt / supply, 2)
+    ratio = liquidable_debt / supply * 100
     return f"""
-    At price of {price}, the risk of acquiring bad debt for lending protocols is very high.
-    The ratio of liquidated debt to available supply is {ratio}%.Debt worth of {round(liquidable_debt)} 
-    USD will be liquidated while the dex capacity will be {round(supply)} USD.
+    At a price of {price:.1f}, the risk of acquiring bad debt for lending protocols is very high.
+    The ratio of liquidated debt to available supply is {ratio:.2f}%. Debt worth {round(liquidable_debt):,} 
+    USD will be liquidated, while the DEX capacity will be {round(supply):,} USD.
     """
 
-def get_cta_message(data: pd.DataFrame, collateral_token: str, debt_token: str) -> str:  # pylint: disable=W0613
+
+def get_cta_message(data: pd.DataFrame) -> str:
     '''
-    Calculates the liquuidable debt price point and generated message.
+    Calculates the liquidable debt price point and generated message.
 
     Parameters:
-    - data: Data containig liquidity and liquidable debt info.
+    - data: Data containing liquidity and liquidable debt info.
     - collateral_token: collateral token address
     - debt_token: debt token address
 
@@ -49,7 +51,7 @@ def get_cta_message(data: pd.DataFrame, collateral_token: str, debt_token: str) 
     data['debt_to_supply_ratio'] = data['amount'] / data['debt_token_supply']
 
     data = data[
-        data['debt_to_supply_ratio'] > 0.75
+        data['debt_to_supply_ratio'] >= 0.75
     ] 
     if len(data) == 0:
         return ''
@@ -58,12 +60,13 @@ def get_cta_message(data: pd.DataFrame, collateral_token: str, debt_token: str) 
 
     if not example_row.empty:
         message = generate_message(
-            price=int(example_row['collateral_token_price']),
+            price=example_row['collateral_token_price'],
             liquidable_debt=example_row['amount'],
             supply=example_row['debt_token_supply'],
         )
         return message
     return ''
+
 
 def get_cta_data(
     protocols: list[str],
@@ -83,7 +86,6 @@ def get_cta_data(
     - dataframe or None
     """
 
-    collateral_token = token_selection.collateral
     liquidity_entries = src.visualizations.main_chart.get_normalized_liquidity(token_selection)
     if not liquidity_entries:
         # logging.warning(f'No liquidity entries available for tokens: {token_selection}')
@@ -127,8 +129,6 @@ def get_cta_data(
     return data
 
 
-
-
 def store_cta(
     timestamp: int,
     collateral_token: str,
@@ -145,6 +145,7 @@ def store_cta(
         )
     )
     session.commit()
+
 
 def generate_and_store_ctas(session: Session):
     '''
@@ -171,7 +172,7 @@ def generate_and_store_ctas(session: Session):
     )
 
     # Generate token pairs
-    tokens_combos = [(i, j) for i,j in list(itertools.product(tokens, tokens)) if i!=j]
+    tokens_combos = [(i, j) for i, j in list(itertools.product(tokens, tokens)) if i != j]
     # Filter out pairs with same base/quote
     tokens_combos = [
         src.visualizations.main_chart.TokensSelected(
@@ -203,9 +204,7 @@ def generate_and_store_ctas(session: Session):
         
         # Get CTA message
         message = get_cta_message(
-            data = df, 
-            collateral_token = collateral_token, 
-            debt_token = debt_token
+            data = df
         )
         
         if not message:
@@ -251,7 +250,4 @@ def generate_cta_continuously():
         logging.info("Generating new batch of CTAs.")
 
         with db.get_db_session() as sesh:
-            
             generate_and_store_ctas(sesh)
-        
-        # time.sleep(3600)

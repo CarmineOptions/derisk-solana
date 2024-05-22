@@ -766,7 +766,6 @@ class CallToActions(Base):
     debt_token = Column(String, primary_key=True, nullable=False)
     message = Column(String, nullable=False)
 
-
     def __repr__(self):
         return (
             "CallToActions("
