@@ -164,24 +164,25 @@ def store_loan_states_for_easy_access(df: pandas.DataFrame, protocol: Protocol) 
         table_name = model.__tablename__
         assert table_name.endswith('easy_access'), f"Wrong table type is collected." \
                                                    f" *_easy_access expected, got {table_name}"
-        session.execute(sqlalchemy.text(f"TRUNCATE TABLE {SCHEMA_LENDERS}.{table_name};"))
-        LOGGER.info(f"{table_name} is truncated, but the change was not commited yet.")
-        # Prepare data for bulk insert
-        data_to_insert = [
-            model(
-                slot= row["slot"],
-                protocol=row["protocol"],
-                user=row["user"],
-                collateral=row["collateral"],
-                debt=row["debt"]
-            )
-            for _, row in df.iterrows()
-        ]
+        try:
+            # Delete old data
+            delete_stmt = sqlalchemy.delete(model)
+            session.execute(delete_stmt)
+            LOGGER.info(f"Old data removed from {SCHEMA_LENDERS}.{table_name}")
 
-        # Insert new data using bulk_insert_mappings for efficiency
-        session.add_all(data_to_insert)
-        session.commit()
-        LOGGER.info(f"Loan states have been successfully updated in {table_name}")
+            # Insert new data from DataFrame
+            df.to_sql(table_name, session.bind, if_exists='append', index=False, schema=SCHEMA_LENDERS)
+            LOGGER.info(f"New data inserted into the table {SCHEMA_LENDERS}.{table_name}")
+
+            # Commit the transaction
+            session.commit()
+            LOGGER.info(f"Health ratios have been successfully updated in {table_name}")
+
+        except Exception as e:
+            # Rollback the transaction in case of an error
+            session.rollback()
+            LOGGER.error(f"An error occurred: {e}")
+            raise
     return table_name
 
 

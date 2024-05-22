@@ -232,7 +232,7 @@ async def process_marginfi_loan_states(
     health_ratios['std_health_factor'] = loan_states['std_health_factor'].round(5)
     LOGGER.info(f"Health ratios are computed. Store health ratios to database.")
     easy_access_table_name = store_marginfi_health_ratios_for_easy_access(health_ratios)
-    LOGGER.info(f"New loan states are available in {easy_access_table_name}")
+    LOGGER.info(f"New health ratios are available in {easy_access_table_name}")
 
     # Save health ratios to the database.
     with get_db_session() as session:
@@ -644,7 +644,7 @@ def store_marginfi_health_ratios_for_easy_access(df: pandas.DataFrame) -> str:
             session.rollback()
             LOGGER.error(f"An error occurred: {e}")
             raise
-
+    return table_name
 
 def store_liquidable_debts(df: pandas.DataFrame, protocol: Protocol, session: Session):
     """

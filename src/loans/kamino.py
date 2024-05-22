@@ -323,20 +323,23 @@ class KaminoState(src.loans.solend.SolendState):
         # Convert to DataFrame
         df = pandas.DataFrame(data)
 
-        # Step 2: Save the DataFrame to the database
+        # Save the DataFrame to the database
         with get_db_session() as session:
             table_name = KaminoHealthRatioEA.__tablename__
             assert table_name.endswith('easy_access'), f"Wrong table type is collected." \
                                                        f" *_easy_access expected, got {table_name}"
 
             # Truncate the table
-            session.execute(sqlalchemy.text(f"TRUNCATE TABLE {SCHEMA_LENDERS}.{table_name};"))
+            delete_stmt = sqlalchemy.delete(KaminoHealthRatioEA)
+            session.execute(delete_stmt)
+            logging.info(f"Old data removed from {SCHEMA_LENDERS}.{table_name}")
 
             # Bulk insert the data
             session.bulk_insert_mappings(KaminoHealthRatioEA, df.to_dict(orient='records'))
 
             # Commit the transaction
             session.commit()
+            logging.info(f"Health ratios have been successfully updated in {table_name}")
 
     def get_price_for(self, token: str):
         """
