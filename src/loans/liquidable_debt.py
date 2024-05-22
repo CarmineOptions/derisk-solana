@@ -622,19 +622,28 @@ def store_marginfi_health_ratios_for_easy_access(df: pandas.DataFrame) -> str:
         table_name = MarginfiHealthRatioEA.__tablename__
         assert table_name.endswith('easy_access'), f"Wrong table type is collected." \
                                                    f" *_easy_access expected, got {table_name}"
-        LOGGER.info(f"Time to truncate {table_name}")
-        session.execute(sqlalchemy.text(f"TRUNCATE TABLE {SCHEMA_LENDERS}.{table_name};"))
-        session.commit()
-        LOGGER.info(f"{table_name} is truncated, but the change was not commited yet.")
+        LOGGER.info(f"Preparing to update {table_name} with new data")
 
-        # Insert data from DataFrame into the temporary table
-        df.to_sql(f"{SCHEMA_LENDERS}.{table_name}", session.bind, if_exists='append', index=False)
-        LOGGER.info(f"Data inserted into the table {SCHEMA_LENDERS}.{table_name}.")
+        # Start a transaction
+        try:
+            # Delete old data
+            delete_stmt = sqlalchemy.delete(MarginfiHealthRatioEA)
+            session.execute(delete_stmt)
+            LOGGER.info(f"Old data removed from {SCHEMA_LENDERS}.{table_name}")
 
-        session.commit()
-        LOGGER.info(f"Health ratios have been successfully updated in {table_name}")
+            # Insert new data from DataFrame
+            df.to_sql(table_name, session.bind, if_exists='append', index=False, schema=SCHEMA_LENDERS)
+            LOGGER.info(f"New data inserted into the table {SCHEMA_LENDERS}.{table_name}")
 
-    return table_name
+            # Commit the transaction
+            session.commit()
+            LOGGER.info(f"Health ratios have been successfully updated in {table_name}")
+
+        except Exception as e:
+            # Rollback the transaction in case of an error
+            session.rollback()
+            LOGGER.error(f"An error occurred: {e}")
+            raise
 
 
 def store_liquidable_debts(df: pandas.DataFrame, protocol: Protocol, session: Session):
