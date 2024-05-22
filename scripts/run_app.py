@@ -78,6 +78,7 @@ def main():
     )
     if main_chart_data is None:
         st.plotly_chart(px.bar(), use_container_width=True)
+        st.subheader(':exclamation: No liquidable debt found for the selected pair.')
     else: 
         main_chart_figure = src.visualizations.main_chart.get_figure(
             token_pair=selected_tokens,
@@ -96,8 +97,6 @@ def main():
     if cta_message:
         st.subheader(":warning:")
         st.subheader(cta_message.message)
-    else: 
-        st.subheader(':question::exclamation: No liquidable data found for selected pair.')
 
     # Display comparison stats for all lending protocols.
     st.header("Comparison of lending protocols")
