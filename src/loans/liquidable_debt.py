@@ -624,6 +624,7 @@ def store_marginfi_health_ratios_for_easy_access(df: pandas.DataFrame) -> str:
                                                    f" *_easy_access expected, got {table_name}"
         LOGGER.info(f"Time to truncate {table_name}")
         session.execute(sqlalchemy.text(f"TRUNCATE TABLE {SCHEMA_LENDERS}.{table_name};"))
+        session.flush()
         LOGGER.info(f"{table_name} is truncated, but the change was not commited yet.")
 
         # Insert data from DataFrame into the temporary table
