@@ -620,60 +620,18 @@ def store_marginfi_health_ratios_for_easy_access(df: pandas.DataFrame) -> str:
     """
     with get_db_session() as session:
         table_name = MarginfiHealthRatioEA.__tablename__
-        temp_table_name = f"{table_name}_temp"
+        assert table_name.endswith('easy_access'), f"Wrong table type is collected." \
+                                                   f" *_easy_access expected, got {table_name}"
+        LOGGER.info(f"Time to truncate {table_name}")
+        session.execute(sqlalchemy.text(f"TRUNCATE TABLE {SCHEMA_LENDERS}.{table_name};"))
+        LOGGER.info(f"{table_name} is truncated, but the change was not commited yet.")
 
-        assert table_name.endswith(
-            'easy_access'), f"Wrong table type is collected. *_easy_access expected, got {table_name}"
+        # Insert data from DataFrame into the temporary table
+        df.to_sql(f"{SCHEMA_LENDERS}.{table_name}", session.bind, if_exists='append', index=False)
+        LOGGER.info(f"Data inserted into the table {SCHEMA_LENDERS}.{table_name}.")
 
-        try:
-            # Lock the table for exclusive access
-            session.execute(sqlalchemy.text(f"LOCK TABLE {SCHEMA_LENDERS}.{table_name} IN ACCESS EXCLUSIVE MODE;"))
-            LOGGER.info(f"{table_name} locked for exclusive access.")
-
-            # Create a temporary table
-            session.execute(
-                sqlalchemy.text(f"CREATE TEMPORARY TABLE {SCHEMA_LENDERS}.{temp_table_name} AS TABLE {SCHEMA_LENDERS}.{table_name} WITH NO DATA;"))
-            LOGGER.info(f"Temporary table {SCHEMA_LENDERS}.{temp_table_name} created.")
-
-            # Insert data from DataFrame into the temporary table
-            df.to_sql(temp_table_name, session.bind, if_exists='append', index=False)
-            LOGGER.info(f"Data inserted into temporary table {SCHEMA_LENDERS}.{temp_table_name}.")
-
-            # Replace the data in the original table
-            session.execute(sqlalchemy.text(f"""
-                DELETE FROM {SCHEMA_LENDERS}.{table_name} 
-                WHERE user NOT IN (SELECT user FROM {SCHEMA_LENDERS}.{temp_table_name});
-            """))
-            session.execute(sqlalchemy.text(f"""
-                INSERT INTO {SCHEMA_LENDERS}.{table_name} 
-                SELECT * FROM {SCHEMA_LENDERS}.{temp_table_name}
-                ON CONFLICT (user) 
-                DO UPDATE SET
-                    slot = EXCLUDED.slot,
-                    last_update = EXCLUDED.last_update,
-                    timestamp = EXCLUDED.timestamp,
-                    protocol = EXCLUDED.protocol,
-                    health_factor = EXCLUDED.health_factor,
-                    std_health_factor = EXCLUDED.std_health_factor,
-                    collateral = EXCLUDED.collateral,
-                    risk_adjusted_collateral = EXCLUDED.risk_adjusted_collateral,
-                    debt = EXCLUDED.debt,
-                    risk_adjusted_debt = EXCLUDED.risk_adjusted_debt;
-            """))
-            LOGGER.info(f"Data from temporary table {temp_table_name} merged into {table_name}.")
-
-            # Drop the temporary table
-            session.execute(sqlalchemy.text(f"DROP TABLE {SCHEMA_LENDERS}.{temp_table_name};"))
-            LOGGER.info(f"Temporary table {temp_table_name} dropped.")
-
-            # Commit the transaction
-            session.commit()
-            LOGGER.info(f"Health ratios have been successfully updated in {table_name}")
-
-        except Exception as e:
-            session.rollback()
-            LOGGER.error(f"An error occurred: {e}")
-            raise
+        session.commit()
+        LOGGER.info(f"Health ratios have been successfully updated in {table_name}")
 
     return table_name
 

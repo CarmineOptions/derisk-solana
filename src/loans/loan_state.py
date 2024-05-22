@@ -181,7 +181,7 @@ def store_loan_states_for_easy_access(df: pandas.DataFrame, protocol: Protocol) 
         # Insert new data using bulk_insert_mappings for efficiency
         session.add_all(data_to_insert)
         session.commit()
-        LOGGER.info(f"Health ratios have been successfully updated in {table_name}")
+        LOGGER.info(f"Loan states have been successfully updated in {table_name}")
     return table_name
 
 
