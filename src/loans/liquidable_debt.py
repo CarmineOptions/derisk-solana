@@ -623,29 +623,59 @@ def store_marginfi_health_ratios_for_easy_access(df: pandas.DataFrame) -> str:
         assert table_name.endswith('easy_access'), f"Wrong table type is collected." \
                                                    f" *_easy_access expected, got {table_name}"
 
-        session.execute(sqlalchemy.text(f"LOCK TABLE {SCHEMA_LENDERS}.{table_name} IN ACCESS EXCLUSIVE MODE;"))
-        LOGGER.info(f"{table_name} locked for exclusive access.")
+        try:
+            # Get the current users in the table
+            current_users = {row.user for row in session.query(MarginfiHealthRatioEA.user).all()}
+            df_users = set(df['user'])
 
-        session.execute(sqlalchemy.text(f"TRUNCATE TABLE {SCHEMA_LENDERS}.{table_name};"))
-        LOGGER.info(f"{table_name} is truncated, but the change was not commited yet.")
+            # Update existing users or add new users from the DataFrame
+            for _, row in df.iterrows():
+                user = row["user"]
+                health_ratios = session.query(MarginfiHealthRatioEA).filter_by(user=user).first()
+                if health_ratios:
+                    # Update existing user
+                    health_ratios.slot = row["slot"]
+                    health_ratios.last_update = row["last_update"]
+                    health_ratios.timestamp = row["timestamp"]
+                    health_ratios.protocol = row["protocol"]
+                    health_ratios.health_factor = row["health_factor"]
+                    health_ratios.std_health_factor = row["std_health_factor"]
+                    health_ratios.collateral = row["collateral"]
+                    health_ratios.risk_adjusted_collateral = row["risk_adjusted_collateral"]
+                    health_ratios.debt = row["debt"]
+                    health_ratios.risk_adjusted_debt = row["risk_adjusted_debt"]
+                else:
+                    # Add new user
+                    new_health_ratios = MarginfiHealthRatioEA(
+                        slot=row["slot"],
+                        last_update=row["last_update"],
+                        timestamp=row["timestamp"],
+                        protocol=row["protocol"],
+                        user=row["user"],
+                        health_factor=row["health_factor"],
+                        std_health_factor=row["std_health_factor"],
+                        collateral=row["collateral"],
+                        risk_adjusted_collateral=row["risk_adjusted_collateral"],
+                        debt=row["debt"],
+                        risk_adjusted_debt=row["risk_adjusted_debt"],
+                    )
+                    session.add(new_health_ratios)
 
-        for _, row in df.iterrows():
-            health_ratios = MarginfiHealthRatioEA(
-                slot=row["slot"],
-                last_update=row["last_update"],
-                timestamp=row["timestamp"],
-                protocol=row["protocol"],
-                user=row["user"],
-                health_factor=row["health_factor"],
-                std_health_factor=row["std_health_factor"],
-                collateral=row["collateral"],
-                risk_adjusted_collateral=row["risk_adjusted_collateral"],
-                debt=row["debt"],
-                risk_adjusted_debt=row["risk_adjusted_debt"],
-            )
-            session.add(health_ratios)
-        session.commit()
-        LOGGER.info(f"Health ratios have been successfully updated in {table_name}")
+            # Delete users that are not in the DataFrame
+            users_to_delete = current_users - df_users
+            if users_to_delete:
+                session.query(MarginfiHealthRatioEA).filter(MarginfiHealthRatioEA.user.in_(users_to_delete)).delete(
+                    synchronize_session=False)
+
+            # Commit the transaction
+            session.commit()
+            LOGGER.info(f"Health ratios have been successfully updated in {table_name}")
+
+        except Exception as e:
+            session.rollback()
+            LOGGER.error(f"An error occurred: {e}")
+            raise
+
     return table_name
 
 
