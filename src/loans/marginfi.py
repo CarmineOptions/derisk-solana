@@ -82,6 +82,7 @@ class MarginFiState(src.loans.state.State):
         #     event_column='instruction_name',
         #     start_block_number=self.last_slot + 1,
         # )
+        logging.info("Start collecting marginfi unprocessed events.")
         AUTHENTICATED_RPC_URL = os.environ.get("AUTHENTICATED_RPC_URL")
         if AUTHENTICATED_RPC_URL is None:
             raise ValueError("no AUTHENTICATED_RPC_URL env var")
@@ -98,7 +99,8 @@ class MarginFiState(src.loans.state.State):
                     filters=[solana.rpc.types.MemcmpOpts(8, GROUP)],
                 )
             )
-        except solana.exceptions.SolanaRpcException:
+        except solana.exceptions.SolanaRpcException as e:
+            logging.error(f"Error {e} when getting unprocessed events.")
             time.sleep(10)
             self.get_unprocessed_events()
         else:

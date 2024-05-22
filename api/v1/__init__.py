@@ -7,17 +7,17 @@ from api.extensions import db
 from db import (
     CallToActions,
     DexNormalizedLiquidity,
-    KaminoHealthRatio,
-    KaminoLoanStates,
+    KaminoHealthRatioEA,
+    KaminoLoanStatesEA,
     KaminoParsedTransactionsV2,
-    MangoHealthRatio,
-    MangoLoanStates,
+    MangoHealthRatioEA,
+    MangoLoanStatesEA,
     MangoParsedEvents,
-    MarginfiHealthRatio,
-    MarginfiLoanStates,
+    MarginfiHealthRatioEA,
+    MarginfiLoanStatesEA,
     MarginfiParsedTransactionsV2,
-    SolendHealthRatio,
-    SolendLoanStates,
+    SolendHealthRatioEA,
+    SolendLoanStatesEA,
     SolendParsedTransactions,
     MarginfiLiquidableDebts,
     MangoLiquidableDebts,
@@ -47,17 +47,17 @@ protocols_liquidable_debt_model_map = {
 }
 
 protocols_loan_states_model_map = {
-    "marginfi": MarginfiLoanStates,
-    "mango": MangoLoanStates,
-    "kamino": KaminoLoanStates,
-    "solend": SolendLoanStates,
+    "marginfi": MarginfiLoanStatesEA,
+    "mango": MangoLoanStatesEA,
+    "kamino": KaminoLoanStatesEA,
+    "solend": SolendLoanStatesEA,
 }
 
 protocols_health_ratio_model_map = {
-    "mango": MangoHealthRatio,
-    "solend": SolendHealthRatio,
-    "marginfi": MarginfiHealthRatio,
-    "kamino": KaminoHealthRatio,
+    "mango": MangoHealthRatioEA,
+    "solend": SolendHealthRatioEA,
+    "marginfi": MarginfiHealthRatioEA,
+    "kamino": KaminoHealthRatioEA,
 }
 
 
@@ -270,8 +270,7 @@ def get_loan_states():
             description=f'"{protocol}" is not a valid protocol.',
         )
 
-    latest_slot_number = model.query.order_by(model.slot.desc()).first().slot
-    loan_states = model.query.filter(model.slot == latest_slot_number).all()
+    loan_states = model.query.all()
 
     # Serialize the query results
     data = [to_dict(loan_state) for loan_state in loan_states]
@@ -297,8 +296,7 @@ def get_health_ratios():
             description=f'"{protocol}" is not a valid protocol.',
         )
 
-    latest_slot_number = model.query.order_by(model.slot.desc()).first().slot
-    health_ratios = model.query.filter(model.slot == latest_slot_number).all()
+    health_ratios = model.query.all()
 
     # Serialize the query results
     data = [to_dict(loan_state) for loan_state in health_ratios]
