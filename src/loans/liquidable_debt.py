@@ -230,7 +230,7 @@ async def process_marginfi_loan_states(
     health_ratios['risk_adjusted_debt'] = loan_states['risk_adjusted_debt_usd'].round(5)
     health_ratios['health_factor'] = loan_states['health_factor'].round(5)
     health_ratios['std_health_factor'] = loan_states['std_health_factor'].round(5)
-    LOGGER.info(f"Health ratios are computed. Sore health ratios to database.")
+    LOGGER.info(f"Health ratios are computed. Store health ratios to database.")
     easy_access_table_name = store_marginfi_health_ratios_for_easy_access(health_ratios)
     LOGGER.info(f"New loan states are available in {easy_access_table_name}")
 
@@ -622,6 +622,10 @@ def store_marginfi_health_ratios_for_easy_access(df: pandas.DataFrame) -> str:
         table_name = MarginfiHealthRatioEA.__tablename__
         assert table_name.endswith('easy_access'), f"Wrong table type is collected." \
                                                    f" *_easy_access expected, got {table_name}"
+
+        session.execute(sqlalchemy.text(f"LOCK TABLE {SCHEMA_LENDERS}.{table_name} IN ACCESS EXCLUSIVE MODE;"))
+        LOGGER.info(f"{table_name} locked for exclusive access.")
+
         session.execute(sqlalchemy.text(f"TRUNCATE TABLE {SCHEMA_LENDERS}.{table_name};"))
         LOGGER.info(f"{table_name} is truncated, but the change was not commited yet.")
 
