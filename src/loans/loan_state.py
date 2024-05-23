@@ -24,6 +24,9 @@ import src.loans.mango
 import src.loans.solend
 
 
+LOGGER = logging.getLogger(__name__)
+
+
 MARGINFI = "marginfi"
 MANGO = "mango"
 KAMINO = "kamino"
@@ -161,22 +164,25 @@ def store_loan_states_for_easy_access(df: pandas.DataFrame, protocol: Protocol) 
         table_name = model.__tablename__
         assert table_name.endswith('easy_access'), f"Wrong table type is collected." \
                                                    f" *_easy_access expected, got {table_name}"
-        session.execute(sqlalchemy.text(f"TRUNCATE TABLE {SCHEMA_LENDERS}.{table_name};"))
-        # Prepare data for bulk insert
-        data_to_insert = [
-            model(
-                slot= row["slot"],
-                protocol=row["protocol"],
-                user=row["user"],
-                collateral=row["collateral"],
-                debt=row["debt"]
-            )
-            for _, row in df.iterrows()
-        ]
+        try:
+            # Delete old data
+            delete_stmt = sqlalchemy.delete(model)
+            session.execute(delete_stmt)
+            LOGGER.info(f"Old data removed from {SCHEMA_LENDERS}.{table_name}")
 
-        # Insert new data using bulk_insert_mappings for efficiency
-        session.add_all(data_to_insert)
-        session.commit()
+            # Insert new data from DataFrame
+            session.bulk_insert_mappings(model, df.to_dict(orient='records'))
+            LOGGER.info(f"New data inserted into the table {SCHEMA_LENDERS}.{table_name}")
+
+            # Commit the transaction
+            session.commit()
+            LOGGER.info(f"Loan states have been successfully updated in {table_name}")
+
+        except Exception as e:
+            # Rollback the transaction in case of an error
+            session.rollback()
+            LOGGER.error(f"An error occurred: {e}")
+            raise
     return table_name
 
 

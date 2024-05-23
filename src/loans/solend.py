@@ -299,20 +299,23 @@ class SolendState(src.loans.state.State):
             # Convert to DataFrame
             df = pd.DataFrame(data)
 
-            # Step 2: Save the DataFrame to the database
+            # Save the DataFrame to the database
             with db.get_db_session() as session:
                 table_name = db.SolendHealthRatioEA.__tablename__
                 assert table_name.endswith('easy_access'), f"Wrong table type is collected." \
                                                            f" *_easy_access expected, got {table_name}"
 
                 # Truncate the table
-                session.execute(sqlalchemy.text(f"TRUNCATE TABLE {db.SCHEMA_LENDERS}.{table_name};"))
+                delete_stmt = sqlalchemy.delete(db.SolendHealthRatioEA)
+                session.execute(delete_stmt)
+                logging.info(f"Old data removed from {db.SCHEMA_LENDERS}.{table_name}")
 
                 # Bulk insert the data
                 session.bulk_insert_mappings(db.SolendHealthRatioEA, df.to_dict(orient='records'))
 
                 # Commit the transaction
                 session.commit()
+                logging.info(f"Health ratios have been successfully updated in {table_name}")
 
 
     def find_relevant_debt_collateral_pairs(self):

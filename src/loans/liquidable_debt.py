@@ -209,7 +209,7 @@ async def process_marginfi_loan_states(
         )
     risk_adjusted_debt_columns = [x for x in loan_states.columns if 'risk_adjusted_debt_usd_' in x]
     loan_states['risk_adjusted_debt_usd'] = loan_states[risk_adjusted_debt_columns].sum(axis = 1)
-
+    LOGGER.info('Loan states are computed. Start computing health ratios...')
     # Compute health ratios.
     loan_states['health_factor'] = (
         loan_states['risk_adjusted_collateral_usd'] - loan_states['risk_adjusted_debt_usd']
@@ -230,8 +230,9 @@ async def process_marginfi_loan_states(
     health_ratios['risk_adjusted_debt'] = loan_states['risk_adjusted_debt_usd'].round(5)
     health_ratios['health_factor'] = loan_states['health_factor'].round(5)
     health_ratios['std_health_factor'] = loan_states['std_health_factor'].round(5)
+    LOGGER.info(f"Health ratios are computed. Store health ratios to database.")
     easy_access_table_name = store_marginfi_health_ratios_for_easy_access(health_ratios)
-    LOGGER.info(f"New loan states are available in {easy_access_table_name}")
+    LOGGER.info(f"New health ratios are available in {easy_access_table_name}")
 
     # Save health ratios to the database.
     with get_db_session() as session:
@@ -621,26 +622,29 @@ def store_marginfi_health_ratios_for_easy_access(df: pandas.DataFrame) -> str:
         table_name = MarginfiHealthRatioEA.__tablename__
         assert table_name.endswith('easy_access'), f"Wrong table type is collected." \
                                                    f" *_easy_access expected, got {table_name}"
-        session.execute(sqlalchemy.text(f"TRUNCATE TABLE {SCHEMA_LENDERS}.{table_name};"))
+        LOGGER.info(f"Preparing to update {table_name} with new data")
 
-        for _, row in df.iterrows():
-            health_ratios = MarginfiHealthRatioEA(
-                slot=row["slot"],
-                last_update=row["last_update"],
-                timestamp=row["timestamp"],
-                protocol=row["protocol"],
-                user=row["user"],
-                health_factor=row["health_factor"],
-                std_health_factor=row["std_health_factor"],
-                collateral=row["collateral"],
-                risk_adjusted_collateral=row["risk_adjusted_collateral"],
-                debt=row["debt"],
-                risk_adjusted_debt=row["risk_adjusted_debt"],
-            )
-            session.add(health_ratios)
-        session.commit()
+        # Start a transaction
+        try:
+            # Delete old data
+            delete_stmt = sqlalchemy.delete(MarginfiHealthRatioEA)
+            session.execute(delete_stmt)
+            LOGGER.info(f"Old data removed from {SCHEMA_LENDERS}.{table_name}")
+
+            # Insert new data from DataFrame
+            df.to_sql(table_name, session.bind, if_exists='append', index=False, schema=SCHEMA_LENDERS)
+            LOGGER.info(f"New data inserted into the table {SCHEMA_LENDERS}.{table_name}")
+
+            # Commit the transaction
+            session.commit()
+            LOGGER.info(f"Health ratios have been successfully updated in {table_name}")
+
+        except Exception as e:
+            # Rollback the transaction in case of an error
+            session.rollback()
+            LOGGER.error(f"An error occurred: {e}")
+            raise
     return table_name
-
 
 def store_liquidable_debts(df: pandas.DataFrame, protocol: Protocol, session: Session):
     """

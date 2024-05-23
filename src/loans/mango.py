@@ -269,29 +269,44 @@ class MangoState(src.loans.state.State):
 
         entries = [
             db.MangoHealthRatioEA(
-                slot = self.last_slot,
-                last_update = now, 
-                user = entry['user'],
-                health_factor = str(entry['health']),
-                std_health_factor = str(entry['std_health']),
-                collateral = str(entry['collateral_usd']),
-                risk_adjusted_collateral = str(entry['risk_adj_collateral_usd']),
-                debt = str(entry['debt_usd']),
-                risk_adjusted_debt = str(entry['risk_adj_debt_usd']),
-                protocol = self.protocol,
-                timestamp = now,
+                slot=self.last_slot,
+                last_update=now,
+                user=entry['user'],
+                health_factor=str(entry['health']),
+                std_health_factor=str(entry['std_health']),
+                collateral=str(entry['collateral_usd']),
+                risk_adjusted_collateral=str(entry['risk_adj_collateral_usd']),
+                debt=str(entry['debt_usd']),
+                risk_adjusted_debt=str(entry['risk_adj_debt_usd']),
+                protocol=self.protocol,
+                timestamp=now,
             ) for entry in health_ratio_df.to_dict('records')
         ]
 
-        with db.get_db_session() as sesh:
+        with db.get_db_session() as session:
             table_name = db.MangoHealthRatioEA.__tablename__
             assert table_name.endswith('easy_access'), f"Wrong table type is collected." \
                                                        f" *_easy_access expected, got {table_name}"
+            # Start a transaction
+            try:
+                # Delete old data
+                delete_stmt = sqlalchemy.delete(db.MangoHealthRatioEA)
+                session.execute(delete_stmt)
+                logging.info(f"Old data removed from {db.SCHEMA_LENDERS}.{table_name}")
 
-            # Truncate the table
-            sesh.execute(sqlalchemy.text(f"TRUNCATE TABLE {db.SCHEMA_LENDERS}.{table_name};"))
-            sesh.add_all(entries)
-            sesh.commit()
+                # Insert new data from DataFrame
+                session.add_all(entries)
+                logging.info(f"New data inserted into the table {db.SCHEMA_LENDERS}.{table_name}")
+
+                # Commit the transaction
+                session.commit()
+                logging.info(f"Health ratios have been successfully updated in {table_name}")
+
+            except Exception as e:
+                # Rollback the transaction in case of an error
+                session.rollback()
+                logging.error(f"An error occurred: {e}")
+                raise
 
 
 def liq_debt(x: pd.Series, collateral_collumn: str, debt_collumn: str) -> float:
