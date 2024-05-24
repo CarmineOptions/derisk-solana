@@ -122,8 +122,8 @@ class MarginFiState(src.loans.state.State):
 
                 token = str(balance.bank_pk)
                 # The amounts provided are raw amounts.
-                collateral_amount = decimal.Decimal(str(int(balance.asset_shares.value / 2**48)))
-                debt_amount = decimal.Decimal(str(int(balance.liability_shares.value / 2**48)))
+                collateral_amount = decimal.Decimal(str(balance.asset_shares.value / 2**48))
+                debt_amount = decimal.Decimal(str(balance.liability_shares.value / 2**48))
 
                 self.loan_entities[user].collateral.set_value(token=token, value=collateral_amount)
                 self.loan_entities[user].debt.set_value(token=token, value=debt_amount)
