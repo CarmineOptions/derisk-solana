@@ -1,7 +1,9 @@
 import logging
 import time
 import itertools
+from typing import List
 
+import pandas
 import pandas as pd
 import sqlalchemy
 from sqlalchemy.orm.session import Session
@@ -11,6 +13,9 @@ import src.visualizations.protocol_stats
 import src.visualizations.main_chart
 from src.protocols.dexes.amms.utils import get_tokens_address_to_info_map
 from src.prices import get_prices_for_tokens
+
+
+LOGGER = logging.getLogger(__name__)
 
 
 def generate_message(
@@ -81,6 +86,7 @@ def get_cta_data(
     protocols: list[str],
     token_selection: src.visualizations.main_chart.TokensSelected,
     prices: dict[str, float | None],
+    liquidable_debt_data: pandas.DataFrame | None = None
 ) -> pd.DataFrame | None:
     """
     For list of protocols and selected tokens, generates df containing info about
@@ -99,7 +105,7 @@ def get_cta_data(
     if not liquidity_entries:
         # logging.warning(f'No liquidity entries available for tokens: {token_selection}')
         return None
-    
+
     adjusted_entries = src.visualizations.main_chart.adjust_liquidity(liquidity_entries, token_selection.loan)
 
     collateral_token_price = prices.get(token_selection.collateral.address)
@@ -115,27 +121,44 @@ def get_cta_data(
     )
 
     data["debt_token_supply"] = data["collateral_token_price"].apply(
-        lambda x: src.visualizations.main_chart.get_debt_token_supply_at_price_point(adjusted_entries, x, debt_token_price)
+        lambda x: src.visualizations.main_chart.get_debt_token_supply_at_price_point(adjusted_entries, x,
+                                                                                     debt_token_price)
     )
 
     if data['debt_token_supply'].sum() < 1_000:
         return None
 
-    # TODO: use protocols
-    liquidable_dept = src.visualizations.main_chart.get_liquidable_debt(protocols=protocols, token_pair=token_selection)
-    if liquidable_dept is None:
-        return None
-        
-    data = pd.merge(
-        data,
-        liquidable_dept[['collateral_token_price', 'amount']],
-        left_on='collateral_token_price',
-        right_on='collateral_token_price',
-        how='left',
-    )
-    data['amount'] = data['amount'].fillna(0)
+    if liquidable_debt_data:
+        latest_liquidable_debt_per_pair = []
+        for protocol in liquidable_debt_data.protocol.unique():
+            last_slot = liquidable_debt_data[liquidable_debt_data.protocol == protocol].slot.max()
+            latest_liquidable_debt_per_pair.append(
+                liquidable_debt_data[
+                    (liquidable_debt_data.protocol == protocol) & (liquidable_debt_data.slot == last_slot)]
+            )
 
-    return data
+        liquidable_debt_per_protocol = pd.concat(latest_liquidable_debt_per_pair)
+        liquidable_dept = (
+            liquidable_debt_per_protocol.groupby(["collateral_token", "debt_token", "collateral_token_price"])
+            .agg({"amount": "sum"})
+            .reset_index()
+        )
+    else:
+        liquidable_dept = src.visualizations.main_chart.get_liquidable_debt(protocols=protocols,
+                                                                            token_pair=token_selection)
+    if liquidable_dept is not None:
+        data = pd.merge(
+            data,
+            liquidable_dept[['collateral_token_price', 'amount']],
+            left_on='collateral_token_price',
+            right_on='collateral_token_price',
+            how='left',
+        )
+        data['amount'] = data['amount'].fillna(0)
+
+        return data
+
+    return None
 
 
 def store_cta(
@@ -145,6 +168,7 @@ def store_cta(
     message: str,
     session: Session,
 ):
+    # TODO store only if differ from the last message stored if not skip, mb add last update field.
     session.add(
         db.CallToActions(
             timestamp=timestamp,
@@ -154,6 +178,53 @@ def store_cta(
         )
     )
     session.commit()
+
+
+def get_complete_liquidable_debt_data(protocols: List[str]) -> pandas.DataFrame:
+    """
+    Collect all available liquidable debt data for given protocols
+     and for all pairs present in last 2 runs of liquidable debt computations.
+    :param protocols: list of protocols
+    :return:
+    """
+    data_for_protocols = []
+    LOGGER.info(f"Start collecting liquidable debt data for protocols {protocols}.")
+    timestamp = time.time()
+    for protocol in protocols:
+        LOGGER.info(f"Start collecting liquidable debt data for `{protocol}`")
+        model = src.visualizations.main_chart.protocol_to_model(protocol)
+        with db.get_db_session() as _session:
+            latest_two_slots_subquery = (
+                _session.query(model.slot)
+                .distinct()
+                .order_by(model.slot.desc())
+                .limit(2)
+            ).subquery()
+
+            # data over all protocols for the last two slots
+            data = (
+                _session.query(model)
+                .filter(model.slot.in_(latest_two_slots_subquery))
+                .all()
+            )
+            df = pd.DataFrame(
+                [
+                    {
+                        "collateral_token": d.collateral_token,
+                        "debt_token": d.debt_token,
+                        "collateral_token_price": d.collateral_token_price,
+                        "amount": d.amount,
+                        "slot": d.slot,
+                        "protocol": d.protocol
+                    }
+                    for d in data
+                ]
+            )
+
+            data_for_protocols.append(df)
+    complete_liquidable_debt_data = pd.concat(data_for_protocols)
+    LOGGER.info(f"Complete liquidable debt data collected in {(time.time() - timestamp):.2f} sec.")
+    return complete_liquidable_debt_data
 
 
 def generate_and_store_ctas(session: Session):
@@ -179,9 +250,17 @@ def generate_and_store_ctas(session: Session):
         tvls_selected, 
         tokens_info
     )
+    protocols = ["kamino", "mango", "solend", "marginfi"]
+    liquidable_debt_data = get_complete_liquidable_debt_data(protocols)
+    unique_pairs = liquidable_debt_data[['collateral_token', 'debt_token']].drop_duplicates()
 
+    # Convert the DataFrame to a set of unique pairs
+    pairs_with_liq_debt_data = set(unique_pairs.apply(tuple, axis=1))
     # Generate token pairs
-    tokens_combos = [(i, j) for i, j in list(itertools.product(tokens, tokens)) if i != j]
+    tokens_combos = [
+        (i, j) for i, j in list(itertools.product(tokens, tokens))
+        if i != j and (i, j) in pairs_with_liq_debt_data
+    ]
     # Filter out pairs with same base/quote
     tokens_combos = [
         src.visualizations.main_chart.TokensSelected(
@@ -191,11 +270,9 @@ def generate_and_store_ctas(session: Session):
     ]
     num_combos = len(tokens_combos)
     # We want to generate CTA for all protocols
-    protocols = ["kamino", "mango", "solend", "marginfi"]
-
     # Main loop iterating over the token pairs
     for ix, selection in enumerate(tokens_combos):
-        logging.info(f'Generating cta for: {selection}')
+        LOGGER.info(f'Generating cta for: {selection}')
 
         collateral_price = tokens_prices.get(selection.collateral.address)
         if collateral_price is None:
@@ -205,11 +282,16 @@ def generate_and_store_ctas(session: Session):
         cta_data = get_cta_data(
             protocols, 
             selection,
-            tokens_prices
+            tokens_prices,
+            liquidable_debt_data[
+                (liquidable_debt_data.collateral_token == selection.collateral.address)
+                &
+                (liquidable_debt_data.debt_token == selection.loan.address)
+            ]
         )
 
         if cta_data is None:
-            logging.warning(f'No cta data for {selection}')
+            LOGGER.warning(f'No cta data for {selection}')
             continue
 
         collateral_token = selection.collateral.address
@@ -222,9 +304,9 @@ def generate_and_store_ctas(session: Session):
         )
         
         if not message:
-            logging.warning(f'No cta message for {selection}')
+            LOGGER.warning(f'No cta message for {selection}')
             continue
-    
+
         store_cta(
             timestamp = int(time.time()),
             collateral_token = collateral_token,
@@ -233,7 +315,7 @@ def generate_and_store_ctas(session: Session):
             session = session,
         )
 
-        logging.info(f'Generated cta for {ix} out of {num_combos} combinations.')
+        LOGGER.info(f'Generated cta for {ix} out of {num_combos} combinations.')
     
     
 def fetch_latest_cta_message(collateral_token_address: str, debt_token_address: str) -> db.CallToActions | None:
