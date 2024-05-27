@@ -146,6 +146,7 @@ def get_cta_data(
     else:
         liquidable_dept = src.visualizations.main_chart.get_liquidable_debt(protocols=protocols,
                                                                             token_pair=token_selection)
+
     if liquidable_dept is not None:
         data = pd.merge(
             data,
@@ -260,9 +261,8 @@ def generate_and_store_ctas(session: Session):
     # Generate token pairs
     tokens_combos = [
         (i, j) for i, j in list(itertools.product(tokens, tokens))
-        if i != j and (i, j) in pairs_with_liq_debt_data
+        if i != j
     ]
-    LOGGER.info(f"{len(tokens_combos)} unique pairs to process.")
     # Filter out pairs with same base/quote
     tokens_combos = [
         src.visualizations.main_chart.TokensSelected(
@@ -270,7 +270,10 @@ def generate_and_store_ctas(session: Session):
             loan = j
         ) for i, j in tokens_combos
     ]
+    # filter out pairs without liquidable debt
+    tokens_combos = [i for i in tokens_combos if (i.collateral.address, i.loan.address) in pairs_with_liq_debt_data]
     num_combos = len(tokens_combos)
+    LOGGER.info(f"{num_combos} unique pairs to process.")
     # We want to generate CTA for all protocols
     # Main loop iterating over the token pairs
     for ix, selection in enumerate(tokens_combos):
