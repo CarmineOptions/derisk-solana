@@ -256,11 +256,13 @@ def generate_and_store_ctas(session: Session):
 
     # Convert the DataFrame to a set of unique pairs
     pairs_with_liq_debt_data = set(unique_pairs.apply(tuple, axis=1))
+    LOGGER.info(f"Liquidable debt found for {len(pairs_with_liq_debt_data)} unique pairs.")
     # Generate token pairs
     tokens_combos = [
         (i, j) for i, j in list(itertools.product(tokens, tokens))
         if i != j and (i, j) in pairs_with_liq_debt_data
     ]
+    LOGGER.info(f"{len(tokens_combos)} unique pairs to process.")
     # Filter out pairs with same base/quote
     tokens_combos = [
         src.visualizations.main_chart.TokensSelected(
