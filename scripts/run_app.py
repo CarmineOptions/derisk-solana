@@ -3,6 +3,7 @@ import sys
 
 import plotly.express as px
 import streamlit as st
+import pandas as pd
 
 sys.path.append(".")
 
@@ -165,7 +166,30 @@ def main():
     user_stats_df = src.visualizations.user_stats.load_users_stats(protocols)
     st.dataframe(user_stats_df, use_container_width=True)
     st.header("Loans with the lowest health factor")
-    user_health_ratios_df = src.visualizations.loans_table.load_user_health_ratios(protocols)
+    _user_health_ratios_df = src.visualizations.loans_table.load_user_health_ratios(protocols)
+    
+    try:
+        # There isn't enough time to test this righ now
+        user_health_ratios_df = pd.DataFrame(
+            [
+                {
+                    'Health Factor': row['Health Factor'],
+                    'Standardized Health Factor': row['Standardized Health Factor'],
+                    'Collateral (USD)': row['Collateral (USD)'],
+                    'Risk. Adj. Collateral': row['Risk. Adj. Collateral'],
+                    'Debt (USD)': row['Debt (USD)'],
+                    'Risk. Adj. Debt': row['Risk. Adj. Debt'],
+                    'Protocol': row['Protocol'],
+                    'Collaterals': src.visualizations.loans_table.add_mint_symbol_to_holdings(tokens_info, row['Collaterals'], row['Protocol']), 
+                    'Debts': src.visualizations.loans_table.add_mint_symbol_to_holdings(tokens_info, row['Debts'], row['Protocol']), 
+                }
+                for row in _user_health_ratios_df.to_dict('records')
+            ]
+        )   
+    except Exception as e:
+        logging.error(f'Encountered and error: {e}')
+        user_health_ratios_df = _user_health_ratios_df
+
     col1, _ = st.columns([1, 3])
     with col1:
         debt_usd_lower_bound, debt_usd_upper_bound = st.slider(

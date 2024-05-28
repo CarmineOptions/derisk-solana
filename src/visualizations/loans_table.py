@@ -10,6 +10,9 @@ from src.loans.loan_state import protocol_to_model, fetch_loan_states
 from src.visualizations.shared import AnyHealthRatioModel, get_health_ratio_protocol_model
 import db
 
+import src.marginfi_map
+import src.solend_maps
+import src.solend_lp_tokens
 
 # # TODO: To be implemented.
 # def prepare_data(
@@ -139,4 +142,122 @@ def load_user_health_ratios(protocols: list[str]) -> pd.DataFrame:
 			data.append(df)
 
 	return pd.concat(data).set_index('User')
+
+
+
+# Code for adding symbol string to token address in users holdings 
+
+def _handle_marginfi_holdings(holdings: dict, tokens_info: dict) -> dict:
+    new_holdings = {}
+
+    for token_address, amount in holdings.items():
+        mint = src.marginfi_map.marginfi_token_to_mint_map.get(token_address)
+
+        if mint is None:
+            new_holdings[token_address] = amount
+            continue
+        
+        mint_info = tokens_info.get(mint)
+
+        if mint_info is None:
+            new_holdings[token_address] = amount
+            continue
+
+        new_key = token_address + f' ({mint_info.get("symbol")})'
+        new_holdings[new_key] = amount
+
+    return new_holdings
+        
+def _handle_solend_holdings(holdings: dict, tokens_info: dict) -> dict:
+    solend_token_map = {
+        **src.solend_lp_tokens.lp_token_map,
+        **src.solend_maps.debt_to_mint
+    }
+    
+    new_holdings = {}
+
+    for token_address, holding_info in holdings.items():
+
+        mint_info = tokens_info.get(token_address)
+
+        if mint_info is None:
+        
+            mint_address = solend_token_map.get(token_address)
+
+            if mint_address is None:
+                new_holdings[token_address] = holding_info
+                continue
+
+            mint_info = tokens_info.get(mint_address)
+
+            if mint_info is None:
+                new_holdings[token_address] = holding_info
+                continue
+
+        new_key = token_address + f' ({mint_info.get("symbol")})'
+        new_holdings[new_key] = holding_info
+    return new_holdings
+
+def _handle_kamino_holdings(holdings: dict, tokens_info: dict) -> dict:
+    new_holdings = {}
+
+    for token_address, holding_info in holdings.items():
+        reserve = holding_info.get('reserve')
+        if reserve is None: 
+            new_holdings[token_address] = holding_info # Have to add it so it isn't deleted
+            continue
+        
+        mint_address = src.kamino_vault_map.reserve_to_mint_map.get(reserve)
+
+        if mint_address is None:
+            new_holdings[token_address] = holding_info # Have to add it so it isn't deleted
+            continue
+
+        mint_info = tokens_info.get(mint_address)
+
+        if mint_info is None:
+            new_holdings[token_address] = holding_info # Have to add it so it isn't deleted
+            continue
+
+        new_key = token_address + f' ({mint_info.get("symbol")})'
+        new_holdings[new_key] = holding_info
+    
+    return new_holdings
+        
+def _handle_mango_holdings(holdings: dict, tokens_info: dict) -> dict:
+    new_holdings = {}
+
+    for token_address, amount in holdings.items():
+        token_info = tokens_info.get(token_address)
+        if token_info is None:
+            new_holdings[token_address] = amount
+            continue
+        new_key = token_address + f' ({token_info.get("symbol")})'
+        new_holdings[new_key] = amount
+
+    return new_holdings
+
+
+def add_mint_symbol_to_holdings(
+    tokens_info: dict,
+    holdings: dict, # Either debt or Collateral
+    protocol: str
+) -> dict:
+    if protocol == 'Mango':
+        new_holdings = _handle_mango_holdings(holdings, tokens_info)
+
+    elif protocol == 'kamino': 
+        new_holdings = _handle_kamino_holdings(holdings, tokens_info)
+
+    elif protocol == 'MarginFi':
+        new_holdings = _handle_marginfi_holdings(holdings, tokens_info)
+
+    elif protocol == 'solend':
+        new_holdings = _handle_solend_holdings(holdings, tokens_info)
+
+    else:
+        logging.error(f"Unknown protocol: {protocol}")
+        return holdings
+
+    return  new_holdings
 
