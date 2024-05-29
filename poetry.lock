@@ -890,6 +890,24 @@ files = [
 devel = ["colorama", "json-spec", "jsonschema", "pylint", "pytest", "pytest-benchmark", "pytest-cache", "validictory"]
 
 [[package]]
+name = "flasgger"
+version = "0.9.7.1"
+description = "Extract swagger specs from your flask project"
+optional = false
+python-versions = "*"
+files = [
+    {file = "flasgger-0.9.7.1.tar.gz", hash = "sha256:ca098e10bfbb12f047acc6299cc70a33851943a746e550d86e65e60d4df245fb"},
+]
+
+[package.dependencies]
+Flask = ">=0.10"
+jsonschema = ">=3.0.1"
+mistune = "*"
+packaging = "*"
+PyYAML = ">=3.0"
+six = ">=1.10.0"
+
+[[package]]
 name = "flask"
 version = "3.0.2"
 description = "A simple framework for building complex web applications."
@@ -4254,4 +4272,4 @@ testing = ["big-O", "jaraco.functools", "jaraco.itertools", "more-itertools", "p
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-content-hash = "e9dd77d9ec80ec28512af943c7b0f13ccff96484925992b930626d3e4c5ea5cf"
+content-hash = "21c4d8fb57e49301741d41c7713e0fb6764c26d97eb203e9d6d19343509f345b"
