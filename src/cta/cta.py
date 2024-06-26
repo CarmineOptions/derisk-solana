@@ -198,15 +198,17 @@ def generate_and_store_ctas(session: Session):
         logging.info(f'Generating cta for: {selection}')
 
         collateral_price = tokens_prices.get(selection.collateral.address)
+        if collateral_price is None:
+            logging.error(f"Collateral token price is None for address: {selection.collateral.address}")
 
         # Df containing liquidity and liquidable debt 
-        df = get_cta_data(
+        cta_data = get_cta_data(
             protocols, 
             selection,
             tokens_prices
         )
 
-        if df is None:
+        if cta_data is None:
             logging.warning(f'No cta data for {selection}')
             continue
 
@@ -215,7 +217,7 @@ def generate_and_store_ctas(session: Session):
         
         # Get CTA message
         message = get_cta_message(
-            data = df,
+            data = cta_data,
             collateral_token_price = collateral_price
         )
         
