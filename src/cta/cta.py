@@ -34,7 +34,7 @@ def generate_message(
     """
 
 
-def get_cta_message(data: pd.DataFrame) -> str:
+def get_cta_message(data: pd.DataFrame, collateral_token_price: float | None) -> str:
     '''
     Calculates the liquidable debt price point and generated message.
 
@@ -53,10 +53,19 @@ def get_cta_message(data: pd.DataFrame) -> str:
     data = data[
         data['debt_to_supply_ratio'] >= 0.75
     ] 
+
+    if collateral_token_price is not None:
+        data = data[
+            data['collateral_token_price'] <= collateral_token_price
+        ]
+
     if len(data) == 0:
         return ''
 
+
     example_row = data.sort_values('collateral_token_price').iloc[-1]
+
+
 
     if not example_row.empty:
         message = generate_message(
@@ -188,14 +197,18 @@ def generate_and_store_ctas(session: Session):
     for ix, selection in enumerate(tokens_combos):
         logging.info(f'Generating cta for: {selection}')
 
+        collateral_price = tokens_prices.get(selection.collateral.address)
+        if collateral_price is None:
+            logging.error(f"Collateral token price is None for address: {selection.collateral.address}")
+
         # Df containing liquidity and liquidable debt 
-        df = get_cta_data(
+        cta_data = get_cta_data(
             protocols, 
             selection,
             tokens_prices
         )
 
-        if df is None:
+        if cta_data is None:
             logging.warning(f'No cta data for {selection}')
             continue
 
@@ -204,7 +217,8 @@ def generate_and_store_ctas(session: Session):
         
         # Get CTA message
         message = get_cta_message(
-            data = df
+            data = cta_data,
+            collateral_token_price = collateral_price
         )
         
         if not message:
