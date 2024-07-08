@@ -63,7 +63,7 @@ def main():
         loan_token = st.selectbox(
             label="Select loan token:",
             options=tokens,
-            index=2,
+            index=1,
         )
 
     selected_tokens = src.visualizations.main_chart.TokensSelected(
