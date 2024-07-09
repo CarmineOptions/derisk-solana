@@ -16,7 +16,7 @@ flask = "^3.0.1"
 flask-caching = "^2.1.0"
 psycopg2-binary = "^2.9.9"
 gunicorn = "^21.2.0"
-streamlit = "^1.30.0"
+streamlit = "^1.36.0"
 plotly = "^5.18.0"
 notebook = "6.5.6"  # This fixes the problem of jupyter showing just a blank page instead of the notebooks.
 phoenix-trade = ">=0.1.9"
