@@ -103,9 +103,20 @@ class TokenSupplyCollector(abc.ABC):
         except Exception as err:  # pylint: disable=W0718
             err_msg = "".join(traceback.format_exception(err))
             self.error_log(f"Unable to update token supplies, reason:\n {err_msg}")
+            
+            time.sleep(30)
+            self.update_token_supplies()
+
+    async def collect_markets(self):
+        try: 
+            await self._collect_markets()
+        except requests.exceptions.ReadTimeout:
+            self.error_log("Received ReadTimeout when collecting markets, repeating in 30 seconds.")
+            time.sleep(30)
+            self.collect_markets()
 
     @abc.abstractmethod
-    async def collect_markets(self):
+    async def _collect_markets(self):
         """Implement me"""
 
     @abc.abstractmethod
@@ -148,7 +159,7 @@ class MarginfiTokenSupplyCollector(TokenSupplyCollector):
             available_to_borrow=total_available,
         )
 
-    async def collect_markets(self):
+    async def _collect_markets(self):
         response = requests.get(
             "https://storage.googleapis.com/mrgn-public/mrgn-bank-metadata-cache.json",
             timeout=30,
@@ -156,6 +167,8 @@ class MarginfiTokenSupplyCollector(TokenSupplyCollector):
 
         if response.status_code != 200:
             self.error_log(f"Unable to fetch banks: {response.text}")
+            time.sleep(30)
+            self._collect_markets()
             return
 
         self.markets = response.json()
@@ -195,11 +208,13 @@ class KaminoTokenSupplyCollector(TokenSupplyCollector):
     async def get_reserve(client: AsyncClient, address: Pubkey) -> KaminoReserve | None:
         return await KaminoReserve.fetch(client, address)
 
-    async def collect_markets(self):
+    async def _collect_markets(self):
         r = requests.get("https://api.hubbleprotocol.io/v2/kamino-market", timeout=30)
 
         if r.status_code != 200:
             self.error_log(f"Unable to fetch banks: {r.text}")
+            time.sleep(30)
+            self._collect_markets()
             return
 
         kamino_markets = []
@@ -337,7 +352,7 @@ class SolendTokenSupplyCollector(TokenSupplyCollector):
 
         return SolendReserveLayout.parse(fetched.value.data)
 
-    async def collect_markets(self):
+    async def _collect_markets(self):
         base = "https://api.solend.fi"
         resp = requests.get(
             base + "/v1/markets/configs?scope=all&deployment=production", timeout=30
@@ -345,6 +360,9 @@ class SolendTokenSupplyCollector(TokenSupplyCollector):
 
         if resp.status_code != 200:
             self.error_log("Unable to update markets")
+
+            time.sleep(30)
+            self._collect_markets()
             return
 
         self.markets = resp.json()
@@ -409,12 +427,14 @@ class MangoTokenSupplyCollector(TokenSupplyCollector):
     async def get_bank(client: AsyncClient, address: Pubkey) -> MangoBank | None:
         return await MangoBank.fetch(client, address)
 
-    async def collect_markets(self):
+    async def _collect_markets(self):
 
         r = requests.get("https://api.mngo.cloud/data/v4/group-metadata", timeout=30)
 
         if r.status_code != 200:
             self.error_log("Unable to fetch markets")
+            time.sleep(30)
+            self._collect_markets()
             return
 
         self.markets = r.json()["groups"]
