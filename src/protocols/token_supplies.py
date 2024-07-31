@@ -103,15 +103,17 @@ class TokenSupplyCollector(abc.ABC):
         except Exception as err:  # pylint: disable=W0718
             err_msg = "".join(traceback.format_exception(err))
             self.error_log(f"Unable to update token supplies, reason:\n {err_msg}")
-            
+
             time.sleep(30)
-            self.update_token_supplies()
+            await self.update_token_supplies(timestamp)
 
     async def collect_markets(self):
-        try: 
+        try:
             await self._collect_markets()
         except requests.exceptions.ReadTimeout:
-            self.error_log("Received ReadTimeout when collecting markets, repeating in 30 seconds.")
+            self.error_log(
+                "Received ReadTimeout when collecting markets, repeating in 30 seconds."
+            )
             time.sleep(30)
             self.collect_markets()
 
