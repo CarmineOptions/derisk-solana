@@ -185,11 +185,11 @@ class TXFromBlockCollector(GenericSolanaConnector):
             keys = keys_env.split(',')
         # check if new keys are added
         new_keys = set(keys) - set(self.protocol_public_keys)
-        if new_keys:
-            watershed_block = self._get_latest_finalized_block_on_chain()
-            for new_key in new_keys:
-                self._add_new_protocol(new_key, watershed_block)
-            LOG.warning(f"New protocol(s) added to collection: {new_keys}")
+        # if new_keys:
+        #     watershed_block = self._get_latest_finalized_block_on_chain()
+        #     for new_key in new_keys:
+        #         self._add_new_protocol(new_key, watershed_block)
+        #     LOG.warning(f"New protocol(s) added to collection: {new_keys}")
         self.protocol_public_keys = keys
 
     @staticmethod

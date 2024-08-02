@@ -23,6 +23,7 @@ from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.types import Enum as SQLEnum
 from sqlalchemy import Index
 from sqlalchemy.dialects.postgresql import ARRAY as PG_ARRAY, JSONB
+from db.utils import check_bigint
 
 Base = declarative_base()
 
