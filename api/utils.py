@@ -24,7 +24,12 @@ def get_db_connection_string() -> str:
         raise ValueError("no POSTGRES_USER env var")
     password = os.environ.get("POSTGRES_PASSWORD")
     if password is None:
-        raise ValueError("no POSTGRES_PASSWORD env var")
+        # if password not provided check for password file
+        POSTGRES_PASSWORD_FILE = os.environ.get("POSTGRES_PASSWORD_FILE")
+        if POSTGRES_PASSWORD_FILE is None:
+            raise ValueError("no POSTGRES_PASSWORD env var")
+        with open(POSTGRES_PASSWORD_FILE, "r") as secret_file:
+            password = secret_file.read().strip()
     host = os.environ.get("POSTGRES_HOST")
     if host is None:
         raise ValueError("no POSTGRES_HOST env var")

@@ -10,7 +10,12 @@ if POSTGRES_USER is None:
     raise ValueError("no POSTGRES_USER env var")
 POSTGRES_PASSWORD = os.environ.get("POSTGRES_PASSWORD")
 if POSTGRES_PASSWORD is None:
-    raise ValueError("no POSTGRES_PASSWORD env var")
+    # if password not provided check for password file
+    POSTGRES_PASSWORD_FILE = os.environ.get("POSTGRES_PASSWORD_FILE")
+    if POSTGRES_PASSWORD_FILE is None:
+        raise ValueError("no POSTGRES_PASSWORD env var")
+    with open(POSTGRES_PASSWORD_FILE, "r") as secret_file:
+        POSTGRES_PASSWORD = secret_file.read().strip()
 POSTGRES_HOST = os.environ.get("POSTGRES_HOST")
 if POSTGRES_HOST is None:
     raise ValueError("no POSTGRES_HOST env var")
