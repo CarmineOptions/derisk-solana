@@ -1,5 +1,9 @@
+import logging
+import time
 import typing
 from dataclasses import dataclass
+
+from solana.exceptions import SolanaRpcException
 from solders.pubkey import Pubkey
 from solana.rpc.async_api import AsyncClient
 from solana.rpc.commitment import Commitment
@@ -10,6 +14,9 @@ from anchorpy.utils.rpc import get_multiple_accounts
 from anchorpy.borsh_extension import BorshPubkey
 from ..program_id import PROGRAM_ID
 from .. import types
+
+
+LOGGER = logging.getLogger(__name__)
 
 
 class LendingMarketJSON(typing.TypedDict):
@@ -92,14 +99,20 @@ class LendingMarket:
         commitment: typing.Optional[Commitment] = None,
         program_id: Pubkey = PROGRAM_ID,
     ) -> typing.Optional["LendingMarket"]:
-        resp = await conn.get_account_info(address, commitment=commitment)
-        info = resp.value
-        if info is None:
-            return None
-        if info.owner != program_id:
-            raise ValueError("Account does not belong to this program")
-        bytes_data = info.data
-        return cls.decode(bytes_data)
+        try:
+            resp = await conn.get_account_info(address, commitment=commitment)
+            info = resp.value
+            if info is None:
+                return None
+            if info.owner != program_id:
+                raise ValueError("Account does not belong to this program")
+            bytes_data = info.data
+            return cls.decode(bytes_data)
+
+        except SolanaRpcException as e:
+            LOGGER.error(f"SolanaRpcException: {e}")
+            time.sleep(1)
+            return await cls.fetch(conn, address, commitment, program_id)
 
     @classmethod
     async def fetch_multiple(
