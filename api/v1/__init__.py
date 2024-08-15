@@ -1,5 +1,4 @@
 from flask import Blueprint, jsonify, request, abort
-from flasgger import swag_from
 import sqlalchemy
 
 from api.utils import to_dict
@@ -63,70 +62,11 @@ protocols_health_ratio_model_map = {
 
 
 @v1.route("/readiness", methods=["GET"])
-@swag_from({
-    'responses': {
-        200: {
-            'description': 'API readiness status',
-            'content': {
-                'application/json': {
-                    'example': "API is ready!"
-                }
-            }
-        }
-    }
-})
 def readiness():
     return "API is ready!"
 
 
 @v1.route("/transactions", methods=["GET"])
-@swag_from({
-    'parameters': [
-        {
-            'name': 'start_time',
-            'in': 'query',
-            'type': 'integer',
-            'required': True,
-            'description': 'Start time in epoch seconds'
-        },
-        {
-            'name': 'end_time',
-            'in': 'query',
-            'type': 'integer',
-            'required': True,
-            'description': 'End time in epoch seconds'
-        }
-    ],
-    'responses': {
-        200: {
-            'description': 'List of transactions',
-            'content': {
-                'application/json': {
-                    'example': [
-                        {
-                            "id": 1,
-                            "source": "source1",
-                            "slot": 12345,
-                            "block_time": 1617181723,
-                            "transaction_data": "data",
-                            "collection_stream": "stream1"
-                        }
-                    ]
-                }
-            }
-        },
-        400: {
-            'description': 'Invalid input',
-            'content': {
-                'application/json': {
-                    'example': {
-                        "description": "\"start_time\" and \"end_time\" must be specified and valid integers."
-                    }
-                }
-            }
-        }
-    }
-})
 def get_transactions():
     try:
         start_time = int(request.args.get("start_time"))
@@ -177,58 +117,6 @@ def get_transactions():
 
 
 @v1.route("/parsed-transactions", methods=["GET"])
-@swag_from({
-    'parameters': [
-        {
-            'name': 'protocol',
-            'in': 'query',
-            'type': 'string',
-            'required': True,
-            'description': 'Protocol name'
-        },
-        {
-            'name': 'start_time',
-            'in': 'query',
-            'type': 'integer',
-            'required': True,
-            'description': 'Start time in epoch seconds'
-        },
-        {
-            'name': 'end_time',
-            'in': 'query',
-            'type': 'integer',
-            'required': True,
-            'description': 'End time in epoch seconds'
-        }
-    ],
-    'responses': {
-        200: {
-            'description': 'List of parsed transactions',
-            'content': {
-                'application/json': {
-                    'example': [
-                        {
-                            "id": 1,
-                            "protocol": "marginfi",
-                            "created_at": 1617181723,
-                            "data": "transaction_data"
-                        }
-                    ]
-                }
-            }
-        },
-        400: {
-            'description': 'Invalid input or protocol',
-            'content': {
-                'application/json': {
-                    'example': {
-                        "description": "Bad protocol. Allowed protocols are ['marginfi', 'mango', 'kamino', 'solend']"
-                    }
-                }
-            }
-        }
-    }
-})
 def get_lender_parsed_transactions():
     default_limit = 10
     max_limit = 100
@@ -279,52 +167,6 @@ def get_lender_parsed_transactions():
 
 
 @v1.route("/liquidity", methods=["GET"])
-@swag_from({
-    'parameters': [
-        {
-            'name': 'token_x',
-            'in': 'query',
-            'type': 'string',
-            'required': True,
-            'description': 'Token X address'
-        },
-        {
-            'name': 'token_y',
-            'in': 'query',
-            'type': 'string',
-            'required': True,
-            'description': 'Token Y address'
-        }
-    ],
-    'responses': {
-        200: {
-            'description': 'Liquidity data',
-            'content': {
-                'application/json': {
-                    'example': [
-                        {
-                            "timestamp": 1617181723,
-                            "token_x_address": "address_x",
-                            "token_y_address": "address_y",
-                            "asks": [],
-                            "bids": []
-                        }
-                    ]
-                }
-            }
-        },
-        400: {
-            'description': 'Missing token addresses',
-            'content': {
-                'application/json': {
-                    'example': {
-                        "description": "Missing token_x"
-                    }
-                }
-            }
-        }
-    }
-})
 def get_liquidity():
     token_x_address = request.args.get("token_x")
     token_y_address = request.args.get("token_y")
@@ -370,59 +212,6 @@ def get_liquidity():
 
 
 @v1.route("/liquidable-debt", methods=["GET"])
-@swag_from({
-    'parameters': [
-        {
-            'name': 'protocol',
-            'in': 'query',
-            'type': 'string',
-            'required': True,
-            'description': 'Protocol name'
-        },
-        {
-            'name': 'collateral_token',
-            'in': 'query',
-            'type': 'string',
-            'required': True,
-            'description': 'Collateral token address'
-        },
-        {
-            'name': 'debt_token',
-            'in': 'query',
-            'type': 'string',
-            'required': True,
-            'description': 'Debt token address'
-        }
-    ],
-    'responses': {
-        200: {
-            'description': 'List of liquidable debts',
-            'content': {
-                'application/json': {
-                    'example': [
-                        {
-                            "id": 1,
-                            "protocol": "marginfi",
-                            "collateral_token": "token_x",
-                            "debt_token": "token_y",
-                            "amount": 1000
-                        }
-                    ]
-                }
-            }
-        },
-        400: {
-            'description': 'Missing or invalid input',
-            'content': {
-                'application/json': {
-                    'example': {
-                        "description": '"protocol", "collateral_token" and "debt_token" must be specified'
-                    }
-                }
-            }
-        }
-    }
-})
 def get_liquidable_debt():
     protocol = request.args.get("protocol")
     collateral_token = request.args.get("collateral_token")
@@ -458,68 +247,12 @@ def get_liquidable_debt():
 
 
 @v1.route("/cta", methods=["GET"])
-@swag_from({
-    'responses': {
-        200: {
-            'description': 'List of call to actions',
-            'content': {
-                'application/json': {
-                    'example': [
-                        {
-                            "id": 1,
-                            "action": "action1",
-                            "description": "description1"
-                        }
-                    ]
-                }
-            }
-        }
-    }
-})
 def get_cta():
     call_to_actions = CallToActions.query.all()
     return jsonify([to_dict(cta) for cta in call_to_actions])
 
 
 @v1.route("/loan-states", methods=["GET"])
-@swag_from({
-    'parameters': [
-        {
-            'name': 'protocol',
-            'in': 'query',
-            'type': 'string',
-            'required': True,
-            'description': 'Protocol name'
-        }
-    ],
-    'responses': {
-        200: {
-            'description': 'List of loan states',
-            'content': {
-                'application/json': {
-                    'example': [
-                        {
-                            "id": 1,
-                            "protocol": "marginfi",
-                            "state": "state1",
-                            "details": "details1"
-                        }
-                    ]
-                }
-            }
-        },
-        400: {
-            'description': 'Missing or invalid protocol',
-            'content': {
-                'application/json': {
-                    'example': {
-                        "description": '"protocol" query parameter must be specified.'
-                    }
-                }
-            }
-        }
-    }
-})
 def get_loan_states():
     protocol = request.args.get("protocol")
 
@@ -546,41 +279,6 @@ def get_loan_states():
 
 
 @v1.route("/health-ratios", methods=["GET"])
-@swag_from({
-    'parameters': [
-        {
-            'name': 'protocol',
-            'in': 'query',
-            'type': 'string',
-            'required': True,
-            'description': 'Protocol name'
-        }
-    ],
-    'responses': {
-        200: {
-            'description': 'List of health ratios',
-            'content': {
-                'application/json': {
-                    'example': [
-                        {
-                            "id": 1,
-                            "protocol": "mango",
-                            "ratio": 1.5
-                        }
-                    ]
-                }
-            }
-        },
-        400: {
-            'description': 'Missing or invalid protocol',
-            'content': {
-                'application/json': {
-                    'example': '"protocol" query parameter must be specified.'
-                }
-            }
-        }
-    }
-})
 def get_health_ratios():
     protocol = request.args.get("protocol")
 
