@@ -2,7 +2,6 @@ import logging
 import os
 
 from flask import Flask
-from flasgger import Swagger
 
 import google.cloud.logging
 
@@ -16,7 +15,6 @@ application = Flask(__name__)
 
 # set endpoints
 application.register_blueprint(v1, url_prefix="/v1")
-swagger = Swagger(application)
 
 # init cache
 cache.init_app(application)
