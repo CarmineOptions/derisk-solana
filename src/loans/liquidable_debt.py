@@ -145,7 +145,7 @@ async def process_marginfi_loan_states(
             interest_rate_model = float(bank.asset_share_value.value / 2**48),
             factor = float(bank.config.asset_weight_maint.value / 2**48),
         )
-        LOGGER.info(token, collateral_token_parameters[token])
+        LOGGER.info(f"Parametes for: `{token}`: {collateral_token_parameters[token]}")
     debt_token_parameters = {
         token: None
         for debt in loan_states['debt']
