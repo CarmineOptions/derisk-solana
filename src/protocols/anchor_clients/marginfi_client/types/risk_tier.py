@@ -3,6 +3,7 @@ import typing
 from dataclasses import dataclass
 from anchorpy.borsh_extension import EnumForCodegen
 import borsh_construct as borsh
+from borsh_construct import CStruct
 
 
 class CollateralJSON(typing.TypedDict):
@@ -72,4 +73,14 @@ def from_json(obj: RiskTierJSON) -> RiskTierKind:
     raise ValueError(f"Unrecognized enum kind: {kind}")
 
 
-layout = EnumForCodegen("Collateral" / borsh.CStruct(), "Isolated" / borsh.CStruct())
+class EnumForCodegenCustom(EnumForCodegen):
+    def _decode(self, obj: CStruct, context, path) -> dict[str, typing.Any]:
+        index = obj.index
+        try:
+            variant_name = self.index_to_variant_name[index]
+        except KeyError:
+            variant_name = self.index_to_variant_name[1]
+        return {variant_name: obj.value}
+
+
+layout = EnumForCodegenCustom("Collateral" / borsh.CStruct(), "Isolated" / borsh.CStruct())
