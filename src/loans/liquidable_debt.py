@@ -137,6 +137,7 @@ async def process_marginfi_loan_states(
         for token in collateral
     }
     for token in collateral_token_parameters:
+        LOGGER.info(f"Get MARGINFI bank for `{token}`")
         bank = await get_bank(client = client, token = token)
         collateral_token_parameters[token] = TokenParameters(
             underlying = str(bank.mint),
