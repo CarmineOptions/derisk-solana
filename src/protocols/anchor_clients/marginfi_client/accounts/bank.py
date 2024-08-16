@@ -151,7 +151,7 @@ class Bank:
             raise AccountInvalidDiscriminator(
                 "The discriminator for this account is invalid"
             )
-        dec = Bank.layout.parse(data[ACCOUNT_DISCRIMINATOR_SIZE:])
+        dec = Bank.layout.parse(data)
         return cls(
             mint=dec.mint,
             mint_decimals=dec.mint_decimals,
