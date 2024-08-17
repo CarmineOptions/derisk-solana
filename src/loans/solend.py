@@ -23,6 +23,8 @@ from src.protocols.dexes.amms.utils import get_tokens_address_to_info_map
 warnings.filterwarnings('ignore')
 
 
+LOGGER = logging.getLogger(__name__)
+
 # Keys are values of the "event_name" column in the database, values are the respective method names.
 EVENTS_METHODS_MAPPING: dict[str, str] = {
     'borrow_obligation_liquidity': 'process_borrowing_event',
@@ -102,6 +104,7 @@ class SolendDebtPosition(DebtPosition):
             else:
                 weight = self.weight
         except ValueError:
+            LOGGER.warning(f"Unable to recognize asset weight: `{self.weight}`. Weight set to 1.")
             weight = 1
         return (
             self.raw_amount
