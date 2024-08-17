@@ -96,10 +96,13 @@ class SolendDebtPosition(DebtPosition):
                                                 f" for {self.reserve}"
         assert self.weight, f"Missing borrow rate: {self.weight} for {self.reserve}"
         assert self.underlying_asset_price_wad, f"Missing asset price: {self.underlying_asset_price_wad} for {self.reserve}"
-        if self.weight > 100000:
+        try:
+            if float(self.weight) > 100000:
+                weight = 1
+            else:
+                weight = self.weight
+        except ValueError:
             weight = 1
-        else:
-            weight = self.weight
         return (
             self.raw_amount
             * int(self.cumulative_borrow_rate_wad) / WAD
