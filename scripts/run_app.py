@@ -53,17 +53,19 @@ def main():
         )
 
     with col2:
+        sol = next(x for x in tokens if x.symbol == 'SOL')
         collateral_token = st.selectbox(
             label="Select collateral token:",
             options=tokens,
-            index=0,
+            index=tokens.index(sol),
         )
 
     with col3:
+        usdc = next(x for x in tokens if x.symbol == 'USDC')
         loan_token = st.selectbox(
             label="Select loan token:",
             options=tokens,
-            index=2,
+            index=tokens.index(usdc),
         )
 
     selected_tokens = src.visualizations.main_chart.TokensSelected(
