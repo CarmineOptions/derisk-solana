@@ -98,12 +98,11 @@ class SolendDebtPosition(DebtPosition):
                                                 f" for {self.reserve}"
         assert self.weight, f"Missing borrow rate: {self.weight} for {self.reserve}"
         assert self.underlying_asset_price_wad, f"Missing asset price: {self.underlying_asset_price_wad} for {self.reserve}"
-        LOGGER.info(f"Risk adjusted market value inputs: {self.__dict__}")
         try:
             if float(self.weight) > 100000:
                 weight = 1
             else:
-                weight = self.weight
+                weight = float(self.weight)
         except ValueError:
             LOGGER.warning(f"Unable to recognize asset weight: `{self.weight}`. Weight set to 1.")
             weight = 1
