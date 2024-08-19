@@ -108,7 +108,7 @@ class SolendDebtPosition(DebtPosition):
             LOGGER.warning(f"Unable to recognize asset weight: `{self.weight}`. Weight set to 1.")
             weight = 1
         return (
-            self.raw_amount
+            float(self.raw_amount)
             * int(self.cumulative_borrow_rate_wad) / WAD
             * int(self.underlying_asset_price_wad) / WAD
             / 10**self.decimals
@@ -124,7 +124,7 @@ class SolendDebtPosition(DebtPosition):
         assert self.underlying_asset_price_wad, f"Missing asset price: " \
                                                 f"{self.underlying_asset_price_wad} for {self.reserve}"
         return (
-            self.raw_amount
+            float(self.raw_amount)
             * int(self.cumulative_borrow_rate_wad) / WAD
             * int(self.underlying_asset_price_wad) / WAD
             / 10**self.decimals
