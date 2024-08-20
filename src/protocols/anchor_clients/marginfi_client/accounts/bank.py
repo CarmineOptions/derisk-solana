@@ -112,6 +112,7 @@ class Bank:
     padding1: list[int] | None = None
     asset_factor: int | None = None
     liab_factor: int | None = None
+    borrow_limit: int | None = None
 
     @classmethod
     async def fetch(
@@ -239,6 +240,13 @@ class Bank:
             liability_share_value=types.wrapped_i80f48.WrappedI80F48.from_decoded(
                 dec.liability_share_value
             ),
+            total_liability_shares=types.wrapped_i80f48.WrappedI80F48.from_json(
+                dec.total_liability_shares
+            ),
+            total_asset_shares=types.wrapped_i80f48.WrappedI80F48.from_json(
+                dec.total_asset_shares
+            ),
+            borrow_limit = dec.config.borrow_limit,
             liab_factor=dec.config.liability_weight_maint.value,
             asset_factor=dec.config.asset_weight_maint.value
         )

@@ -131,7 +131,7 @@ class MarginfiTokenSupplyCollector(TokenSupplyCollector):
     async def get_bank(
         client: AsyncClient, bank_address: Pubkey
     ) -> None | MarginfiBank:
-        return await MarginfiBank.fetch(client, bank_address)
+        return await MarginfiBank.fetch_custom(client, bank_address)
 
     async def get_vault_single(self, bank_address: Pubkey) -> Vault | None:
         bank = await self.get_bank(self.client, bank_address)
@@ -147,9 +147,10 @@ class MarginfiTokenSupplyCollector(TokenSupplyCollector):
         liability_shares = Decimal(bank.total_liability_shares.value) / 2**48
         liability_share_value = Decimal(bank.liability_share_value.value) / 2**48
         liabilities = liability_shares * liability_share_value
+        borrow_limit = bank.config.borrow_limit if hasattr(bank, 'config') else bank.borrow_limit
 
         total_available = min(
-            assets - liabilities, bank.config.borrow_limit - liabilities
+            assets - liabilities, borrow_limit - liabilities
         )
 
         return Vault(
