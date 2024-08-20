@@ -147,7 +147,7 @@ class MarginfiTokenSupplyCollector(TokenSupplyCollector):
         liability_shares = Decimal(bank.total_liability_shares.value) / 2**48
         liability_share_value = Decimal(bank.liability_share_value.value) / 2**48
         liabilities = liability_shares * liability_share_value
-        borrow_limit = bank.config.borrow_limit if hasattr(bank, 'config') else bank.borrow_limit
+        borrow_limit = bank.borrow_limit
 
         total_available = min(
             assets - liabilities, borrow_limit - liabilities
