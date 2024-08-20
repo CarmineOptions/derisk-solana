@@ -240,10 +240,10 @@ class Bank:
             liability_share_value=types.wrapped_i80f48.WrappedI80F48.from_decoded(
                 dec.liability_share_value
             ),
-            total_liability_shares=types.wrapped_i80f48.WrappedI80F48.from_json(
+            total_liability_shares=types.wrapped_i80f48.WrappedI80F48.from_decoded(
                 dec.total_liability_shares
             ),
-            total_asset_shares=types.wrapped_i80f48.WrappedI80F48.from_json(
+            total_asset_shares=types.wrapped_i80f48.WrappedI80F48.from_decoded(
                 dec.total_asset_shares
             ),
             borrow_limit = dec.config.borrow_limit,
