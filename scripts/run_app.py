@@ -4,6 +4,7 @@ import sys
 import plotly.express as px
 import streamlit as st
 import pandas as pd
+import numpy.random
 
 sys.path.append(".")
 
@@ -15,7 +16,9 @@ import src.visualizations.main_chart
 import src.visualizations.settings
 from src.prices import get_prices_for_tokens
 from src.protocols.dexes.amms.utils import get_tokens_address_to_info_map
+import src.visualizations.loan_detail
 import src.visualizations.loans_table
+import src.visualizations.token_amounts
 import src.visualizations.user_stats
 
 
@@ -104,6 +107,10 @@ def main():
     # Display comparison stats for all lending protocols.
     st.header("Comparison of lending protocols")
 
+    st.subheader("Protocol statistics")
+    user_stats_df = src.visualizations.user_stats.load_users_stats(protocols)
+    st.dataframe(user_stats_df, use_container_width=True)
+
     st.subheader("Token utilizations")
     utilizations_df = src.visualizations.protocol_stats.get_token_utilizations_df(tokens_prices, tokens_info)
     st.dataframe(utilizations_df, use_container_width=True)
@@ -118,6 +125,15 @@ def main():
     supplies_data = list(token_supplies_df.groupby("symbol"))
     supplies_data.sort(key=lambda x: x[1]["Deposits"].sum(), reverse=True)
     supplies_data_chunks = src.prices.split_into_chunks(supplies_data, 3)
+
+    # USD deposit, collateral and debt per token (bar chart).
+    # TODO: finish implementation once the db can be accessed
+    # supply_figure, deposits_figure, debt_figure = src.visualizations.token_amounts.get_bar_chart_figures(
+    #     stats=token_supplies_df.copy(),
+    # )
+    # streamlit.plotly_chart(figure_or_data=supply_figure, use_container_width=True)
+    # streamlit.plotly_chart(figure_or_data=deposits_figure, use_container_width=True)
+    # streamlit.plotly_chart(figure_or_data=debt_figure, use_container_width=True)
 
     columns = st.columns(4)
     for column, supply_chunk in zip(columns, supplies_data_chunks):
@@ -164,12 +180,9 @@ def main():
                 )
                 st.plotly_chart(figure, True)
 
-    st.subheader("Protocol statistics")
-    user_stats_df = src.visualizations.user_stats.load_users_stats(protocols)
-    st.dataframe(user_stats_df, use_container_width=True)
     st.header("Loans with the lowest health factor")
     _user_health_ratios_df = src.visualizations.loans_table.load_user_health_ratios(protocols)
-    
+
     try:
         # There isn't enough time to test this righ now
         user_health_ratios_df = pd.DataFrame(
@@ -206,14 +219,70 @@ def main():
         ].sort_values('Standardized Health Factor', ascending=True).head(50),
         use_container_width=True,
     )
+
+    st.header("Top loans")
+
+    col1, col2 = st.columns(2)
+    with col1:
+        st.subheader('Sorted by collateral')
+        st.dataframe(
+            user_health_ratios_df.sort_values("Collateral (USD)", ascending = False).iloc[:20],
+            use_container_width=True,
+        )
+    with col2:
+        st.subheader('Sorted by debt')
+        st.dataframe(
+            user_health_ratios_df.sort_values("Debt (USD)", ascending = False).iloc[:20],
+            use_container_width=True,
+        )
+
+    st.header("Detail of a loan")
+
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        user = st.text_input("User")
+        protocol = st.text_input("Protocol")
+        users_and_protocols_with_debt = list(
+            user_health_ratios_df.loc[
+                user_health_ratios_df['Debt (USD)'] > 0,
+                ['User', 'Protocol'],
+            ].itertuples(index = False, name = None)
+        )
+        random_user, random_protocol = users_and_protocols_with_debt[numpy.random.randint(len(users_and_protocols_with_debt))]
+        if not user:
+            st.write(f'Selected random user = {random_user}.')
+            user = random_user
+        if not protocol:
+            st.write(f'Selected random protocol = {random_protocol}.')
+            protocol = random_protocol
+    loan = user_health_ratios_df.loc[
+        (user_health_ratios_df['User'] == user)
+        & (user_health_ratios_df['Protocol'] == protocol),
+    ]
+    # TODO: finish implementation once the db can be accessed
+    # collateral_usd_amounts, debt_usd_amounts = src.visualizations.loan_detail.get_specific_loan_usd_amounts(loan = loan)
+    # with col2:
+    #     figure = px.pie(
+    #         collateral_usd_amounts,
+    #         values='amount_usd',
+    #         names='token',
+    #         title='Collateral (USD)',
+    #         color_discrete_sequence=px.colors.sequential.Oranges_r,
+    #     )
+    #     st.plotly_chart(figure, True)
+    # with col3:
+    #     figure = px.pie(
+    #         debt_usd_amounts,
+    #         values='amount_usd',
+    #         names='token',
+    #         title='Debt (USD)',
+    #         color_discrete_sequence=px.colors.sequential.Greens_r,
+    #     )
+    #     st.plotly_chart(figure, True)
+    st.dataframe(loan)
+
     logging.info('Dashboard loaded')
 
-# # Display information about the last update.
-# last_update = src.persistent_state.get_last_update()
-# last_timestamp = last_update["timestamp"]
-# last_block_number = last_update["block_number"]
-# date_str = datetime.datetime.utcfromtimestamp(int(last_timestamp))
-# streamlit.write(f"Last update timestamp: {date_str} UTC, last block: {last_block_number}.")
 
 
 if __name__ == "__main__":
@@ -226,12 +295,4 @@ if __name__ == "__main__":
         page_icon="https://carmine.finance/assets/logo.svg",
     )
 
-    # if os.environ.get("CONTINUOUS_DATA_PROCESSING_PROCESS_RUNNING") is None:
-    # 	os.environ["CONTINUOUS_DATA_PROCESSING_PROCESS_RUNNING"] = "True"
-    # 	logging.info("Spawning data processing process.")
-    # 	data_processing_process = multiprocessing.Process(
-    # 		target=src.data_processing.process_data_continuously,
-    # 		daemon=True,
-    # 	)
-    # 	data_processing_process.start()
     main()
