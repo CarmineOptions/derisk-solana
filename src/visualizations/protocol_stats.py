@@ -152,6 +152,7 @@ def prepare_latest_lending_supplies_df(df, prices, tokens) -> pd.DataFrame:
     df["Borrowed"] = df["lent_total"] * df["price"]
     df["Deposits"] = df["deposits_total"] * df["price"]
     df["Available"] = df["available_to_borrow"] * df["price"]
+    df['TVL'] = df['Available'] - df['Borrowed']
 
     return df
 
