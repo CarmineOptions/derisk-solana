@@ -4,6 +4,7 @@ import sys
 import plotly.express as px
 import streamlit as st
 import pandas as pd
+import numpy.random
 
 sys.path.append(".")
 
@@ -15,6 +16,7 @@ import src.visualizations.main_chart
 import src.visualizations.settings
 from src.prices import get_prices_for_tokens
 from src.protocols.dexes.amms.utils import get_tokens_address_to_info_map
+import src.visualizations.loan_detail
 import src.visualizations.loans_table
 import src.visualizations.user_stats
 
@@ -223,6 +225,51 @@ def main():
             user_health_ratios_df.sort_values("Debt (USD)", ascending = False).iloc[:20],
             use_container_width=True,
         )
+
+    st.header("Detail of a loan")
+
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        user = st.text_input("User")
+        protocol = st.text_input("Protocol")
+        users_and_protocols_with_debt = list(
+            user_health_ratios_df.loc[
+                user_health_ratios_df['Debt (USD)'] > 0,
+                ['User', 'Protocol'],
+            ].itertuples(index = False, name = None)
+        )
+        random_user, random_protocol = users_and_protocols_with_debt[numpy.random.randint(len(users_and_protocols_with_debt))]
+        if not user:
+            st.write(f'Selected random user = {random_user}.')
+            user = random_user
+        if not protocol:
+            st.write(f'Selected random protocol = {random_protocol}.')
+            protocol = random_protocol
+    loan = user_health_ratios_df.loc[
+        (user_health_ratios_df['User'] == user)
+        & (user_health_ratios_df['Protocol'] == protocol),
+    ]
+    # TODO: finish implementation once the db can be accessed
+    # collateral_usd_amounts, debt_usd_amounts = src.visualizations.loan_detail.get_specific_loan_usd_amounts(loan = loan)
+    # with col2:
+    #     figure = px.pie(
+    #         collateral_usd_amounts,
+    #         values='amount_usd',
+    #         names='token',
+    #         title='Collateral (USD)',
+    #         color_discrete_sequence=px.colors.sequential.Oranges_r,
+    #     )
+    #     st.plotly_chart(figure, True)
+    # with col3:
+    #     figure = px.pie(
+    #         debt_usd_amounts,
+    #         values='amount_usd',
+    #         names='token',
+    #         title='Debt (USD)',
+    #         color_discrete_sequence=px.colors.sequential.Greens_r,
+    #     )
+    #     st.plotly_chart(figure, True)
+    st.dataframe(loan)
 
     logging.info('Dashboard loaded')
 
