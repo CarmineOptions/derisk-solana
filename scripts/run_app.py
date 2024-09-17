@@ -18,6 +18,7 @@ from src.prices import get_prices_for_tokens
 from src.protocols.dexes.amms.utils import get_tokens_address_to_info_map
 import src.visualizations.loan_detail
 import src.visualizations.loans_table
+import src.visualizations.token_amounts
 import src.visualizations.user_stats
 
 
@@ -106,6 +107,10 @@ def main():
     # Display comparison stats for all lending protocols.
     st.header("Comparison of lending protocols")
 
+    st.subheader("Protocol statistics")
+    user_stats_df = src.visualizations.user_stats.load_users_stats(protocols)
+    st.dataframe(user_stats_df, use_container_width=True)
+
     st.subheader("Token utilizations")
     utilizations_df = src.visualizations.protocol_stats.get_token_utilizations_df(tokens_prices, tokens_info)
     st.dataframe(utilizations_df, use_container_width=True)
@@ -120,6 +125,15 @@ def main():
     supplies_data = list(token_supplies_df.groupby("symbol"))
     supplies_data.sort(key=lambda x: x[1]["Deposits"].sum(), reverse=True)
     supplies_data_chunks = src.prices.split_into_chunks(supplies_data, 3)
+
+    # USD deposit, collateral and debt per token (bar chart).
+    # TODO: finish implementation once the db can be accessed
+    # supply_figure, deposits_figure, debt_figure = src.visualizations.token_amounts.get_bar_chart_figures(
+    #     stats=token_supplies_df.copy(),
+    # )
+    # streamlit.plotly_chart(figure_or_data=supply_figure, use_container_width=True)
+    # streamlit.plotly_chart(figure_or_data=deposits_figure, use_container_width=True)
+    # streamlit.plotly_chart(figure_or_data=debt_figure, use_container_width=True)
 
     columns = st.columns(4)
     for column, supply_chunk in zip(columns, supplies_data_chunks):
@@ -165,10 +179,6 @@ def main():
                     color_discrete_sequence=px.colors.sequential.Blues_r,
                 )
                 st.plotly_chart(figure, True)
-
-    st.subheader("Protocol statistics")
-    user_stats_df = src.visualizations.user_stats.load_users_stats(protocols)
-    st.dataframe(user_stats_df, use_container_width=True)
 
     st.header("Loans with the lowest health factor")
     _user_health_ratios_df = src.visualizations.loans_table.load_user_health_ratios(protocols)
