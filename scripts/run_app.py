@@ -167,9 +167,10 @@ def main():
     st.subheader("Protocol statistics")
     user_stats_df = src.visualizations.user_stats.load_users_stats(protocols)
     st.dataframe(user_stats_df, use_container_width=True)
+
     st.header("Loans with the lowest health factor")
     _user_health_ratios_df = src.visualizations.loans_table.load_user_health_ratios(protocols)
-    
+
     try:
         # There isn't enough time to test this righ now
         user_health_ratios_df = pd.DataFrame(
@@ -206,14 +207,25 @@ def main():
         ].sort_values('Standardized Health Factor', ascending=True).head(50),
         use_container_width=True,
     )
+
+    st.header("Top loans")
+
+    col1, col2 = st.columns(2)
+    with col1:
+        st.subheader('Sorted by collateral')
+        st.dataframe(
+            user_health_ratios_df.sort_values("Collateral (USD)", ascending = False).iloc[:20],
+            use_container_width=True,
+        )
+    with col2:
+        st.subheader('Sorted by debt')
+        st.dataframe(
+            user_health_ratios_df.sort_values("Debt (USD)", ascending = False).iloc[:20],
+            use_container_width=True,
+        )
+
     logging.info('Dashboard loaded')
 
-# # Display information about the last update.
-# last_update = src.persistent_state.get_last_update()
-# last_timestamp = last_update["timestamp"]
-# last_block_number = last_update["block_number"]
-# date_str = datetime.datetime.utcfromtimestamp(int(last_timestamp))
-# streamlit.write(f"Last update timestamp: {date_str} UTC, last block: {last_block_number}.")
 
 
 if __name__ == "__main__":
@@ -226,12 +238,4 @@ if __name__ == "__main__":
         page_icon="https://carmine.finance/assets/logo.svg",
     )
 
-    # if os.environ.get("CONTINUOUS_DATA_PROCESSING_PROCESS_RUNNING") is None:
-    # 	os.environ["CONTINUOUS_DATA_PROCESSING_PROCESS_RUNNING"] = "True"
-    # 	logging.info("Spawning data processing process.")
-    # 	data_processing_process = multiprocessing.Process(
-    # 		target=src.data_processing.process_data_continuously,
-    # 		daemon=True,
-    # 	)
-    # 	data_processing_process.start()
     main()
