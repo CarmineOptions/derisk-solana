@@ -82,7 +82,7 @@ def load_users_stats(protocols: list[str]) -> pd.DataFrame:
                 
             data.append(stats)
 
-    full_df = pd.DataFrame(data)   
+    full_df = pd.DataFrame(data)
     full_df = full_df.rename(columns = {
         'protocol': 'Protocol',
         'active_users': "Number of active users",

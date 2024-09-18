@@ -107,14 +107,6 @@ def main():
     # Display comparison stats for all lending protocols.
     st.header("Comparison of lending protocols")
 
-    st.subheader("Protocol statistics")
-    user_stats_df = src.visualizations.user_stats.load_users_stats(protocols)
-    st.dataframe(user_stats_df, use_container_width=True)
-
-    st.subheader("Token utilizations")
-    utilizations_df = src.visualizations.protocol_stats.get_token_utilizations_df(tokens_prices, tokens_info)
-    st.dataframe(utilizations_df, use_container_width=True)
-
     token_supplies_df = src.visualizations.protocol_stats.get_top_12_lending_supplies_df(
         tokens_prices, tokens_info
     )
@@ -122,18 +114,39 @@ def main():
         # TODO: Handle
         pass
 
+    st.subheader("Protocol statistics")
+    user_stats_df = src.visualizations.user_stats.load_users_stats(protocols)
+    user_stats_df.rename(index = {'Marginfi': 'MarginFi'}, inplace = True)
+    user_stats_df['TVL (USD)'] = token_supplies_df.groupby('Protocol')['TVL'].sum()
+    st.dataframe(user_stats_df, use_container_width=True)
+
+    st.subheader("Token utilizations")
+    utilizations_df = src.visualizations.protocol_stats.get_token_utilizations_df(tokens_prices, tokens_info)
+    st.dataframe(utilizations_df, use_container_width=True)
+
     supplies_data = list(token_supplies_df.groupby("symbol"))
     supplies_data.sort(key=lambda x: x[1]["Deposits"].sum(), reverse=True)
     supplies_data_chunks = src.prices.split_into_chunks(supplies_data, 3)
 
     # USD deposit, collateral and debt per token (bar chart).
-    # TODO: finish implementation once the db can be accessed
-    # supply_figure, deposits_figure, debt_figure = src.visualizations.token_amounts.get_bar_chart_figures(
-    #     stats=token_supplies_df.copy(),
-    # )
-    # streamlit.plotly_chart(figure_or_data=supply_figure, use_container_width=True)
-    # streamlit.plotly_chart(figure_or_data=deposits_figure, use_container_width=True)
-    # streamlit.plotly_chart(figure_or_data=debt_figure, use_container_width=True)
+    aggregate_deposit_stats = (
+        token_supplies_df
+        .groupby(['Protocol', 'symbol'])
+        ['Deposits'].sum()
+        .unstack(level = 'Protocol')
+    )
+    aggregate_debt_stats = (
+        token_supplies_df
+        .groupby(['Protocol', 'symbol'])
+        ['Borrowed'].sum()
+        .unstack(level = 'Protocol')
+    )
+    deposits_figure, debt_figure = src.visualizations.token_amounts.get_bar_chart_figures(
+        deposit_stats = aggregate_deposit_stats,
+        debt_stats = aggregate_debt_stats,
+    )
+    st.plotly_chart(figure_or_data=deposits_figure, use_container_width=True)
+    st.plotly_chart(figure_or_data=debt_figure, use_container_width=True)
 
     columns = st.columns(4)
     for column, supply_chunk in zip(columns, supplies_data_chunks):
@@ -188,6 +201,7 @@ def main():
         user_health_ratios_df = pd.DataFrame(
             [
                 {
+                    'User': row['User'],
                     'Health Factor': row['Health Factor'],
                     'Standardized Health Factor': row['Standardized Health Factor'],
                     'Collateral (USD)': row['Collateral (USD)'],
@@ -200,7 +214,7 @@ def main():
                 }
                 for row in _user_health_ratios_df.to_dict('records')
             ]
-        )   
+        )
     except Exception as e:
         logging.error(f'Encountered and error: {e}')
         user_health_ratios_df = _user_health_ratios_df
@@ -244,7 +258,7 @@ def main():
         protocol = st.text_input("Protocol")
         users_and_protocols_with_debt = list(
             user_health_ratios_df.loc[
-                user_health_ratios_df['Debt (USD)'] > 0,
+                user_health_ratios_df['Debt (USD)'].astype(float) > 0,
                 ['User', 'Protocol'],
             ].itertuples(index = False, name = None)
         )
@@ -255,30 +269,34 @@ def main():
         if not protocol:
             st.write(f'Selected random protocol = {random_protocol}.')
             protocol = random_protocol
+
     loan = user_health_ratios_df.loc[
         (user_health_ratios_df['User'] == user)
         & (user_health_ratios_df['Protocol'] == protocol),
     ]
-    # TODO: finish implementation once the db can be accessed
-    # collateral_usd_amounts, debt_usd_amounts = src.visualizations.loan_detail.get_specific_loan_usd_amounts(loan = loan)
-    # with col2:
-    #     figure = px.pie(
-    #         collateral_usd_amounts,
-    #         values='amount_usd',
-    #         names='token',
-    #         title='Collateral (USD)',
-    #         color_discrete_sequence=px.colors.sequential.Oranges_r,
-    #     )
-    #     st.plotly_chart(figure, True)
-    # with col3:
-    #     figure = px.pie(
-    #         debt_usd_amounts,
-    #         values='amount_usd',
-    #         names='token',
-    #         title='Debt (USD)',
-    #         color_discrete_sequence=px.colors.sequential.Greens_r,
-    #     )
-    #     st.plotly_chart(figure, True)
+    collateral_usd_amounts, debt_usd_amounts = src.visualizations.loan_detail.get_specific_loan_usd_amounts(
+        loan = loan,
+        tokens = tokens,
+        prices = tokens_prices,
+    )
+    with col2:
+        figure = px.pie(
+            collateral_usd_amounts,
+            values='amount_usd',
+            names='token',
+            title='Collateral (USD)',
+            color_discrete_sequence=px.colors.sequential.Oranges_r,
+        )
+        st.plotly_chart(figure, True)
+    with col3:
+        figure = px.pie(
+            debt_usd_amounts,
+            values='amount_usd',
+            names='token',
+            title='Debt (USD)',
+            color_discrete_sequence=px.colors.sequential.Greens_r,
+        )
+        st.plotly_chart(figure, True)
     st.dataframe(loan)
 
     logging.info('Dashboard loaded')
