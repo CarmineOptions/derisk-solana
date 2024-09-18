@@ -117,7 +117,7 @@ def main():
     st.subheader("Protocol statistics")
     user_stats_df = src.visualizations.user_stats.load_users_stats(protocols)
     user_stats_df.rename(index = {'Marginfi': 'MarginFi'}, inplace = True)
-    user_stats_df['TVL'] = token_supplies_df.groupby('Protocol')['TVL'].sum()
+    user_stats_df['TVL (USD)'] = token_supplies_df.groupby('Protocol')['TVL'].sum()
     st.dataframe(user_stats_df, use_container_width=True)
 
     st.subheader("Token utilizations")
@@ -129,13 +129,24 @@ def main():
     supplies_data_chunks = src.prices.split_into_chunks(supplies_data, 3)
 
     # USD deposit, collateral and debt per token (bar chart).
-    # TODO: finish implementation once the db can be accessed
-    # supply_figure, deposits_figure, debt_figure = src.visualizations.token_amounts.get_bar_chart_figures(
-    #     stats=token_supplies_df.copy(),
-    # )
-    # streamlit.plotly_chart(figure_or_data=supply_figure, use_container_width=True)
-    # streamlit.plotly_chart(figure_or_data=deposits_figure, use_container_width=True)
-    # streamlit.plotly_chart(figure_or_data=debt_figure, use_container_width=True)
+    aggregate_deposit_stats = (
+        token_supplies_df
+        .groupby(['Protocol', 'symbol'])
+        ['Deposits'].sum()
+        .unstack(level = 'Protocol')
+    )
+    aggregate_debt_stats = (
+        token_supplies_df
+        .groupby(['Protocol', 'symbol'])
+        ['Borrowed'].sum()
+        .unstack(level = 'Protocol')
+    )
+    deposits_figure, debt_figure = src.visualizations.token_amounts.get_bar_chart_figures(
+        deposit_stats = aggregate_deposit_stats,
+        debt_stats = aggregate_debt_stats,
+    )
+    st.plotly_chart(figure_or_data=deposits_figure, use_container_width=True)
+    st.plotly_chart(figure_or_data=debt_figure, use_container_width=True)
 
     columns = st.columns(4)
     for column, supply_chunk in zip(columns, supplies_data_chunks):

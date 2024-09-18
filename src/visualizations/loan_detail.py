@@ -20,29 +20,31 @@ def get_specific_loan_usd_amounts(
 
 	collateral_usd_amounts = pandas.DataFrame()
 	debt_usd_amounts = pandas.DataFrame()
-	for token, amount in loan['Collaterals'].iloc[0].items():
+	for token, amount_info in loan['Collaterals'].iloc[0].items():
 		_, symbol = token.split(' ')
 		symbol = symbol.replace('(', '').replace(')', '')
 		address = symbols_to_addresses[symbol]
 		decimals = symbols_to_decimals[symbol]
+		amount = amount_info if isinstance(amount_info, float) else amount['amount']
 
 		collateral_usd_amount_symbol = pandas.DataFrame(
 			{
 				'token': [symbol],
-				'amount_usd': [amount['amount'] * prices[address] / (10 ** decimals)],
+				'amount_usd': [amount * prices[address] / (10 ** decimals)],
 			},
 		)
 		collateral_usd_amounts = pandas.concat([collateral_usd_amounts, collateral_usd_amount_symbol])
-	for token, amount in loan['Debts'].iloc[0].items():
+	for token, amount_info in loan['Debts'].iloc[0].items():
 		_, symbol = token.split(' ')
 		symbol = symbol.replace('(', '').replace(')', '')
 		address = symbols_to_addresses[symbol]
 		decimals = symbols_to_decimals[symbol]
+		amount = amount_info if isinstance(amount_info, float) else amount['rawAmount']
 
 		debt_usd_amount_symbol = pandas.DataFrame(
 			{
 				'token': [symbol],
-				'amount_usd': [amount['rawAmount'] * prices[address] / (10 ** decimals)],
+				'amount_usd': [amount * prices[address] / (10 ** decimals)],
 			},
 		)
 		debt_usd_amounts = pandas.concat([debt_usd_amounts, debt_usd_amount_symbol])
