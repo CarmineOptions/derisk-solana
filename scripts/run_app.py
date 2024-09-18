@@ -256,30 +256,34 @@ def main():
         if not protocol:
             st.write(f'Selected random protocol = {random_protocol}.')
             protocol = random_protocol
+
     loan = user_health_ratios_df.loc[
         (user_health_ratios_df['User'] == user)
         & (user_health_ratios_df['Protocol'] == protocol),
     ]
-    # TODO: finish implementation once the db can be accessed
-    # collateral_usd_amounts, debt_usd_amounts = src.visualizations.loan_detail.get_specific_loan_usd_amounts(loan = loan)
-    # with col2:
-    #     figure = px.pie(
-    #         collateral_usd_amounts,
-    #         values='amount_usd',
-    #         names='token',
-    #         title='Collateral (USD)',
-    #         color_discrete_sequence=px.colors.sequential.Oranges_r,
-    #     )
-    #     st.plotly_chart(figure, True)
-    # with col3:
-    #     figure = px.pie(
-    #         debt_usd_amounts,
-    #         values='amount_usd',
-    #         names='token',
-    #         title='Debt (USD)',
-    #         color_discrete_sequence=px.colors.sequential.Greens_r,
-    #     )
-    #     st.plotly_chart(figure, True)
+    collateral_usd_amounts, debt_usd_amounts = src.visualizations.loan_detail.get_specific_loan_usd_amounts(
+        loan = loan,
+        tokens = tokens,
+        prices = tokens_prices,
+    )
+    with col2:
+        figure = px.pie(
+            collateral_usd_amounts,
+            values='amount_usd',
+            names='token',
+            title='Collateral (USD)',
+            color_discrete_sequence=px.colors.sequential.Oranges_r,
+        )
+        st.plotly_chart(figure, True)
+    with col3:
+        figure = px.pie(
+            debt_usd_amounts,
+            values='amount_usd',
+            names='token',
+            title='Debt (USD)',
+            color_discrete_sequence=px.colors.sequential.Greens_r,
+        )
+        st.plotly_chart(figure, True)
     st.dataframe(loan)
 
     logging.info('Dashboard loaded')
