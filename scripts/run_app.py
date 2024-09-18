@@ -188,6 +188,7 @@ def main():
         user_health_ratios_df = pd.DataFrame(
             [
                 {
+                    'User': row['User'],
                     'Health Factor': row['Health Factor'],
                     'Standardized Health Factor': row['Standardized Health Factor'],
                     'Collateral (USD)': row['Collateral (USD)'],
@@ -200,7 +201,7 @@ def main():
                 }
                 for row in _user_health_ratios_df.to_dict('records')
             ]
-        )   
+        )
     except Exception as e:
         logging.error(f'Encountered and error: {e}')
         user_health_ratios_df = _user_health_ratios_df
@@ -244,7 +245,7 @@ def main():
         protocol = st.text_input("Protocol")
         users_and_protocols_with_debt = list(
             user_health_ratios_df.loc[
-                user_health_ratios_df['Debt (USD)'] > 0,
+                user_health_ratios_df['Debt (USD)'].astype(float) > 0,
                 ['User', 'Protocol'],
             ].itertuples(index = False, name = None)
         )

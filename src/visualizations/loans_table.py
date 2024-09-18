@@ -141,7 +141,7 @@ def load_user_health_ratios(protocols: list[str]) -> pd.DataFrame:
 
 			data.append(df)
 
-	return pd.concat(data).set_index('User')
+	return pd.concat(data)
 
 
 
