@@ -107,20 +107,22 @@ def main():
     # Display comparison stats for all lending protocols.
     st.header("Comparison of lending protocols")
 
-    st.subheader("Protocol statistics")
-    user_stats_df = src.visualizations.user_stats.load_users_stats(protocols)
-    st.dataframe(user_stats_df, use_container_width=True)
-
-    st.subheader("Token utilizations")
-    utilizations_df = src.visualizations.protocol_stats.get_token_utilizations_df(tokens_prices, tokens_info)
-    st.dataframe(utilizations_df, use_container_width=True)
-
     token_supplies_df = src.visualizations.protocol_stats.get_top_12_lending_supplies_df(
         tokens_prices, tokens_info
     )
     if len(token_supplies_df) == 0:
         # TODO: Handle
         pass
+
+    st.subheader("Protocol statistics")
+    user_stats_df = src.visualizations.user_stats.load_users_stats(protocols)
+    user_stats_df.rename(index = {'Marginfi': 'MarginFi'}, inplace = True)
+    user_stats_df['TVL'] = token_supplies_df.groupby('Protocol')['TVL'].sum()
+    st.dataframe(user_stats_df, use_container_width=True)
+
+    st.subheader("Token utilizations")
+    utilizations_df = src.visualizations.protocol_stats.get_token_utilizations_df(tokens_prices, tokens_info)
+    st.dataframe(utilizations_df, use_container_width=True)
 
     supplies_data = list(token_supplies_df.groupby("symbol"))
     supplies_data.sort(key=lambda x: x[1]["Deposits"].sum(), reverse=True)
