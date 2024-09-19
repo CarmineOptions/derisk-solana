@@ -13,4 +13,4 @@ COPY ./scripts ./scripts
 COPY ./src ./src
 COPY ./db ./db
 
-CMD ["python3", "scripts/process_events_to_loan_state.py"]
+CMD ["python3", "scripts/kamino_obligation_fetcher.py"]

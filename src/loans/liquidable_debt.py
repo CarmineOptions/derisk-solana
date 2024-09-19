@@ -104,7 +104,7 @@ async def get_bank(
     token: str,
 ) -> src.protocols.anchor_clients.marginfi_client.accounts.Bank:
     try:
-        return await src.protocols.anchor_clients.marginfi_client.accounts.Bank.fetch(
+        return await src.protocols.anchor_clients.marginfi_client.accounts.Bank.fetch_custom(
             client,
             solders.pubkey.Pubkey.from_string(token),
         )
@@ -137,25 +137,34 @@ async def process_marginfi_loan_states(
         for token in collateral
     }
     for token in collateral_token_parameters:
+        LOGGER.info(f"Get MARGINFI bank for `{token}`")
         bank = await get_bank(client = client, token = token)
         collateral_token_parameters[token] = TokenParameters(
             underlying = str(bank.mint),
             decimals = int(bank.mint_decimals),
             interest_rate_model = float(bank.asset_share_value.value / 2**48),
-            factor = float(bank.config.asset_weight_maint.value / 2**48),
+            factor = float(bank.asset_factor / 2**48),
         )
+        LOGGER.info(f"Parametes for: `{token}`: {collateral_token_parameters[token]}")
     debt_token_parameters = {
         token: None
         for debt in loan_states['debt']
         for token in debt
     }
     for token in debt_token_parameters:
+        if token == '7aoit6hVmaqWn2VjhmDo5qev6QXjsJJf4q5RTd7yczZj':
+            debt_token_parameters[token] = TokenParameters(
+                underlying='WENWENvqqNya429ubCdR81ZmD69brwQaaBYY6p3LCpk',
+                decimals=5,
+                interest_rate_model=float(304226580893091 / 2 ** 48),
+                factor=float(422212465065984 / 2 ** 48),
+            )
         bank = await get_bank(client = client, token = token)
         debt_token_parameters[token] = TokenParameters(
             underlying = str(bank.mint),
             decimals = int(bank.mint_decimals),
             interest_rate_model = float(bank.liability_share_value.value / 2**48),
-            factor = float(bank.config.liability_weight_maint.value / 2**48),
+            factor = float(bank.liab_factor / 2**48),
         )
 
     # Get underlying token prices.

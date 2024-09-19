@@ -8,6 +8,8 @@ from anchorpy.coder.accounts import ACCOUNT_DISCRIMINATOR_SIZE
 from anchorpy.error import AccountInvalidDiscriminator
 from anchorpy.utils.rpc import get_multiple_accounts
 from anchorpy.borsh_extension import BorshPubkey
+
+from src.parser.marginfi_parser_v2 import MarginfiTransactionParserV2
 from ..program_id import PROGRAM_ID
 from .. import types
 
@@ -82,32 +84,35 @@ class Bank:
     mint: Pubkey
     mint_decimals: int
     group: Pubkey
-    auto_padding_0: list[int]
     asset_share_value: types.wrapped_i80f48.WrappedI80F48
     liability_share_value: types.wrapped_i80f48.WrappedI80F48
-    liquidity_vault: Pubkey
-    liquidity_vault_bump: int
-    liquidity_vault_authority_bump: int
-    insurance_vault: Pubkey
-    insurance_vault_bump: int
-    insurance_vault_authority_bump: int
-    auto_padding_1: list[int]
-    collected_insurance_fees_outstanding: types.wrapped_i80f48.WrappedI80F48
-    fee_vault: Pubkey
-    fee_vault_bump: int
-    fee_vault_authority_bump: int
-    auto_padding_2: list[int]
-    collected_group_fees_outstanding: types.wrapped_i80f48.WrappedI80F48
-    total_liability_shares: types.wrapped_i80f48.WrappedI80F48
-    total_asset_shares: types.wrapped_i80f48.WrappedI80F48
-    last_update: int
-    config: types.bank_config.BankConfig
-    emissions_flags: int
-    emissions_rate: int
-    emissions_remaining: types.wrapped_i80f48.WrappedI80F48
-    emissions_mint: Pubkey
-    padding0: list[int]
-    padding1: list[int]
+    auto_padding_0: list[int] | None = None
+    liquidity_vault: Pubkey | None = None
+    liquidity_vault_bump: int | None = None
+    liquidity_vault_authority_bump: int | None = None
+    insurance_vault: Pubkey | None = None
+    insurance_vault_bump: int | None = None
+    insurance_vault_authority_bump: int | None = None
+    auto_padding_1: list[int] | None = None
+    collected_insurance_fees_outstanding: types.wrapped_i80f48.WrappedI80F48 | None = None
+    fee_vault: Pubkey | None = None
+    fee_vault_bump: int | None = None
+    fee_vault_authority_bump: int | None = None
+    auto_padding_2: list[int] | None = None
+    collected_group_fees_outstanding: types.wrapped_i80f48.WrappedI80F48 | None = None
+    total_liability_shares: types.wrapped_i80f48.WrappedI80F48 | None = None
+    total_asset_shares: types.wrapped_i80f48.WrappedI80F48 | None = None
+    last_update: int | None = None
+    config: types.bank_config.BankConfig | None = None
+    emissions_flags: int | None = None
+    emissions_rate: int | None = None
+    emissions_remaining: types.wrapped_i80f48.WrappedI80F48 | None = None
+    emissions_mint: Pubkey | None = None
+    padding0: list[int] | None = None
+    padding1: list[int] | None = None
+    asset_factor: int | None = None
+    liab_factor: int | None = None
+    borrow_limit: int | None = None
 
     @classmethod
     async def fetch(
@@ -125,6 +130,23 @@ class Bank:
             raise ValueError("Account does not belong to this program")
         bytes_data = info.data
         return cls.decode(bytes_data)
+
+    @classmethod
+    async def fetch_custom(
+        cls,
+        conn: AsyncClient,
+        address: Pubkey,
+        commitment: typing.Optional[Commitment] = None,
+        program_id: Pubkey = PROGRAM_ID,
+    ) -> typing.Optional["Bank"]:
+        resp = await conn.get_account_info(address, commitment=commitment)
+        info = resp.value
+        if info is None:
+            return None
+        if info.owner != program_id:
+            raise ValueError("Account does not belong to this program")
+        bytes_data = info.data
+        return cls.decode_custom(bytes_data)
 
     @classmethod
     async def fetch_multiple(
@@ -151,7 +173,7 @@ class Bank:
             raise AccountInvalidDiscriminator(
                 "The discriminator for this account is invalid"
             )
-        dec = Bank.layout.parse(data[ACCOUNT_DISCRIMINATOR_SIZE:])
+        dec = Bank.layout.parse(data)
         return cls(
             mint=dec.mint,
             mint_decimals=dec.mint_decimals,
@@ -196,6 +218,37 @@ class Bank:
             emissions_mint=dec.emissions_mint,
             padding0=dec.padding0,
             padding1=dec.padding1,
+        )
+
+    @classmethod
+    def decode_custom(cls, data: bytes) -> "Bank":
+        if data[:ACCOUNT_DISCRIMINATOR_SIZE] != cls.discriminator:
+            raise AccountInvalidDiscriminator(
+                "The discriminator for this account is invalid"
+            )
+        # use IDL based parser instead of hard-coded one
+        mf_parser = MarginfiTransactionParserV2()
+        dec = mf_parser.program.coder.accounts.decode(data)
+
+        return cls(
+            mint=dec.mint,
+            mint_decimals=dec.mint_decimals,
+            group=dec.group,
+            asset_share_value=types.wrapped_i80f48.WrappedI80F48.from_decoded(
+                dec.asset_share_value
+            ),
+            liability_share_value=types.wrapped_i80f48.WrappedI80F48.from_decoded(
+                dec.liability_share_value
+            ),
+            total_liability_shares=types.wrapped_i80f48.WrappedI80F48.from_decoded(
+                dec.total_liability_shares
+            ),
+            total_asset_shares=types.wrapped_i80f48.WrappedI80F48.from_decoded(
+                dec.total_asset_shares
+            ),
+            borrow_limit = dec.config.borrow_limit,
+            liab_factor=dec.config.liability_weight_maint.value,
+            asset_factor=dec.config.asset_weight_maint.value
         )
 
     def to_json(self) -> BankJSON:

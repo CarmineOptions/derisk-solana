@@ -23,6 +23,8 @@ from src.protocols.dexes.amms.utils import get_tokens_address_to_info_map
 warnings.filterwarnings('ignore')
 
 
+LOGGER = logging.getLogger(__name__)
+
 # Keys are values of the "event_name" column in the database, values are the respective method names.
 EVENTS_METHODS_MAPPING: dict[str, str] = {
     'borrow_obligation_liquidity': 'process_borrowing_event',
@@ -96,12 +98,16 @@ class SolendDebtPosition(DebtPosition):
                                                 f" for {self.reserve}"
         assert self.weight, f"Missing borrow rate: {self.weight} for {self.reserve}"
         assert self.underlying_asset_price_wad, f"Missing asset price: {self.underlying_asset_price_wad} for {self.reserve}"
-        if self.weight > 100000:
+        try:
+            if float(self.weight) > 100000:
+                weight = 1
+            else:
+                weight = float(self.weight)
+        except ValueError:
+            LOGGER.warning(f"Unable to recognize asset weight: `{self.weight}`. Weight set to 1.")
             weight = 1
-        else:
-            weight = self.weight
         return (
-            self.raw_amount
+            float(self.raw_amount)
             * int(self.cumulative_borrow_rate_wad) / WAD
             * int(self.underlying_asset_price_wad) / WAD
             / 10**self.decimals
@@ -117,7 +123,7 @@ class SolendDebtPosition(DebtPosition):
         assert self.underlying_asset_price_wad, f"Missing asset price: " \
                                                 f"{self.underlying_asset_price_wad} for {self.reserve}"
         return (
-            self.raw_amount
+            float(self.raw_amount)
             * int(self.cumulative_borrow_rate_wad) / WAD
             * int(self.underlying_asset_price_wad) / WAD
             / 10**self.decimals
