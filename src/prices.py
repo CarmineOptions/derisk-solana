@@ -49,7 +49,7 @@ def get_prices_for_tokens(tokens: list[str]) -> PricesType:
         translated_ids = list(map(kamino_vault_map.kamino_address_to_mint_address, chunk))
         ids = ",".join(translated_ids)
 
-        url = f"{BASE_API_URL}?ids={ids}&vsToken=USDC"
+        url = f"{BASE_API_URL}?ids={ids}&vsToken=EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"  # USDC prices
 
         response = requests.get(url, timeout=15)
 
