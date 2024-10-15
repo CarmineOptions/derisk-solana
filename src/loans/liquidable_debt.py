@@ -378,6 +378,9 @@ def process_mango_loan_states(loan_states: pandas.DataFrame) -> pandas.DataFrame
 
         decimals = tokens_info[collateral_token]['decimals']
         asset_maint_w = token_parameters[collateral_token]['maint_asset_weight']
+        print('ls', loan_states[f'collateral_{collateral_token}'].astype(float))
+        print('decimals', decimals)
+        print('price', token_prices[collateral_token])
         loan_states[f'collateral_usd_{collateral_token}'] = (
             loan_states[f'collateral_{collateral_token}'].astype(float)
             / (10**decimals)
