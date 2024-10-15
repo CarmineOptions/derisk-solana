@@ -377,6 +377,7 @@ def process_mango_loan_states(loan_states: pandas.DataFrame) -> pandas.DataFrame
             continue
         if token_prices[collateral_token] is None:
             logging.warning(f"Price for {collateral_token} is not available atm. Skipping liq.debt computation.")
+            continue
 
         decimals = tokens_info[collateral_token]['decimals']
         asset_maint_w = token_parameters[collateral_token]['maint_asset_weight']
