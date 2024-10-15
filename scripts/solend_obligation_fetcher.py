@@ -301,4 +301,4 @@ if __name__ == "__main__":
         obtain_loan_states()
         elapsed_time = time.time() - timestamp
         LOGGER.info(f"Loan state collection successfully done in {elapsed_time:.2f} seconds.")
-        time.sleep(60*15 - elapsed_time)
+        time.sleep(60*60 - elapsed_time)
