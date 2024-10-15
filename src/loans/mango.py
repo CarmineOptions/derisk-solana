@@ -404,7 +404,9 @@ def get_mango_health_ratio_df(loan_states: pd.DataFrame) -> pd.DataFrame:
 
         decimals = tokens_info[collateral_token]['decimals']
         asset_maint_w = token_parameters[collateral_token]['maint_asset_weight']
-
+        print('ls', loan_states[f'collateral_{collateral_token}'].astype(float))
+        print('decimals', decimals)
+        print('price', token_prices[collateral_token])
         loan_states[f'collateral_usd_{collateral_token}'] = (
             loan_states[f'collateral_{collateral_token}'].astype(float)
             / (10**decimals)
