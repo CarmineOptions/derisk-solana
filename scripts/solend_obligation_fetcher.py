@@ -82,6 +82,11 @@ def get_reserve_to_supply_map(reserves: List[str]) -> Dict[str, Any]:
     url = f'https://api.solend.fi/v1/reserves/?ids={ids}'
 
     response = requests.get(url, timeout=15)
+    if response.status_code != 200:
+        LOGGER.warning(f"Request failed with status code: {response.status_code}: {response.text}")
+        time.sleep(30)
+        return get_reserve_to_supply_map(reserves)
+
     return {
         i['reserve']['address']: {
             'liquiditySupply': i['reserve']['liquidity']['supplyPubkey'],
