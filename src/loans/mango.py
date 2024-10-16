@@ -401,10 +401,12 @@ def get_mango_health_ratio_df(loan_states: pd.DataFrame) -> pd.DataFrame:
         if not tokens_info[collateral_token].get('decimals'):
             print(f'No decimals found for {collateral_token}')
             continue
+        if token_prices[collateral_token] is None:
+            logging.warning(f"Price for {collateral_token} is not available atm. Skipping liq.debt computation.")
+            continue
 
         decimals = tokens_info[collateral_token]['decimals']
         asset_maint_w = token_parameters[collateral_token]['maint_asset_weight']
-
         loan_states[f'collateral_usd_{collateral_token}'] = (
             loan_states[f'collateral_{collateral_token}'].astype(float)
             / (10**decimals)

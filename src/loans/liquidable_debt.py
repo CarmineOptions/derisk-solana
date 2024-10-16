@@ -138,6 +138,15 @@ async def process_marginfi_loan_states(
     }
     for token in collateral_token_parameters:
         LOGGER.info(f"Get MARGINFI bank for `{token}`")
+
+        if token == 'BeNBJrAh1tZg5sqgt8D6AWKJLD5KkBrfZvtcgd7EuiAR':
+            collateral_token_parameters[token] = TokenParameters(
+                underlying='7kbnvuGBxxj8AG9qp8Scn56muWGaRaFqxg1FsRp3PaFT',
+                decimals=6,
+                interest_rate_model=float(328148386212703 / 2 ** 48),
+                factor=float(267401227875123 / 2 ** 48),
+            )
+
         bank = await get_bank(client = client, token = token)
         collateral_token_parameters[token] = TokenParameters(
             underlying = str(bank.mint),
@@ -159,6 +168,7 @@ async def process_marginfi_loan_states(
                 interest_rate_model=float(304226580893091 / 2 ** 48),
                 factor=float(422212465065984 / 2 ** 48),
             )
+
         bank = await get_bank(client = client, token = token)
         debt_token_parameters[token] = TokenParameters(
             underlying = str(bank.mint),
@@ -364,6 +374,9 @@ def process_mango_loan_states(loan_states: pandas.DataFrame) -> pandas.DataFrame
             continue
         if not tokens_info[collateral_token].get('decimals'):
             logging.info(f'No decimals found for {collateral_token}')
+            continue
+        if token_prices[collateral_token] is None:
+            logging.warning(f"Price for {collateral_token} is not available atm. Skipping liq.debt computation.")
             continue
 
         decimals = tokens_info[collateral_token]['decimals']

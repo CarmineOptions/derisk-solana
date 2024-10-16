@@ -326,4 +326,4 @@ def process_events_continuously(protocol: Protocol):
         process_events_to_loan_states(protocol, protocol_class)
         logging.info("Updated loan states.")
         processing_time = time.time() - start_time
-        time.sleep(max(0, 900 - processing_time))
+        time.sleep(max(0, 60*60 - processing_time))

@@ -1,5 +1,6 @@
 import decimal
 import logging
+import time
 import warnings
 import requests
 from functools import lru_cache
@@ -262,19 +263,41 @@ class SolendState(src.loans.state.State):
                     self.loan_entities[obligation].debt.append(new_debt_position)
 
     def _get_reserve_configs(self):
+        """ Fetches reserve configurations in batches of 10 reserves from the Solend API. """
         reserve_addresses = {
             reserve
             for loan_entity in self.loan_entities.values()
             for reserve in loan_entity.get_unique_reserves()
         }
-        ids = ",".join(reserve_addresses)
-        url = f'https://api.solend.fi/v1/reserves/?ids={ids}'
 
-        response = requests.get(url, timeout=15)
-        self.reserve_configs = {
-            reserve['reserve']['address']: reserve
-            for reserve in response.json()['results']
-        }
+        reserve_configs = {}
+        batch_size = 10  # Maximum number of reserves per request
+
+        # Process reserve addresses in batches of 10
+        for i in range(0, len(reserve_addresses), batch_size):
+            batch_reserves = list(reserve_addresses)[i:i + batch_size]
+            ids = ",".join(batch_reserves)
+            url = f'https://api.solend.fi/v1/reserves/?ids={ids}'
+
+            while True:
+                try:
+                    response = requests.get(url, timeout=15)
+                    if response.status_code == 200:
+                        data = response.json().get('results', [])
+                        reserve_configs.update({
+                            reserve['reserve']['address']: reserve
+                            for reserve in data
+                        })
+                        break  # Exit the loop on success
+                    else:
+                        LOGGER.warning(
+                            f"Request failed with status code: {response.status_code}: `{response.text}`")
+                        time.sleep(30)
+                except requests.exceptions.RequestException as e:
+                    LOGGER.error(f"Request error: {e}. Retrying...")
+                    time.sleep(30)
+
+        self.reserve_configs = reserve_configs
         self.token_prices = get_prices_for_tokens(list({
             reserve_config['reserve']['liquidity']['mintPubkey']
             for reserve_config in self.reserve_configs.values()
