@@ -77,27 +77,42 @@ ISOLATED_POOLS = {
 
 
 def get_reserve_to_supply_map(reserves: List[str]) -> Dict[str, Any]:
-    """ Get reserve data from solend.fi API. """
-    ids = ",".join(reserves)
-    url = f'https://api.solend.fi/v1/reserves/?ids={ids}'
+    """ Get reserve data from solend.fi API, batching requests in groups of 10 reserves. """
+    reserve_data = {}
+    batch_size = 10  # Maximum number of reserves per request
 
-    response = requests.get(url, timeout=15)
-    if response.status_code != 200:
-        LOGGER.warning(f"Request failed with status code: {response.status_code}: `{response.text}` with URL: {url}")
-        time.sleep(30)
-        return get_reserve_to_supply_map(reserves)
+    # Process reserves in batches of 10
+    for i in range(0, len(reserves), batch_size):
+        batch_reserves = reserves[i:i + batch_size]
+        ids = ",".join(batch_reserves)
+        url = f'https://api.solend.fi/v1/reserves/?ids={ids}'
 
-    return {
-        i['reserve']['address']: {
-            'liquiditySupply': i['reserve']['liquidity']['supplyPubkey'],
-            'collateralSupply': i['reserve']['collateral']['supplyPubkey'],
-            'liquidityMint': i['reserve']['liquidity']['mintPubkey'],
-            'liquidityMintDecimals': i['reserve']['liquidity']['mintDecimals'],
-            'collateralMint': i['reserve']['collateral']['mintPubkey'],
-            'cumBorrowRateWADs': i['reserve']['liquidity']['cumulativeBorrowRateWads']
-        }
-        for i in response.json()['results']
-    }
+        while True:
+            try:
+                response = requests.get(url, timeout=15)
+                if response.status_code == 200:
+                    data = response.json().get('results', [])
+                    reserve_data.update({
+                        item['reserve']['address']: {
+                            'liquiditySupply': item['reserve']['liquidity']['supplyPubkey'],
+                            'collateralSupply': item['reserve']['collateral']['supplyPubkey'],
+                            'liquidityMint': item['reserve']['liquidity']['mintPubkey'],
+                            'liquidityMintDecimals': item['reserve']['liquidity']['mintDecimals'],
+                            'collateralMint': item['reserve']['collateral']['mintPubkey'],
+                            'cumBorrowRateWADs': item['reserve']['liquidity']['cumulativeBorrowRateWads']
+                        }
+                        for item in data
+                    })
+                    break  # Exit the loop on success
+                else:
+                    LOGGER.warning(
+                        f"Request failed with status code: {response.status_code}: `{response.text}`")
+                    time.sleep(30)
+            except requests.exceptions.RequestException as e:
+                LOGGER.error(f"Request error: {e}. Retrying...")
+                time.sleep(30)
+
+    return reserve_data
 
 
 def fetch_obligations(pool_pubkey: str, client: Client) -> GetProgramAccountsResp:
