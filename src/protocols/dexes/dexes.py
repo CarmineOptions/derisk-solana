@@ -16,7 +16,7 @@ from src.protocols.dexes.clob import GooseFx
 import db
 
 # Collect and store orderbook liquidity every 5 minutes
-COLLECT_INTERVAL_SECONDS: int = 5 * 60
+COLLECT_INTERVAL_SECONDS: int = 20 * 60
 
 AUTHENTICATED_RPC_URL = os.environ.get("AUTHENTICATED_RPC_URL")
 if AUTHENTICATED_RPC_URL is None:

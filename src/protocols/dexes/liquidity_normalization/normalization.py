@@ -19,7 +19,7 @@ from src.protocols.dexes.amms.utils import get_tokens_symbol_to_info_map
 from src.protocols.dexes.amms.utils import get_mint_decimals
 
 LOG = logging.getLogger(__name__)
-NORMALIZE_INTERVAL_SECONDS: int = 5 * 60  # Five minutes
+NORMALIZE_INTERVAL_SECONDS: int = 20 * 60  # Five minutes
 
 AUTHENTICATED_RPC_URL = os.environ.get("AUTHENTICATED_RPC_URL")
 if AUTHENTICATED_RPC_URL is None:

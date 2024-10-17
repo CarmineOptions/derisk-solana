@@ -36,7 +36,7 @@ from src.protocols.anchor_clients.mango_client.accounts.bank import Bank as Mang
 
 LOG = logging.getLogger(__name__)
 
-COLLECT_INTERVAL_SECONDS = 5 * 60
+COLLECT_INTERVAL_SECONDS = 20 * 60
 AUTHENTICATED_RPC_URL = os.environ.get("AUTHENTICATED_RPC_URL")
 if AUTHENTICATED_RPC_URL is None:
     raise ValueError("No AUTHENTICATED_RPC_URL env var")
