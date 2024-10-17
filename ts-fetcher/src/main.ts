@@ -7,8 +7,8 @@ import { updateInvariantLiqudity } from './invariant.js';
 import { updateLifinityLiqudity } from './lifinity.js';
 import { updateSentreLiqudity } from './sentre.js';
 
-// Collect data every 5 minutes
-const COLLECTION_INTERVAL_MILLISECONDS = 5 * 60 * 1000;
+// Collect data every 20 minutes
+const COLLECTION_INTERVAL_MILLISECONDS = 20 * 60 * 1000;
 
 async function main() {
 

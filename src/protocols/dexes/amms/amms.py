@@ -455,9 +455,9 @@ async def update_amm_dex_data_continuously():
             LOG.info(
                 "Successfully processed all pools. Waiting 5 minutes before next update."
             )
-            time.sleep(300)
+            time.sleep(1200)
         except Exception as e:  # pylint: disable=broad-exception-caught
             tb_str = traceback.format_exc()
             # Log the error message along with the traceback
             LOG.error(f"An error occurred: {e}\nTraceback:\n{tb_str}")
-            time.sleep(300)
+            time.sleep(1200)
