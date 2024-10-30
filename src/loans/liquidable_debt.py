@@ -364,6 +364,7 @@ def process_mango_loan_states(loan_states: pandas.DataFrame) -> pandas.DataFrame
     token_parameters = src.mango_token_params_map.get_mango_token_params_map()
     tokens_info = src.protocols.dexes.amms.utils.get_tokens_address_to_info_map()
 
+    collateral_tokens_with_price = []
 
     for collateral_token in collateral_tokens:
         if not token_parameters.get(collateral_token):
@@ -388,6 +389,9 @@ def process_mango_loan_states(loan_states: pandas.DataFrame) -> pandas.DataFrame
             * token_prices[collateral_token]
         )
 
+        collateral_tokens_with_price.append(collateral_token)
+
+    debt_tokens_with_prices = []
     for debt_token in debt_tokens:
         if not token_parameters.get(debt_token):
             logging.info(f'No token parameters found for {debt_token}')
@@ -398,6 +402,9 @@ def process_mango_loan_states(loan_states: pandas.DataFrame) -> pandas.DataFrame
         if not tokens_info[debt_token].get('decimals'):
             logging.info(f'No decimals found for {debt_token}')
             continue
+        if token_prices[debt_token] is None:
+            logging.warning(f"Price for {debt_token} is not available atm. Skipping liq.debt computation.")
+            continue
         
         decimals = tokens_info[debt_token]['decimals']
         liab_maint_w = token_parameters[debt_token]['maint_liab_weight']
@@ -407,8 +414,9 @@ def process_mango_loan_states(loan_states: pandas.DataFrame) -> pandas.DataFrame
             * float(liab_maint_w)
             * token_prices[debt_token]
         )
+        debt_tokens_with_prices.append(debt_token)
 
-    for collateral_token, debt_token in itertools.product(collateral_tokens, debt_tokens):
+    for collateral_token, debt_token in itertools.product(collateral_tokens_with_price, debt_tokens_with_prices):
         if collateral_token == debt_token:
             continue
 
