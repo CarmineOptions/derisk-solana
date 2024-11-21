@@ -115,7 +115,7 @@ class TokenSupplyCollector(abc.ABC):
                 "Received ReadTimeout when collecting markets, repeating in 30 seconds."
             )
             time.sleep(30)
-            self.collect_markets()
+            await self.collect_markets()
 
     @abc.abstractmethod
     async def _collect_markets(self):
@@ -171,7 +171,7 @@ class MarginfiTokenSupplyCollector(TokenSupplyCollector):
         if response.status_code != 200:
             self.error_log(f"Unable to fetch banks: {response.text}")
             time.sleep(30)
-            self._collect_markets()
+            await self._collect_markets()
             return
 
         self.markets = response.json()
@@ -362,10 +362,10 @@ class SolendTokenSupplyCollector(TokenSupplyCollector):
         )
 
         if resp.status_code != 200:
-            self.error_log("Unable to update markets")
+            self.error_log(f"Unable to collect markets with response status code {resp.status_code}: {resp.text}")
 
             time.sleep(30)
-            self._collect_markets()
+            await self._collect_markets()
             return
 
         self.markets = resp.json()

@@ -36,6 +36,7 @@ tokens = get_tokens_address_to_info_map()
 
 
 async def get_single_marginfi_parameters(bank: str) -> MarginFiBankParameters | None:
+    # TODO uses custom bank class for parsing, which is not returning correct results.
     b = await Bank.fetch(client, Pubkey.from_string(bank))
 
     if b is None:

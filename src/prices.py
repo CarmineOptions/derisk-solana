@@ -1,4 +1,5 @@
 import datetime
+import logging
 from typing import TypeVar
 import decimal
 import requests
@@ -7,7 +8,9 @@ import streamlit
 
 from src import kamino_vault_map
 
-BASE_API_URL = "https://price.jup.ag/v4/price"
+LOGGER = logging.getLogger(__name__)
+
+BASE_API_URL = "https://api.jup.ag/price/v2"
 
 T = TypeVar("T")
 
@@ -43,13 +46,13 @@ def get_prices_for_tokens(tokens: list[str]) -> PricesType:
     if len(tokens) == 0:
         return token_price_map
 
-    chunks = split_into_chunks(tokens, 100)  # Jupiter allows max 100 ids per request
+    chunks = split_into_chunks(tokens, 50)  # Jupiter allows max 100 ids per request
 
     for chunk in chunks:
         translated_ids = list(map(kamino_vault_map.kamino_address_to_mint_address, chunk))
         ids = ",".join(translated_ids)
 
-        url = f"{BASE_API_URL}?ids={ids}&vsToken=EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"  # USDC prices
+        url = f"{BASE_API_URL}?ids={ids}"  # USDC prices
 
         response = requests.get(url, timeout=15)
 
@@ -60,9 +63,14 @@ def get_prices_for_tokens(tokens: list[str]) -> PricesType:
         for token_address in chunk:
             translated_token_address = kamino_vault_map.kamino_address_to_mint_address(token_address)
             price_dict = data.get(translated_token_address)
-            if price_dict is not None and "price" in price_dict:
-                token_price_map[token_address] = price_dict["price"]
-            else:
+            try:
+                if price_dict is not None and "price" in price_dict:
+                    token_price_map[token_address] = float(price_dict["price"])
+                else:
+                    token_price_map[token_address] = None
+            except (ValueError, TypeError) as e:
+                # Handle cases where conversion fails
+                LOGGER.warning(f"Error converting price for token {token_address}: {e}")
                 token_price_map[token_address] = None
 
     return token_price_map

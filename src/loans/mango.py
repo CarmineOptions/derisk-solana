@@ -401,10 +401,12 @@ def get_mango_health_ratio_df(loan_states: pd.DataFrame) -> pd.DataFrame:
         if not tokens_info[collateral_token].get('decimals'):
             print(f'No decimals found for {collateral_token}')
             continue
+        if token_prices[collateral_token] is None:
+            logging.warning(f"Price for {collateral_token} is not available atm. Skipping liq.debt computation.")
+            continue
 
         decimals = tokens_info[collateral_token]['decimals']
         asset_maint_w = token_parameters[collateral_token]['maint_asset_weight']
-
         loan_states[f'collateral_usd_{collateral_token}'] = (
             loan_states[f'collateral_{collateral_token}'].astype(float)
             / (10**decimals)
@@ -419,7 +421,6 @@ def get_mango_health_ratio_df(loan_states: pd.DataFrame) -> pd.DataFrame:
         )
     
     for debt_token in debt_tokens:
-
         if not token_parameters.get(debt_token):
             print(f'No token parameters found for {debt_token}')
             continue
@@ -428,6 +429,9 @@ def get_mango_health_ratio_df(loan_states: pd.DataFrame) -> pd.DataFrame:
             continue
         if not tokens_info[debt_token].get('decimals'):
             print(f'No decimals found for {debt_token}')
+            continue
+        if token_prices[debt_token] is None:
+            logging.warning(f"Price for {debt_token} is not available atm. Skipping liq.debt computation.")
             continue
         
         decimals = tokens_info[debt_token]['decimals']
