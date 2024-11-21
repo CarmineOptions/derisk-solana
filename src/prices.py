@@ -7,7 +7,7 @@ import streamlit
 
 from src import kamino_vault_map
 
-BASE_API_URL = "https://price.jup.ag/v4/price"
+BASE_API_URL = "https://api.jup.ag/price/v2"
 
 T = TypeVar("T")
 
@@ -43,13 +43,13 @@ def get_prices_for_tokens(tokens: list[str]) -> PricesType:
     if len(tokens) == 0:
         return token_price_map
 
-    chunks = split_into_chunks(tokens, 100)  # Jupiter allows max 100 ids per request
+    chunks = split_into_chunks(tokens, 50)  # Jupiter allows max 100 ids per request
 
     for chunk in chunks:
         translated_ids = list(map(kamino_vault_map.kamino_address_to_mint_address, chunk))
         ids = ",".join(translated_ids)
 
-        url = f"{BASE_API_URL}?ids={ids}&vsToken=EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"  # USDC prices
+        url = f"{BASE_API_URL}?ids={ids}"  # USDC prices
 
         response = requests.get(url, timeout=15)
 
