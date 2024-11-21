@@ -43,6 +43,8 @@ from src.prices import PricesType
 # 	# TODO: Create a proper mapping.
 # 	return 'ETH' if 'ETH' in token else token
 
+LOGGER = logging.getLogger(__name__)
+
 
 @dataclass
 class Token:
@@ -106,6 +108,18 @@ def token_addresses_to_Token_list( # pylint: disable=C0103
                 symbol=str(info['symbol']),
                 name=str(info["name"]),
                 decimals=int(info["decimals"]),
+            )
+        )
+    try:
+        sol = next(x for x in tokens if x.symbol == 'SOL')
+    except StopIteration:
+        LOGGER.warning("Sol didnt get to address to token list. adding it manually")
+        tokens.append(
+            Token(
+                address='So11111111111111111111111111111111111111112',
+                symbol='SOL',
+                name='Wrapped SOL',
+                decimals=9
             )
         )
 
