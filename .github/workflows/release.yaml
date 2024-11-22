@@ -1,0 +1,47 @@
+name: Streamlit build and push Dockerimage
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - "pyproject.toml"
+
+env:
+  DOCKER_REGISTRY_HOST: europe-west1-docker.pkg.dev
+  GCP_PROJECT: carmine-api-381920
+
+jobs:
+  release:
+    if: github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Auth Google Cloud SDK
+        uses: google-github-actions/auth@v2
+        with:
+          project_id: carmine-api-381920
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up Google Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: carmine-api-381920
+
+      - name: Configure Docker to use gcloud as a credential helper
+        run: |
+          gcloud auth configure-docker $DOCKER_REGISTRY_HOST
+
+      - name: Build Docker image
+        id: build
+        run: |
+          VERSION=$(cat streamlit_dockerimage_version)
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+          docker build -t $DOCKER_REGISTRY_HOST/$GCP_PROJECT/docker-repository/solana-fe:$VERSION -f Dockerfile.frontend .
+
+      - name: Push Docker image
+        run: |
+          docker push $DOCKER_REGISTRY_HOST/$GCP_PROJECT/docker-repository/solana-fe:${{ env.VERSION }}
