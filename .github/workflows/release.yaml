@@ -5,7 +5,7 @@ on:
     branches:
       - master
     paths:
-      - "pyproject.toml"
+      - "streamlit_dockerimage_version"
 
 env:
   DOCKER_REGISTRY_HOST: europe-west1-docker.pkg.dev
