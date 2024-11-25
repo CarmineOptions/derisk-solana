@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "derisk-solana"
-version = "0.1.0"
+version = "0.1.1"
 description = "DeRisk - Risk monitoring and insurance against bad debt."
 authors = ["Lukas Petrasek <lukas@carmine.finance>"]
 license = "MIT"
