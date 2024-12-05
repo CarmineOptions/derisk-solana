@@ -1,5 +1,5 @@
 {
-  "version": "0.24.0",
+  "version": "0.22.0",
   "name": "mango_v4",
   "instructions": [
     {
@@ -276,12 +276,6 @@
           "name": "allowedFastListingsPerIntervalOpt",
           "type": {
             "option": "u16"
-          }
-        },
-        {
-          "name": "collateralFeeIntervalOpt",
-          "type": {
-            "option": "u64"
           }
         }
       ]
@@ -632,18 +626,6 @@
         },
         {
           "name": "zeroUtilRate",
-          "type": "f32"
-        },
-        {
-          "name": "platformLiquidationFee",
-          "type": "f32"
-        },
-        {
-          "name": "disableAssetLiquidation",
-          "type": "bool"
-        },
-        {
-          "name": "collateralFeePerDay",
           "type": "f32"
         }
       ]
@@ -1048,30 +1030,6 @@
           "name": "zeroUtilRateOpt",
           "type": {
             "option": "f32"
-          }
-        },
-        {
-          "name": "platformLiquidationFeeOpt",
-          "type": {
-            "option": "f32"
-          }
-        },
-        {
-          "name": "disableAssetLiquidationOpt",
-          "type": {
-            "option": "bool"
-          }
-        },
-        {
-          "name": "collateralFeePerDayOpt",
-          "type": {
-            "option": "f32"
-          }
-        },
-        {
-          "name": "forceWithdrawOpt",
-          "type": {
-            "option": "bool"
           }
         }
       ]
@@ -1757,66 +1715,6 @@
         {
           "name": "maxBuybackUsd",
           "type": "u64"
-        }
-      ]
-    },
-    {
-      "name": "sequenceCheck",
-      "accounts": [
-        {
-          "name": "group",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "account",
-          "isMut": true,
-          "isSigner": false,
-          "relations": [
-            "group",
-            "owner"
-          ]
-        },
-        {
-          "name": "owner",
-          "isMut": false,
-          "isSigner": true
-        }
-      ],
-      "args": [
-        {
-          "name": "expectedSequenceNumber",
-          "type": "u8"
-        }
-      ]
-    },
-    {
-      "name": "healthCheck",
-      "accounts": [
-        {
-          "name": "group",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "account",
-          "isMut": true,
-          "isSigner": false,
-          "relations": [
-            "group"
-          ]
-        }
-      ],
-      "args": [
-        {
-          "name": "minHealthValue",
-          "type": "f64"
-        },
-        {
-          "name": "checkKind",
-          "type": {
-            "defined": "HealthCheckKind"
-          }
         }
       ]
     },
@@ -3856,63 +3754,6 @@
       ]
     },
     {
-      "name": "tokenForceWithdraw",
-      "accounts": [
-        {
-          "name": "group",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "account",
-          "isMut": true,
-          "isSigner": false,
-          "relations": [
-            "group"
-          ]
-        },
-        {
-          "name": "bank",
-          "isMut": true,
-          "isSigner": false,
-          "relations": [
-            "group",
-            "vault",
-            "oracle"
-          ]
-        },
-        {
-          "name": "vault",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "oracle",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "ownerAtaTokenAccount",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "alternateOwnerTokenAccount",
-          "isMut": true,
-          "isSigner": false,
-          "docs": [
-            "Only for the unusual case where the owner_ata account is not owned by account.owner"
-          ]
-        },
-        {
-          "name": "tokenProgram",
-          "isMut": false,
-          "isSigner": false
-        }
-      ],
-      "args": []
-    },
-    {
       "name": "perpCreateMarket",
       "docs": [
         "",
@@ -4101,10 +3942,6 @@
         },
         {
           "name": "positivePnlLiquidationFee",
-          "type": "f32"
-        },
-        {
-          "name": "platformLiquidationFee",
           "type": "f32"
         }
       ]
@@ -4319,12 +4156,6 @@
           "name": "forceCloseOpt",
           "type": {
             "option": "bool"
-          }
-        },
-        {
-          "name": "platformLiquidationFeeOpt",
-          "type": {
-            "option": "f32"
           }
         }
       ]
@@ -6103,25 +5934,6 @@
       ]
     },
     {
-      "name": "tokenChargeCollateralFees",
-      "accounts": [
-        {
-          "name": "group",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "account",
-          "isMut": true,
-          "isSigner": false,
-          "relations": [
-            "group"
-          ]
-        }
-      ],
-      "args": []
-    },
-    {
       "name": "altSet",
       "accounts": [
         {
@@ -7381,12 +7193,6 @@
           },
           {
             "name": "collectedFeesNative",
-            "docs": [
-              "Fees collected over the lifetime of the bank",
-              "",
-              "See fees_withdrawn for how much of the fees was withdrawn.",
-              "See collected_liquidation_fees for the (included) subtotal for liquidation related fees."
-            ],
             "type": {
               "defined": "I80F48"
             }
@@ -7429,15 +7235,6 @@
           },
           {
             "name": "liquidationFee",
-            "docs": [
-              "Liquidation fee that goes to the liqor.",
-              "",
-              "Liquidation always involves two tokens, and the sum of the two configured fees is used.",
-              "",
-              "A fraction of the price, like 0.05 for a 5% fee during liquidation.",
-              "",
-              "See also platform_liquidation_fee."
-            ],
             "type": {
               "defined": "I80F48"
             }
@@ -7542,23 +7339,11 @@
             "type": "u8"
           },
           {
-            "name": "disableAssetLiquidation",
-            "docs": [
-              "If set to 1, deposits cannot be liquidated when an account is liquidatable.",
-              "That means bankrupt accounts may still have assets of this type deposited."
-            ],
-            "type": "u8"
-          },
-          {
-            "name": "forceWithdraw",
-            "type": "u8"
-          },
-          {
             "name": "padding",
             "type": {
               "array": [
                 "u8",
-                4
+                6
               ]
             }
           },
@@ -7674,49 +7459,11 @@
             }
           },
           {
-            "name": "platformLiquidationFee",
-            "docs": [
-              "Additional to liquidation_fee, but goes to the group owner instead of the liqor"
-            ],
-            "type": {
-              "defined": "I80F48"
-            }
-          },
-          {
-            "name": "collectedLiquidationFees",
-            "docs": [
-              "Platform fees that were collected during liquidation (in native tokens)",
-              "",
-              "See also collected_fees_native and fees_withdrawn."
-            ],
-            "type": {
-              "defined": "I80F48"
-            }
-          },
-          {
-            "name": "collectedCollateralFees",
-            "docs": [
-              "Collateral fees that have been collected (in native tokens)",
-              "",
-              "See also collected_fees_native and fees_withdrawn."
-            ],
-            "type": {
-              "defined": "I80F48"
-            }
-          },
-          {
-            "name": "collateralFeePerDay",
-            "docs": [
-              "The daily collateral fees rate for fully utilized collateral."
-            ],
-            "type": "f32"
-          },
-          {
             "name": "reserved",
             "type": {
               "array": [
                 "u8",
-                1900
+                1952
               ]
             }
           }
@@ -7845,27 +7592,11 @@
             "type": "u16"
           },
           {
-            "name": "padding2",
-            "type": {
-              "array": [
-                "u8",
-                4
-              ]
-            }
-          },
-          {
-            "name": "collateralFeeInterval",
-            "docs": [
-              "Intervals in which collateral fee is applied"
-            ],
-            "type": "u64"
-          },
-          {
             "name": "reserved",
             "type": {
               "array": [
                 "u8",
-                1800
+                1812
               ]
             }
           }
@@ -7931,8 +7662,13 @@
             "type": "u8"
           },
           {
-            "name": "sequenceNumber",
-            "type": "u8"
+            "name": "padding",
+            "type": {
+              "array": [
+                "u8",
+                1
+              ]
+            }
           },
           {
             "name": "netDeposits",
@@ -7983,26 +7719,11 @@
             "type": "u64"
           },
           {
-            "name": "temporaryDelegate",
-            "type": "publicKey"
-          },
-          {
-            "name": "temporaryDelegateExpiry",
-            "type": "u64"
-          },
-          {
-            "name": "lastCollateralFeeCharge",
-            "docs": [
-              "Time at which the last collateral fee was charged"
-            ],
-            "type": "u64"
-          },
-          {
             "name": "reserved",
             "type": {
               "array": [
                 "u8",
-                152
+                200
               ]
             }
           },
@@ -8797,32 +8518,11 @@
             "type": "u64"
           },
           {
-            "name": "platformLiquidationFee",
-            "docs": [
-              "Additional to liquidation_fee, but goes to the group owner instead of the liqor"
-            ],
-            "type": {
-              "defined": "I80F48"
-            }
-          },
-          {
-            "name": "accruedLiquidationFees",
-            "docs": [
-              "Platform fees that were accrued during liquidation (in native tokens)",
-              "",
-              "These fees are also added to fees_accrued, this is just for bookkeeping the total",
-              "liquidation fees that happened. So never decreases (different to fees_accrued)."
-            ],
-            "type": {
-              "defined": "I80F48"
-            }
-          },
-          {
             "name": "reserved",
             "type": {
               "array": [
                 "u8",
-                1848
+                1880
               ]
             }
           }
@@ -9558,44 +9258,36 @@
             "type": "f64"
           },
           {
-            "name": "deprecatedRealizedTradePnlNative",
+            "name": "realizedTradePnlNative",
             "docs": [
-              "Deprecated field: Amount of pnl that was realized by bringing the base position closer to 0."
+              "Amount of pnl that was realized by bringing the base position closer to 0.",
+              "",
+              "The settlement of this type of pnl is limited by settle_pnl_limit_realized_trade.",
+              "Settling pnl reduces this value once other_pnl below is exhausted."
             ],
             "type": {
               "defined": "I80F48"
             }
           },
           {
-            "name": "oneshotSettlePnlAllowance",
+            "name": "realizedOtherPnlNative",
             "docs": [
-              "Amount of pnl that can be settled once.",
+              "Amount of pnl realized from fees, funding and liquidation.",
               "",
-              "- The value is signed: a negative number means negative pnl can be settled.",
-              "- A settlement in the right direction will decrease this amount.",
-              "",
-              "Typically added for fees, funding and liquidation."
+              "This type of realized pnl is always settleable.",
+              "Settling pnl reduces this value first."
             ],
             "type": {
               "defined": "I80F48"
             }
           },
           {
-            "name": "recurringSettlePnlAllowance",
+            "name": "settlePnlLimitRealizedTrade",
             "docs": [
-              "Amount of pnl that can be settled in each settle window.",
+              "Settle limit contribution from realized pnl.",
               "",
-              "- Unsigned, the settlement can happen in both directions. Value is >= 0.",
-              "- Previously stored a similar value that was signed, so in migration cases",
-              "this value can be negative and should be .abs()ed.",
-              "- If this value exceeds the current stable-upnl, it should be decreased,",
-              "see apply_recurring_settle_pnl_allowance_constraint()",
-              "",
-              "When the base position is reduced, the settle limit contribution from the reduced",
-              "base position is materialized into this value. When the base position increases,",
-              "some of the allowance is taken away.",
-              "",
-              "This also gets increased when a liquidator takes over pnl."
+              "Every time pnl is realized, this is increased by a fraction of the stable",
+              "value of the realization. It magnitude decreases when realized pnl drops below its value."
             ],
             "type": "i64"
           },
@@ -9724,8 +9416,13 @@
             "type": "u8"
           },
           {
-            "name": "sequenceNumber",
-            "type": "u8"
+            "name": "padding",
+            "type": {
+              "array": [
+                "u8",
+                1
+              ]
+            }
           },
           {
             "name": "netDeposits",
@@ -9768,15 +9465,11 @@
             "type": "u64"
           },
           {
-            "name": "lastCollateralFeeCharge",
-            "type": "u64"
-          },
-          {
             "name": "reserved",
             "type": {
               "array": [
                 "u8",
-                152
+                160
               ]
             }
           }
@@ -10697,35 +10390,6 @@
           },
           {
             "name": "Swap"
-          },
-          {
-            "name": "SwapWithoutFee"
-          }
-        ]
-      }
-    },
-    {
-      "name": "HealthCheckKind",
-      "type": {
-        "kind": "enum",
-        "variants": [
-          {
-            "name": "Maint"
-          },
-          {
-            "name": "Init"
-          },
-          {
-            "name": "LiquidationEnd"
-          },
-          {
-            "name": "MaintRatio"
-          },
-          {
-            "name": "InitRatio"
-          },
-          {
-            "name": "LiquidationEndRatio"
           }
         ]
       }
@@ -11081,15 +10745,6 @@
           },
           {
             "name": "Serum3PlaceOrderV2"
-          },
-          {
-            "name": "TokenForceWithdraw"
-          },
-          {
-            "name": "SequenceCheck"
-          },
-          {
-            "name": "HealthCheck"
           }
         ]
       }
@@ -11130,9 +10785,6 @@
           },
           {
             "name": "OrcaCLMM"
-          },
-          {
-            "name": "RaydiumCLMM"
           }
         ]
       }
@@ -12311,71 +11963,6 @@
       ]
     },
     {
-      "name": "TokenLiqWithTokenLogV2",
-      "fields": [
-        {
-          "name": "mangoGroup",
-          "type": "publicKey",
-          "index": false
-        },
-        {
-          "name": "liqee",
-          "type": "publicKey",
-          "index": false
-        },
-        {
-          "name": "liqor",
-          "type": "publicKey",
-          "index": false
-        },
-        {
-          "name": "assetTokenIndex",
-          "type": "u16",
-          "index": false
-        },
-        {
-          "name": "liabTokenIndex",
-          "type": "u16",
-          "index": false
-        },
-        {
-          "name": "assetTransferFromLiqee",
-          "type": "i128",
-          "index": false
-        },
-        {
-          "name": "assetTransferToLiqor",
-          "type": "i128",
-          "index": false
-        },
-        {
-          "name": "assetLiquidationFee",
-          "type": "i128",
-          "index": false
-        },
-        {
-          "name": "liabTransfer",
-          "type": "i128",
-          "index": false
-        },
-        {
-          "name": "assetPrice",
-          "type": "i128",
-          "index": false
-        },
-        {
-          "name": "liabPrice",
-          "type": "i128",
-          "index": false
-        },
-        {
-          "name": "bankruptcy",
-          "type": "bool",
-          "index": false
-        }
-      ]
-    },
-    {
       "name": "Serum3OpenOrdersBalanceLog",
       "fields": [
         {
@@ -12897,131 +12484,6 @@
       ]
     },
     {
-      "name": "PerpLiqBaseOrPositivePnlLogV2",
-      "fields": [
-        {
-          "name": "mangoGroup",
-          "type": "publicKey",
-          "index": false
-        },
-        {
-          "name": "perpMarketIndex",
-          "type": "u16",
-          "index": false
-        },
-        {
-          "name": "liqor",
-          "type": "publicKey",
-          "index": false
-        },
-        {
-          "name": "liqee",
-          "type": "publicKey",
-          "index": false
-        },
-        {
-          "name": "baseTransferLiqee",
-          "type": "i64",
-          "index": false
-        },
-        {
-          "name": "quoteTransferLiqee",
-          "type": "i128",
-          "index": false
-        },
-        {
-          "name": "quoteTransferLiqor",
-          "type": "i128",
-          "index": false
-        },
-        {
-          "name": "quotePlatformFee",
-          "type": "i128",
-          "index": false
-        },
-        {
-          "name": "pnlTransfer",
-          "type": "i128",
-          "index": false
-        },
-        {
-          "name": "pnlSettleLimitTransfer",
-          "type": "i128",
-          "index": false
-        },
-        {
-          "name": "price",
-          "type": "i128",
-          "index": false
-        }
-      ]
-    },
-    {
-      "name": "PerpLiqBaseOrPositivePnlLogV3",
-      "fields": [
-        {
-          "name": "mangoGroup",
-          "type": "publicKey",
-          "index": false
-        },
-        {
-          "name": "perpMarketIndex",
-          "type": "u16",
-          "index": false
-        },
-        {
-          "name": "liqor",
-          "type": "publicKey",
-          "index": false
-        },
-        {
-          "name": "liqee",
-          "type": "publicKey",
-          "index": false
-        },
-        {
-          "name": "baseTransferLiqee",
-          "type": "i64",
-          "index": false
-        },
-        {
-          "name": "quoteTransferLiqee",
-          "type": "i128",
-          "index": false
-        },
-        {
-          "name": "quoteTransferLiqor",
-          "type": "i128",
-          "index": false
-        },
-        {
-          "name": "quotePlatformFee",
-          "type": "i128",
-          "index": false
-        },
-        {
-          "name": "pnlTransfer",
-          "type": "i128",
-          "index": false
-        },
-        {
-          "name": "pnlSettleLimitTransferRecurring",
-          "type": "i64",
-          "index": false
-        },
-        {
-          "name": "pnlSettleLimitTransferOneshot",
-          "type": "i64",
-          "index": false
-        },
-        {
-          "name": "price",
-          "type": "i128",
-          "index": false
-        }
-      ]
-    },
-    {
       "name": "PerpLiqBankruptcyLog",
       "fields": [
         {
@@ -13351,71 +12813,6 @@
         },
         {
           "name": "assetTransfer",
-          "type": "i128",
-          "index": false
-        },
-        {
-          "name": "liabTransfer",
-          "type": "i128",
-          "index": false
-        },
-        {
-          "name": "assetPrice",
-          "type": "i128",
-          "index": false
-        },
-        {
-          "name": "liabPrice",
-          "type": "i128",
-          "index": false
-        },
-        {
-          "name": "feeFactor",
-          "type": "i128",
-          "index": false
-        }
-      ]
-    },
-    {
-      "name": "TokenForceCloseBorrowsWithTokenLogV2",
-      "fields": [
-        {
-          "name": "mangoGroup",
-          "type": "publicKey",
-          "index": false
-        },
-        {
-          "name": "liqor",
-          "type": "publicKey",
-          "index": false
-        },
-        {
-          "name": "liqee",
-          "type": "publicKey",
-          "index": false
-        },
-        {
-          "name": "assetTokenIndex",
-          "type": "u16",
-          "index": false
-        },
-        {
-          "name": "liabTokenIndex",
-          "type": "u16",
-          "index": false
-        },
-        {
-          "name": "assetTransferFromLiqee",
-          "type": "i128",
-          "index": false
-        },
-        {
-          "name": "assetTransferToLiqor",
-          "type": "i128",
-          "index": false
-        },
-        {
-          "name": "assetLiquidationFee",
           "type": "i128",
           "index": false
         },
@@ -14010,76 +13407,6 @@
           "index": false
         }
       ]
-    },
-    {
-      "name": "TokenCollateralFeeLog",
-      "fields": [
-        {
-          "name": "mangoGroup",
-          "type": "publicKey",
-          "index": false
-        },
-        {
-          "name": "mangoAccount",
-          "type": "publicKey",
-          "index": false
-        },
-        {
-          "name": "tokenIndex",
-          "type": "u16",
-          "index": false
-        },
-        {
-          "name": "assetUsageFraction",
-          "type": "i128",
-          "index": false
-        },
-        {
-          "name": "fee",
-          "type": "i128",
-          "index": false
-        },
-        {
-          "name": "price",
-          "type": "i128",
-          "index": false
-        }
-      ]
-    },
-    {
-      "name": "ForceWithdrawLog",
-      "fields": [
-        {
-          "name": "mangoGroup",
-          "type": "publicKey",
-          "index": false
-        },
-        {
-          "name": "mangoAccount",
-          "type": "publicKey",
-          "index": false
-        },
-        {
-          "name": "tokenIndex",
-          "type": "u16",
-          "index": false
-        },
-        {
-          "name": "quantity",
-          "type": "u64",
-          "index": false
-        },
-        {
-          "name": "price",
-          "type": "i128",
-          "index": false
-        },
-        {
-          "name": "toTokenAccount",
-          "type": "publicKey",
-          "index": false
-        }
-      ]
     }
   ],
   "errors": [
@@ -14427,26 +13754,6 @@
       "code": 6068,
       "name": "MissingFeedForCLMMOracle",
       "msg": "Pyth USDC/USD or SOL/USD feed not found (required by CLMM oracle)"
-    },
-    {
-      "code": 6069,
-      "name": "TokenAssetLiquidationDisabled",
-      "msg": "the asset does not allow liquidation"
-    },
-    {
-      "code": 6070,
-      "name": "BorrowsRequireHealthAccountBank",
-      "msg": "for borrows the bank must be in the health account list"
-    },
-    {
-      "code": 6071,
-      "name": "InvalidSequenceNumber",
-      "msg": "invalid sequence number"
-    },
-    {
-      "code": 6072,
-      "name": "InvalidHealth",
-      "msg": "invalid health"
     }
   ]
 }

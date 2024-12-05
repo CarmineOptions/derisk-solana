@@ -15,7 +15,7 @@ from solana.rpc.commitment import Commitment
 from solana.rpc.core import RPCException
 from solders.errors import SerdeJSONError
 from solders.transaction_status import EncodedTransactionWithStatusMeta, UiConfirmedBlock
-from sqlalchemy.exc import IntegrityError, OperationalError
+from sqlalchemy.exc import IntegrityError
 
 from src.collection.shared.generic_collector import GenericSolanaConnector, SolanaTransaction, log_performance_time
 from src.protocols.addresses import ALL_ADDRESSES
@@ -119,7 +119,7 @@ class TXFromBlockCollector(GenericSolanaConnector):
             )
         except SolanaRpcException as e:
             LOG.error(f"SolanaRpcException while fetching {block_number}: {e}")
-            await asyncio.sleep(0.5)
+            await asyncio.sleep(0.25)
             return await self._async_fetch_block(block_number)
         except RPCException as e:
             LOG.error(f"RpcException while fetching {block_number}: {e}")
@@ -129,6 +129,12 @@ class TXFromBlockCollector(GenericSolanaConnector):
             # Log the error message along with the traceback
             LOG.error(f"An error occurred: {e}\nTraceback:\n{tb_str}")
             await asyncio.sleep(0.3)
+            return await self._async_fetch_block(block_number)
+        except Exception as e:
+            tb_str = traceback.format_exc()
+            # Log the error message along with the traceback
+            LOG.error(f"An WEIRD error occurred, we gonna try again: {e}\nTraceback:\n{tb_str}")
+            await asyncio.sleep(1)
             return await self._async_fetch_block(block_number)
 
         return block.value, block_number
@@ -185,11 +191,11 @@ class TXFromBlockCollector(GenericSolanaConnector):
             keys = keys_env.split(',')
         # check if new keys are added
         new_keys = set(keys) - set(self.protocol_public_keys)
-        # if new_keys:
-        #     watershed_block = self._get_latest_finalized_block_on_chain()
-        #     for new_key in new_keys:
-        #         self._add_new_protocol(new_key, watershed_block)
-        #     LOG.warning(f"New protocol(s) added to collection: {new_keys}")
+        if new_keys:
+            watershed_block = self._get_latest_finalized_block_on_chain()
+            for new_key in new_keys:
+                self._add_new_protocol(new_key, watershed_block)
+            LOG.warning(f"New protocol(s) added to collection: {new_keys}")
         self.protocol_public_keys = keys
 
     @staticmethod
@@ -210,11 +216,6 @@ class TXFromBlockCollector(GenericSolanaConnector):
             except IntegrityError:
                 session.rollback()  # roll back the session to a clean state
                 LOG.error(f"A protocol with the public key `{public_key}` already exists in the database.")
-            except OperationalError as e:
-                LOG.error("OperationalError occured: %s. Waiting 120 to retry."
-                          "\n Exception occurred: %s", str(e), traceback.format_exc())
-                time.sleep(120)
-                TXFromBlockCollector._add_new_protocol(public_key, watershed_block_number)
 
     def _get_latest_finalized_block_on_chain(self) -> int:
         """
@@ -236,42 +237,35 @@ class TXFromBlockCollector(GenericSolanaConnector):
         if not self.relevant_transactions:
             self._report_collection()
             return
-        try:
-            with db.get_db_session() as session:
-                for transaction in self.relevant_transactions:
-                    sources = transaction.sources(self.protocol_public_keys if self.protocol_public_keys else [])
-                    signature = transaction.first_signature
-                    # Same transaction has to be recorded once per each relevant protocol
-                    for source in sources:
-                        records = session.query(db.TransactionStatusWithSignature).filter_by(
+        with db.get_db_session() as session:
+            for transaction in self.relevant_transactions:
+                sources = transaction.sources(self.protocol_public_keys if self.protocol_public_keys else [])
+                signature = transaction.first_signature
+                # Same transaction has to be recorded once per each relevant protocol
+                for source in sources:
+                    records = session.query(db.TransactionStatusWithSignature).filter_by(
+                        signature=str(signature),
+                        source=source
+                    ).all()
+
+                    # Check if the record exists.
+                    if records:
+                        # Iterate over each record and update transaction data.
+                        for record in records:
+                            record.transaction_data = transaction.tx_body.to_json()
+                    else:
+                        new_record = db.TransactionStatusWithSignature(
+                            source=source,
+                            slot=transaction.block_number,
                             signature=str(signature),
-                            source=source
-                        ).all()
+                            block_time=transaction.block_time,
+                            transaction_data=transaction.tx_body.to_json(),
+                            collection_stream=self.collection_stream
+                        )
+                        session.add(new_record)
 
-                        # Check if the record exists.
-                        if records:
-                            # Iterate over each record and update transaction data.
-                            for record in records:
-                                record.transaction_data = transaction.tx_body.to_json()
-                        else:
-                            new_record = db.TransactionStatusWithSignature(
-                                source=source,
-                                slot=transaction.block_number,
-                                signature=str(signature),
-                                block_time=transaction.block_time,
-                                transaction_data=transaction.tx_body.to_json(),
-                                collection_stream=self.collection_stream
-                            )
-                            session.add(new_record)
-
-                # Commit the changes.
-                session.commit()
-        except OperationalError as e:
-            LOG.error("OperationalError occured: %s. Waiting 120 to retry."
-                      "\n Exception occurred: %s", str(e), traceback.format_exc())
-            time.sleep(120)
-            self._write_data()
-            return
+            # Commit the changes.
+            session.commit()
         self._report_collection()
 
     @abstractmethod

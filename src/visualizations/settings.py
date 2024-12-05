@@ -4,7 +4,6 @@ TOKEN_PAIRS: list[str] = [
 	"SOL-USDT",
 	"JUP-USDC",
 	"JUP-USDT",
-    "BONK-USDC"
 ]
 
 # TODO: To be defined.

@@ -18,10 +18,6 @@ If being restarted - nothing changes.
 """
 import logging
 import os
-import time
-import traceback
-
-from sqlalchemy.exc import OperationalError
 
 import db
 from src.collection.tx_data.collector import TXFromBlockCollector
@@ -49,26 +45,19 @@ class HistoricalTXCollector(TXFromBlockCollector):
         # TODO: make it more flexible. we want to be able to get assignments indirectly  # pylint: disable=W0511
         #  from db so several collectors can serve at once / or change status of tx while fetching tx_raw
         # Fetch first n blocks that contain transactions without tx_raw.
-        try:
-            with db.get_db_session() as session:
-                distinct_slots = session.query(
-                    db.TransactionStatusWithSignature.slot
-                ).filter(
-                    db.TransactionStatusWithSignature.transaction_data.is_(None)
-                ).distinct().offset(int(OFFSET)).limit(BATCH_SIZE*3).subquery()
+        with db.get_db_session() as session:
+            distinct_slots = session.query(
+                db.TransactionStatusWithSignature.slot
+            ).filter(
+                db.TransactionStatusWithSignature.transaction_data.is_(None)
+            ).distinct().offset(int(OFFSET)).limit(BATCH_SIZE*3).subquery()
 
-                # Outer query to order the distinct slots and limit the results
-                slots = session.query(
-                    distinct_slots.c.slot
-                ).order_by(
-                    distinct_slots.c.slot
-                ).limit(BATCH_SIZE).all()
-        except OperationalError as e:
-            LOGGER.error("OperationalError occured: %s. Waiting 120 to retry."
-                         "\n Exception occurred: %s", str(e), traceback.format_exc())
-            time.sleep(120)
-            self._get_assigned_blocks()
-            return
+            # Outer query to order the distinct slots and limit the results
+            slots = session.query(
+                distinct_slots.c.slot
+            ).order_by(
+                distinct_slots.c.slot
+            ).limit(BATCH_SIZE).all()
 
         self.assignment = [i.slot for i in slots]  # pylint: disable=attribute-defined-outside-init
 

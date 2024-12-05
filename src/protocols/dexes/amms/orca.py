@@ -16,7 +16,6 @@ from solders.pubkey import Pubkey
 from solana.rpc.async_api import AsyncClient
 
 # from db import AmmLiquidity, get_db_session
-import db
 from src.protocols.dexes.amms.amm import Amm
 from src.protocols.dexes.amms.utils import (
     get_mint_decimals,
@@ -327,7 +326,7 @@ class OrcaPool:
         return (liqdist_down, liqdist_current[0], liqdist_up)
 
     @staticmethod
-    def delta_y(
+    def delta_y_price_move_up(
         current_price: Decimal, upper_price: Decimal, liquidity: int
     ) -> Decimal:
         """
@@ -350,7 +349,7 @@ class OrcaPool:
         )
 
     @staticmethod
-    def delta_x(
+    def delta_x_price_move_down(
         current_price: Decimal, lower_price: Decimal, liquidity: int
     ) -> Decimal:
         """
@@ -396,16 +395,16 @@ class OrcaPool:
             upper_price = PriceMath.tick_index_to_sqrt_price_x64(next_tick)
 
             # Calculate delta in y token for every upper tick
-            delta_x = abs(self.delta_x(
+            delta_y = self.delta_y_price_move_up(
                 current_price, upper_price, current_liquidity
-            ))
+            )
 
             # Create new PriceLevel entry
             price_level = PriceLevel(
                 price=PriceMath.tick_index_to_price(
                     next_tick, self._decimals_a, self._decimals_b
                 ),
-                amount=delta_x / 10**self._decimals_a,
+                amount=delta_y / 10**self._decimals_a,
             )
 
             # Append PriceLevel to list
@@ -430,15 +429,15 @@ class OrcaPool:
 
             for next_tick in current_tick_range:
                 upper_price = PriceMath.tick_index_to_sqrt_price_x64(next_tick)
-                delta_x = abs(self.delta_x(
+                delta_y = self.delta_y_price_move_up(
                     current_price, upper_price, current_liquidity
-                ))
+                )
 
                 price_level = PriceLevel(
                     price=PriceMath.tick_index_to_price(
                         next_tick, self._decimals_a, self._decimals_b
                     ),
-                    amount=delta_x / 10**self._decimals_a,
+                    amount=delta_y / 10**self._decimals_a,
                 )
 
                 _levels.append(price_level)
@@ -467,7 +466,7 @@ class OrcaPool:
 
         for next_tick in current_tick_range:
             lower_price = PriceMath.tick_index_to_sqrt_price_x64(next_tick)
-            delta_x = self.delta_x(
+            delta_x = self.delta_x_price_move_down(
                 current_price, lower_price, current_liquidity
             )
 
@@ -475,7 +474,7 @@ class OrcaPool:
                 price=PriceMath.tick_index_to_price(
                     next_tick, self._decimals_a, self._decimals_b
                 ),
-                amount=delta_x / 10**self._decimals_a,
+                amount=delta_x / 10**self._decimals_b,
             )
 
             price_levels.append(price_level)
@@ -495,14 +494,14 @@ class OrcaPool:
 
             for next_tick in current_tick_range:
                 lower_price = PriceMath.tick_index_to_sqrt_price_x64(next_tick)
-                delta_x = self.delta_x(
+                delta_x = self.delta_x_price_move_down(
                     current_price, lower_price, current_liquidity
                 )
                 price_level = PriceLevel(
                     price=PriceMath.tick_index_to_price(
                         next_tick, self._decimals_a, self._decimals_b
                     ),
-                    amount=delta_x / 10**self._decimals_a,
+                    amount=delta_x / 10**self._decimals_b,
                 )
 
                 _levels.append(price_level)
@@ -561,25 +560,15 @@ class OrcaAMM(Amm):
         Save pool data to database.
         """
         # TODO: This function, after new table schema is setup
-        with db.get_db_session() as session:
-            # Creating an instance of AmmLiquidity
-            liquidity_entry = db.DexNormalizedLiquidity(
-                timestamp=self.timestamp,
-                dex=self.DEX_NAME,
-                market_address=str(pool.pool.pubkey),
-                token_x_address=str(pool.pool.token_mint_a),
-                token_y_address=str(pool.pool.token_mint_b),
-                bids = [(float(i.price), float(i.amount)) for i in pool.bids],
-                asks = [(float(i.price), float(i.amount)) for i in pool.asks],
-            )
-            # Add to session and commit
-            session.add(liquidity_entry)
-            session.commit()
-
-    # timestamp = Column(BigInteger, nullable=False)
-    # dex = Column(String, nullable=False)
-    # market_address = Column(String, nullable=False)
-    # token_x_address = Column(String, nullable=False)
-    # token_y_address = Column(String, nullable=False)
-    # bids = Column(PG_ARRAY(Float), nullable=False)
-    # asks = Column(PG_ARRAY(Float), nullable=False)
+        # with get_db_session() as session:
+        #     # Creating an instance of AmmLiquidity
+        #     liquidity_entry = AmmLiquidity(
+        #         timestamp=self.timestamp,
+        #         dex=self.DEX_NAME,
+        #         pair=pair,
+        #         market_address=market_address,
+        #         additional_info='ahoj',
+        #     )
+        #     # Add to session and commit
+        #     session.add(liquidity_entry)
+        #     session.commit()

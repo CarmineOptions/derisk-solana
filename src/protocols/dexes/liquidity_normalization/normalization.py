@@ -1,25 +1,19 @@
 import os
-import math
 import time
 import logging
 import traceback
 from decimal import Decimal
-import logging
-
 
 from solana.rpc.async_api import AsyncClient
 from solders.pubkey import Pubkey
-import numpy as np
-import pandas as pd
 
 import db
 from src.protocols.dexes.amms.utils import convert_amm_reserves_to_bids_asks
 from src.protocols.dexes.amms.utils import get_tokens_address_to_info_map
-from src.protocols.dexes.amms.utils import get_tokens_symbol_to_info_map
 from src.protocols.dexes.amms.utils import get_mint_decimals
 
 LOG = logging.getLogger(__name__)
-NORMALIZE_INTERVAL_SECONDS: int = 20 * 60  # Five minutes
+NORMALIZE_INTERVAL_SECONDS: int = 5 * 60  # Five minutes
 
 AUTHENTICATED_RPC_URL = os.environ.get("AUTHENTICATED_RPC_URL")
 if AUTHENTICATED_RPC_URL is None:
@@ -128,14 +122,13 @@ async def common_raw_amm_data_handler(
 # Maps protocol identifier to function that will convert
 # it's data to DexNormalizedLiquidity entry
 RAW_DEX_DATA_HANDLERS = {
-    "INVARIANT": common_raw_amm_data_handler,
-    "LIFINITY": common_raw_amm_data_handler,
-    "SABER": common_raw_amm_data_handler,
-    "SENTRE": common_raw_amm_data_handler,
+    # "INVARIANT": common_raw_amm_data_handler,
+    # "LIFINITY": common_raw_amm_data_handler,
+    # "SABER": common_raw_amm_data_handler,
+    # "SENTRE": common_raw_amm_data_handler,
     "BonkSwap": common_raw_amm_data_handler,
     "DOOAR": common_raw_amm_data_handler,
     "FluxBeam": common_raw_amm_data_handler,
-    'Meteora': common_raw_amm_data_handler,
 }
 
 
@@ -171,10 +164,7 @@ async def normalize_amm_liquidity():
 
         for entry in entries:
 
-            if not entry.token_y_amount and entry.token_x_amount:
-                continue
-
-            if not entry.dex:
+            if not (entry.token_y_amount and entry.token_x_amount and entry.dex):
                 LOG.warning(f"Can't handle AmmLiquidity entry: {entry}")
                 continue
 
@@ -200,109 +190,6 @@ async def normalize_amm_liquidity():
         LOG.error(f"An error occurred: {e}\nTraceback:\n{tb_str}")
 
 
-def get_week_of_clob_data() -> pd.DataFrame:
-    one_week_ago = time.time() - 7 * 86_400
-    with db.get_db_session() as sesh:
-        distinct_pairs = (
-            sesh.query(db.CLOBLiqudity.dex, db.CLOBLiqudity.pair)
-            .distinct(db.CLOBLiqudity.dex, db.CLOBLiqudity.pair)
-            .all()
-        )
-        all_data = []
-        
-        for dex, pair in distinct_pairs:
-            week_data = (
-                sesh.query(db.CLOBLiqudity)
-                .filter(db.CLOBLiqudity.dex == dex)
-                .filter(db.CLOBLiqudity.pair == pair)
-                .filter(db.CLOBLiqudity.timestamp >= one_week_ago)
-            )
-
-            df = pd.read_sql(week_data.statement, sesh.bind)
-            all_data.append(df)
-            
-    df = pd.concat(all_data)
-    df = df[~df['pair'].str.contains('PERP')]
-    return df
-
-def get_volume_at_five_percent(row: pd.Series) -> float:
-    bids = row['bids']
-    asks = row['asks']
-    if not bids or not asks:
-        return 0
-        
-    mid_price = (bids[0][0] + asks[0][0]) / 2
-
-    volume = 0
-    for price, amount in (bids + asks): 
-        if math.isclose(price, mid_price, rel_tol=0.05):
-            volume += amount
-
-    if volume == 0:
-        return (bids[0][1] + asks[0][1]) 
-
-    return volume
-
-def normalize_clob_liqudity(clob_data: pd.DataFrame) -> list[db.DexNormalizedLiquidity]:
-    symbols = get_tokens_symbol_to_info_map()
-    normalized_entries = []
-    now = int(time.time())
-    for dex, dex_df in list(clob_data.groupby('dex')):
-        for pair, pair_df in list(dex_df.groupby('pair')):
-            week_median_volume = pair_df.apply(lambda x: get_volume_at_five_percent(x), axis = 1).median()
-            base_token, quote_token = pair.split('/')
-
-            mid_price = pair_df.iloc[pair_df['timestamp'].idxmax()].to_frame().apply(lambda x: (x['bids'][0][0] + x['asks'][0][0]) / 2 if x['bids'] and x['asks'] else 0).iloc[0]
-
-            if not mid_price: 
-                logging.info(f'No mid price found for {dex}: {pair}')
-                continue
-
-            if not symbols.get(base_token) or not symbols.get(quote_token):
-                logging.info(f"No address found for either of: {pair}")
-                continue
-            base_address = symbols[base_token]['address']
-            quote_address = symbols[quote_token]['address']
-
-            NUM_LEVELS = 1_000               
-            # Create 1k price levels from -99% to 99%
-            new_price_levels = np.linspace(mid_price * 0.01, mid_price * 1.99, NUM_LEVELS)
-            
-            volume_per_level = week_median_volume / (NUM_LEVELS * 0.05)
-
-            new_bids = [
-                (price, volume_per_level) for price in new_price_levels 
-                if  price < mid_price
-            ]
-            new_asks = [
-                (price, volume_per_level) for price in new_price_levels 
-                if price > mid_price
-            ]
-            new_entry = db.DexNormalizedLiquidity(
-                timestamp = now,
-                dex = dex,
-                market_address = pair,
-                token_x_address = base_address,
-                token_y_address = quote_address,
-                bids = new_bids,
-                asks = new_asks
-            )       
-
-            normalized_entries.append(new_entry)
-
-            
-    return normalized_entries
-
-def normalize_clob_dex_liqudity():
-    try: 
-        df = get_week_of_clob_data()
-        normalized = normalize_clob_liqudity(df)
-        upload_normalized_liquidity(normalized)
-    except Exception as e:
-        tb_str = traceback.format_exc()
-        # Log the error message along with the traceback
-        LOG.error(f"An error occurred while normalizing clob liq: {e}\nTraceback:\n{tb_str}")
-
 async def normalize_dex_data_continuously():
     """
     Normalizes dex data continuously, every n-seconds as defined by NORMALIZE_INTERVAL_SECONDS consts.
@@ -312,7 +199,6 @@ async def normalize_dex_data_continuously():
         time_start = time.time()
 
         await normalize_amm_liquidity()
-        normalize_clob_dex_liqudity()
 
         execution_time = time.time() - time_start
 

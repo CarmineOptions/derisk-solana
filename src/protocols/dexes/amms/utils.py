@@ -3,8 +3,7 @@ from decimal import Decimal
 import requests
 
 import numpy as np
-import streamlit as st
-import datetime
+
 from solana.rpc.async_api import AsyncClient
 from solders.account_decoder import ParsedAccount
 from solders.pubkey import Pubkey
@@ -150,7 +149,7 @@ def convert_amm_reserves_to_bids_asks(
 
     return {"asks": diff_price_levels(asks), "bids": diff_price_levels(bids)}
 
-@st.cache_data(ttl=datetime.timedelta(minutes=30))
+
 def get_tokens_address_to_info_map() -> dict[str, dict[str, str | int]]:
     """
     Retrieves list of solana tokens obtained via Jupiter api and returns a map
@@ -175,14 +174,7 @@ def get_tokens_address_to_info_map() -> dict[str, dict[str, str | int]]:
         for token in r.json()
     }
 
-ADDITIONAL_TOKENS = {
-    'WIF': {'symbol': '$WIF', 'name': 'dogwifhat', 'decimals': 6, 'address': 'EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm'},
-    'BONK' : {'symbol': 'Bonk', 'name': 'Bonk', 'decimals': 5, 'address': 'DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263'},
-    "MOUTAI": {'symbol': 'Moutai', 'name': 'Moutai', 'decimals': 6, 'address': '45EgCwcPXYagBC7KqBin4nCFgEZWN7f3Y6nACwxqMCWX'},
-    'WETH': {'symbol': 'WETH', 'name': 'Wrapped Ether (Wormhole)', 'decimals': 8, 'address': 'CSD6JQMvLi46psjHdpfFdr826mF336pEVMJgjwcoS1m4'}
-}
 
-@st.cache_data(ttl=datetime.timedelta(minutes=10))
 def get_tokens_symbol_to_info_map() -> dict[str, dict[str, str | int]]:
     """
     Retrieves list of solana tokens obtained via Jupiter api and returns a map
@@ -198,7 +190,7 @@ def get_tokens_symbol_to_info_map() -> dict[str, dict[str, str | int]]:
     if r.status_code != 200:
         raise ValueError(f"Unable to fetch list of tokens: {r.text}")
 
-    m =  {
+    return {
         token["symbol"]: {
             "address": token["address"],
             "name": token["name"],
@@ -206,5 +198,3 @@ def get_tokens_symbol_to_info_map() -> dict[str, dict[str, str | int]]:
         }
         for token in r.json()
     }
-    m.update(ADDITIONAL_TOKENS)
-    return m

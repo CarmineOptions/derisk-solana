@@ -92,29 +92,26 @@ class RaydiumAMM(Amm):
         self.get_token_list()
         for pool in self.pools:
             self.store_pool(pool)
-            break
 
     def store_pool(self, pool: Dict[str, Any]) -> None:
         """
         Save pool data to database.
         """
+        market_address = pool.get("id", "Unknown")
 
         # Create a new AmmLiquidity record
         with get_db_session() as session:
-            for pool in self.pools:
-                market_address = pool.get("id", "Unknown")
-            
-                liquidity_entry = AmmLiquidity(
-                    timestamp=self.timestamp,
-                    dex=self.DEX_NAME,
-                    market_address=market_address,
-                    token_x_address= pool['mintA'],
-                    token_y_address= pool['mintB'],
-                    additional_info=json.dumps(pool),
-                )
-                session.add(liquidity_entry)
+            liquidity_entry = AmmLiquidity(
+                timestamp=self.timestamp,
+                dex=self.DEX_NAME,
+                market_address=market_address,
+                token_x_address= pool['mintA'],
+                token_y_address= pool['mintB'],
+                additional_info=json.dumps(pool),
+            )
 
             # Add the new record to the session and commit
+            session.add(liquidity_entry)
             session.commit()
 
 
@@ -134,10 +131,6 @@ class MeteoraAMM(Amm):
                 pool for pool in self.pools
                 if len(pool['pool_token_mints']) == 2
             ]
-            self.pools = [
-                pool for pool in self.pools 
-                if pool['weekly_trading_volume'] > 500
-            ]
             LOG.info(f"Successfully fetched {len(self.pools)} pools")
         except requests.exceptions.Timeout:
             LOG.error("Request to Meteora pool API timed out")
@@ -149,7 +142,7 @@ class MeteoraAMM(Amm):
         """
         token_x_amount, token_y_amount = pool.get("pool_token_amounts", (None, None))[
             :2
-        ]  
+        ]  # TODO: Find out why there are two values
 
         # Convert amounts to BigInteger and decimals
         token_x, token_x_decimals = self.convert_to_big_integer_and_decimals(
@@ -444,20 +437,20 @@ async def update_amm_dex_data_continuously():
             amms = Amms(
                 [
                     OrcaAMM(),
+                    RaydiumAMM(),
                     MeteoraAMM(),
                     BonkAMM(),
                     DooarAMM(),
                     FluxBeam(),
-                    RaydiumAMM(),
                 ]
             )
             await amms.update_pools()
             LOG.info(
                 "Successfully processed all pools. Waiting 5 minutes before next update."
             )
-            time.sleep(1200)
+            time.sleep(300)
         except Exception as e:  # pylint: disable=broad-exception-caught
             tb_str = traceback.format_exc()
             # Log the error message along with the traceback
             LOG.error(f"An error occurred: {e}\nTraceback:\n{tb_str}")
-            time.sleep(1200)
+            time.sleep(300)

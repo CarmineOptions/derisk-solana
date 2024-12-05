@@ -1,316 +1,146 @@
+import datetime
 import logging
+import multiprocessing
+import os
 import sys
 
-import plotly.express as px
-import streamlit as st
-import pandas as pd
-import numpy.random
+import streamlit
 
 sys.path.append(".")
 
-import src.cta.cta
+import src.data_processing
+import src.persistent_state
 import src.prices
-import src.visualizations.protocol_stats
-import src.protocols
-import src.visualizations.main_chart
-import src.visualizations.settings
-from src.prices import get_prices_for_tokens
-from src.protocols.dexes.amms.utils import get_tokens_address_to_info_map
-import src.visualizations.loan_detail
+import src.visualizations.histogram
 import src.visualizations.loans_table
-import src.visualizations.token_amounts
-import src.visualizations.user_stats
+import src.visualizations.main_chart
+import src.visualizations.protocol_stats
+import src.visualizations.settings
 
 
 
 def main():
-    st.title("DeRisk Solana")
-    logging.info('Start loading the Dashboard')
+	streamlit.title("DeRisk Solana")
 
-    tokens_available = src.visualizations.protocol_stats.get_unique_token_supply_mints()
-    if not tokens_available:
-        tokens_available = [
-            "So11111111111111111111111111111111111111112", # SOL
-            "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v", # USDC
-        ]
-        # TODO: handle better
+	# Select protocols and token pair of interest.
+	col1, _ = streamlit.columns([1, 3])
+	with col1:
+		protocols = streamlit.multiselect(
+			label="Select protocols",
+			options=["Kamino", "Mango", "Solend"],
+			default=["Kamino", "Mango", "Solend"],
+		)
+		token_pair = streamlit.selectbox(
+			label="Select collateral-loan token pair:",
+			options=src.visualizations.settings.TOKEN_PAIRS,
+			index=0,
+		)
 
-    tokens_info = get_tokens_address_to_info_map()
-    tokens_prices = get_prices_for_tokens(tokens_available)
-    tokens_with_tvl = src.visualizations.protocol_stats.get_lending_tokens_with_tvl(tokens_prices, tokens_info)
+	# Load relevant data and plot the liquidable debt against the available supply.
+	prices = src.prices.get_prices()
+	main_chart_data = src.visualizations.main_chart.get_main_chart_data(
+		protocols=protocols,
+		token_pair=token_pair, # type: ignore
+		prices=prices,
+	)
+	main_chart_figure = src.visualizations.main_chart.get_figure(
+		token_pair=token_pair, # type: ignore
+		data=main_chart_data,
+		prices=prices,
+	)
+	streamlit.plotly_chart(figure_or_data=main_chart_figure, use_container_width=True)
 
-    tokens_to_offer = [i[0] for i in tokens_with_tvl]
+	# Compute the price at which the liquidable debt to the available supply ratio is dangerous. Create and display the
+	# warning message.
+	dangerous_price_level_data = src.visualizations.main_chart.get_dangerous_price_level_data(data=main_chart_data)
+	if not dangerous_price_level_data.empty:
+		streamlit.subheader(
+			f":warning: At price of {dangerous_price_level_data['collateral_token_price']}, the risk of acquiring bad "
+			f"debt for lending protocols is {src.visualizations.main_chart.get_risk(data=dangerous_price_level_data)}."
+		)
+		streamlit.write(
+			f"The ratio of liquidated debt to available supply is "
+			f"{dangerous_price_level_data['debt_to_supply_ratio'] * 100}%. Debt worth of "
+			f"{dangerous_price_level_data['liquidable_debt_at_interval']} USD will be liquidated while the AMM swaps "
+			f"capacity will be {dangerous_price_level_data['debt_token_supply']} USD."
+		)
 
-    tokens = src.visualizations.main_chart.token_addresses_to_Token_list(
-        tokens_to_offer, tokens_info
-    )
+	# Select the range of debt in USD and display individual loans with the lowest health factors.
+	streamlit.header("Loans with low health factor")
+	loans_table_data = src.visualizations.loans_table.load_data(protocols=protocols, token_pair=token_pair)  # type: ignore
+	col1, _ = streamlit.columns([1, 3])
+	with col1:
+		# TODO: Use `int(loans_table_data["Debt (USD)"].max())`.
+		max_debt_usd = 100
+		debt_usd_lower_bound, debt_usd_upper_bound = streamlit.slider(
+			label="Select range of USD debt",
+			min_value=0,
+			max_value=max_debt_usd,
+			value=(0, max_debt_usd),
+		)
+	streamlit.dataframe(
+		loans_table_data[
+			loans_table_data["Debt (USD)"].between(debt_usd_lower_bound, debt_usd_upper_bound)
+		].sort_values("Health factor").iloc[:20],
+		use_container_width=True,
+	)
 
-    # Select protocols and token pair of interest.
-    col1, col2, col3 = st.columns(3)
+	# Display comparison stats for all lending protocols.
+	streamlit.header("Comparison of lending protocols")
+	streamlit.dataframe(src.visualizations.protocol_stats.load_general_stats())
+	streamlit.dataframe(src.visualizations.protocol_stats.load_utilization_stats())
+	# Plot supply, collateral and debt stats for all lending protocols.
+	collateral_stats = src.visualizations.protocol_stats.load_collateral_stats()
+	debt_stats = src.visualizations.protocol_stats.load_debt_stats()
+	supply_stats = src.visualizations.protocol_stats.load_supply_stats()
+	columns = streamlit.columns(6)
+	for column, token in zip(columns, src.visualizations.settings.TOKENS):
+		with column:
+			collateral_stats_figure = src.visualizations.protocol_stats.get_collateral_stats_figure(
+				data=collateral_stats,
+				token=token,
+			)
+			streamlit.plotly_chart(figure_or_data=collateral_stats_figure, use_container_width=True)
+			debt_stats_figure = src.visualizations.protocol_stats.get_debt_stats_figure(
+				data=debt_stats,
+				token=token,
+			)
+			streamlit.plotly_chart(figure_or_data=debt_stats_figure, use_container_width=True)
+			supply_stats_figure = src.visualizations.protocol_stats.get_supply_stats_figure(
+				data=supply_stats,
+				token=token,
+			)
+			streamlit.plotly_chart(figure_or_data=supply_stats_figure, use_container_width=True)
 
-    with col1:
-        protocols = st.multiselect(
-            label="Select protocols",
-            options=["kamino", "mango", "solend", "marginfi"],
-            default=["kamino", "mango", "solend", "marginfi"],
-        )
+	# Plot histograms of loan size distribution.
+	streamlit.header("Loan size distribution")
+	histogram_data = src.visualizations.histogram.load_data(protocols=protocols, token_pair=token_pair)  # type: ignore
+	histogram_figure = src.visualizations.histogram.get_figure(data=histogram_data)
+	streamlit.plotly_chart(figure_or_data=histogram_figure, use_container_width=True)
 
-    with col2:
-        sol = next(x for x in tokens if x.symbol == 'SOL')
-        collateral_token = st.selectbox(
-            label="Select collateral token:",
-            options=tokens,
-            index=tokens.index(sol),
-        )
-
-    with col3:
-        usdc = next(x for x in tokens if x.symbol == 'USDC')
-        loan_token = st.selectbox(
-            label="Select loan token:",
-            options=tokens,
-            index=tokens.index(usdc),
-        )
-
-    selected_tokens = src.visualizations.main_chart.TokensSelected(
-        collateral=collateral_token,  # type: ignore
-        loan=loan_token,  # type: ignore
-    )
-
-    # # Load relevant data and plot the liquidable debt against the available supply.
-    main_chart_data = src.visualizations.main_chart.get_main_chart_data(
-        protocols=protocols,
-        token_selection=selected_tokens,  # type: ignore
-        prices=tokens_prices,
-    )
-    if main_chart_data is None:
-        st.plotly_chart(px.bar(), use_container_width=True)
-        st.subheader(':exclamation: No liquidable debt found for the selected pair.')
-    else: 
-        main_chart_figure = src.visualizations.main_chart.get_figure(
-            token_pair=selected_tokens,
-            data=main_chart_data,
-            prices=tokens_prices
-        )
-        st.plotly_chart(figure_or_data=main_chart_figure, use_container_width=True)
-
-    # Compute the price at which the liquidable debt to the available supply ratio is dangerous. Create and display the
-    # warning message.
-    cta_message = src.cta.cta.fetch_latest_cta_message(
-        collateral_token_address=selected_tokens.collateral.address,
-        debt_token_address=selected_tokens.loan.address,
-    )
-
-    if cta_message:
-        st.subheader(":warning:")
-        st.subheader(cta_message.message)
-
-    # Display comparison stats for all lending protocols.
-    st.header("Comparison of lending protocols")
-
-    token_supplies_df = src.visualizations.protocol_stats.get_top_12_lending_supplies_df(
-        tokens_prices, tokens_info
-    )
-    if len(token_supplies_df) == 0:
-        # TODO: Handle
-        pass
-
-    st.subheader("Protocol statistics")
-    user_stats_df = src.visualizations.user_stats.load_users_stats(protocols)
-    user_stats_df.rename(index = {'Marginfi': 'MarginFi'}, inplace = True)
-    user_stats_df['TVL (USD)'] = token_supplies_df.groupby('Protocol')['TVL'].sum()
-    st.dataframe(user_stats_df, use_container_width=True)
-
-    st.subheader("Token utilizations")
-    utilizations_df = src.visualizations.protocol_stats.get_token_utilizations_df(tokens_prices, tokens_info)
-    st.dataframe(utilizations_df, use_container_width=True)
-
-    supplies_data = list(token_supplies_df.groupby("symbol"))
-    supplies_data.sort(key=lambda x: x[1]["Deposits"].sum(), reverse=True)
-    supplies_data_chunks = src.prices.split_into_chunks(supplies_data, 3)
-
-    # USD deposit, collateral and debt per token (bar chart).
-    aggregate_deposit_stats = (
-        token_supplies_df
-        .groupby(['Protocol', 'symbol'])
-        ['Deposits'].sum()
-        .unstack(level = 'Protocol')
-    )
-    aggregate_debt_stats = (
-        token_supplies_df
-        .groupby(['Protocol', 'symbol'])
-        ['Borrowed'].sum()
-        .unstack(level = 'Protocol')
-    )
-    deposits_figure, debt_figure = src.visualizations.token_amounts.get_bar_chart_figures(
-        deposit_stats = aggregate_deposit_stats,
-        debt_stats = aggregate_debt_stats,
-    )
-    st.plotly_chart(figure_or_data=deposits_figure, use_container_width=True)
-    st.plotly_chart(figure_or_data=debt_figure, use_container_width=True)
-
-    columns = st.columns(4)
-    for column, supply_chunk in zip(columns, supplies_data_chunks):
-        with column:
-            for token_symbol, token_supply_df in supply_chunk:
-                to_show = "Deposits"
-                figure = px.pie(
-                    token_supply_df[["Protocol", to_show]]
-                    .groupby("Protocol")
-                    .sum()
-                    .reset_index(),
-                    values=to_show,
-                    names="Protocol",
-                    title=f"{token_symbol} {to_show}, Total: ${token_supply_df[to_show].sum():,.2f}",
-                    color_discrete_sequence=px.colors.sequential.Oranges_r,
-                )
-                st.plotly_chart(figure, True)
-
-            for token_symbol, token_supply_df in supply_chunk:
-                to_show = "Borrowed"
-                figure = px.pie(
-                    token_supply_df[["Protocol", to_show]]
-                    .groupby("Protocol")
-                    .sum()
-                    .reset_index(),
-                    values=to_show,
-                    names="Protocol",
-                    title=f"{token_symbol} {to_show}, Total: ${token_supply_df[to_show].sum():,.2f}",
-                    color_discrete_sequence=px.colors.sequential.Greens_r,
-                )
-                st.plotly_chart(figure, True)
-
-            for token_symbol, token_supply_df in supply_chunk:
-                to_show = "Available"
-                figure = px.pie(
-                    token_supply_df[["Protocol", to_show]]
-                    .groupby("Protocol")
-                    .sum()
-                    .reset_index(),
-                    values=to_show,
-                    names="Protocol",
-                    title=f"{token_symbol} {to_show}, Total: ${token_supply_df[to_show].sum():,.2f}",
-                    color_discrete_sequence=px.colors.sequential.Blues_r,
-                )
-                st.plotly_chart(figure, True)
-
-    st.header("Loans with the lowest health factor")
-    _user_health_ratios_df = src.visualizations.loans_table.load_user_health_ratios(protocols)
-
-    try:
-        # There isn't enough time to test this righ now
-        user_health_ratios_df = pd.DataFrame(
-            [
-                {
-                    'User': row['User'],
-                    'Health Factor': row['Health Factor'],
-                    'Standardized Health Factor': row['Standardized Health Factor'],
-                    'Collateral (USD)': row['Collateral (USD)'],
-                    'Risk. Adj. Collateral': row['Risk. Adj. Collateral'],
-                    'Debt (USD)': row['Debt (USD)'],
-                    'Risk. Adj. Debt': row['Risk. Adj. Debt'],
-                    'Protocol': row['Protocol'],
-                    'Collaterals': src.visualizations.loans_table.add_mint_symbol_to_holdings(tokens_info, row['Collaterals'], row['Protocol']), 
-                    'Debts': src.visualizations.loans_table.add_mint_symbol_to_holdings(tokens_info, row['Debts'], row['Protocol']), 
-                }
-                for row in _user_health_ratios_df.to_dict('records')
-            ]
-        )
-    except Exception as e:
-        logging.error(f'Encountered and error: {e}')
-        user_health_ratios_df = _user_health_ratios_df
-
-    col1, _ = st.columns([1, 3])
-    with col1:
-        debt_usd_lower_bound, debt_usd_upper_bound = st.slider(
-            label="Select range of USD debt",
-            min_value=0,
-            max_value=int(user_health_ratios_df["Debt (USD)"].astype(float).max()),
-            value=(0, int(user_health_ratios_df["Debt (USD)"].astype(float).max())),
-        )
-    st.dataframe(
-        user_health_ratios_df[
-            user_health_ratios_df["Debt (USD)"].astype(float).between(debt_usd_lower_bound, debt_usd_upper_bound)
-        ].sort_values('Standardized Health Factor', ascending=True).head(50),
-        use_container_width=True,
-    )
-
-    st.header("Top loans")
-
-    col1, col2 = st.columns(2)
-    with col1:
-        st.subheader('Sorted by collateral')
-        st.dataframe(
-            user_health_ratios_df.sort_values("Collateral (USD)", ascending = False).iloc[:20],
-            use_container_width=True,
-        )
-    with col2:
-        st.subheader('Sorted by debt')
-        st.dataframe(
-            user_health_ratios_df.sort_values("Debt (USD)", ascending = False).iloc[:20],
-            use_container_width=True,
-        )
-
-    st.header("Detail of a loan")
-
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        user = st.text_input("User")
-        protocol = st.text_input("Protocol")
-        users_and_protocols_with_debt = list(
-            user_health_ratios_df.loc[
-                user_health_ratios_df['Debt (USD)'].astype(float) > 0,
-                ['User', 'Protocol'],
-            ].itertuples(index = False, name = None)
-        )
-        random_user, random_protocol = users_and_protocols_with_debt[numpy.random.randint(len(users_and_protocols_with_debt))]
-        if not user:
-            st.write(f'Selected random user = {random_user}.')
-            user = random_user
-        if not protocol:
-            st.write(f'Selected random protocol = {random_protocol}.')
-            protocol = random_protocol
-
-    loan = user_health_ratios_df.loc[
-        (user_health_ratios_df['User'] == user)
-        & (user_health_ratios_df['Protocol'] == protocol),
-    ]
-    collateral_usd_amounts, debt_usd_amounts = src.visualizations.loan_detail.get_specific_loan_usd_amounts(
-        loan = loan,
-        tokens = tokens,
-        prices = tokens_prices,
-    )
-    with col2:
-        figure = px.pie(
-            collateral_usd_amounts,
-            values='amount_usd',
-            names='token',
-            title='Collateral (USD)',
-            color_discrete_sequence=px.colors.sequential.Oranges_r,
-        )
-        st.plotly_chart(figure, True)
-    with col3:
-        figure = px.pie(
-            debt_usd_amounts,
-            values='amount_usd',
-            names='token',
-            title='Debt (USD)',
-            color_discrete_sequence=px.colors.sequential.Greens_r,
-        )
-        st.plotly_chart(figure, True)
-    st.dataframe(loan)
-
-    logging.info('Dashboard loaded')
-
+	# Display information about the last update.
+	last_update = src.persistent_state.get_last_update()
+	last_timestamp = last_update["timestamp"]
+	last_block_number = last_update["block_number"]
+	date_str = datetime.datetime.utcfromtimestamp(int(last_timestamp))
+	streamlit.write(f"Last update timestamp: {date_str} UTC, last block: {last_block_number}.")
 
 
 if __name__ == "__main__":
+	logging.basicConfig(level=logging.INFO)
 
-    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+	streamlit.set_page_config(
+		layout="wide",
+		page_title="DeRisk by Carmine Finance",
+		page_icon="https://carmine.finance/assets/logo.svg",
+	)
 
-    st.set_page_config(
-        layout="wide",
-        page_title="DeRisk by Carmine Finance",
-        page_icon="https://carmine.finance/assets/logo.svg",
-    )
-
-    main()
+	if os.environ.get("CONTINUOUS_DATA_PROCESSING_PROCESS_RUNNING") is None:
+		os.environ["CONTINUOUS_DATA_PROCESSING_PROCESS_RUNNING"] = "True"
+		logging.info("Spawning data processing process.")
+		data_processing_process = multiprocessing.Process(
+			target=src.data_processing.process_data_continuously,
+			daemon=True,
+		)
+		data_processing_process.start()
+	main()

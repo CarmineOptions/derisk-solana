@@ -31,36 +31,6 @@ CREATE TABLE public.dex_normalized_liquidity (
     asks float[][] NOT NULL
 );
 
-CREATE TABLE public.token_lending_supplies (
-    -- When was entry obtained
-    timestamp bigint NOT NULL,
-    -- Protocol account address, ie "So1endDq2YkqhipRh3WViPa8hdiSpxWy6z3Z6tMCpAo"
-    protocol_id character varying NOT NULL, 
-    -- Identifier for market (can contain several tokens for lending)
-    -- ie. Kamino has none(only has banks), but Solend has Pools that contain
-    -- different assets that can be deposited/borrowed
-    -- So this can be either None, or address of market, or
-    -- simple string identifier like "Main", "Solend" etc.
-    market character varying,
-    -- Identifier for Bank/Reserve/Vault etc. that actually stores
-    -- deposits/borrows or info about them
-    vault character varying NOT NULL,
-    -- Token that's borrowed/lended on given market
-    underlying_mint_address character varying NOT NULL,  
-    -- Total underlying tokens deposited
-    deposits_total decimal NOT NULL,
-    -- Total underlying tokens lent
-    lent_total decimal NOT NULL,
-    -- Amount of underlying token available for borrowing at the moment
-    -- not simple "deposits-borrows" since some protocols implement
-    -- cap on total borrows
-    available_to_borrow decimal NOT NULL
-);
-
-COMMENT on COLUMN token_lending_supplies.market is 'Identifier for market (can contain several tokens for lending) ie. Kamino has none(only has banks), but Solend has Pools that contain different assets that can be deposited/borrowed So this can be either None, or address of market, or simple string identifier like "Main", "Solend" etc';
-COMMENT on COLUMN token_lending_supplies.vault is 'Identifier for Bank/Reserve/Vault etc. that actually stores deposits/borrows or info about them';
-COMMENT on COLUMN token_lending_supplies.available_to_borrow is 'Amount of underlying token available for borrowing at the moment, not simple "deposits-borrows" since some protocols implement cap on total borrows';
-
 CREATE TABLE public.tx_signatures (
     id integer NOT NULL,
     source character varying NOT NULL,
@@ -111,12 +81,6 @@ ALTER TABLE
 ADD 
     CONSTRAINT dex_normalized_liquidity_pkey 
     PRIMARY KEY (dex, token_x_address, token_y_address, market_address, timestamp);
-
-ALTER TABLE 
-    ONLY public.token_lending_supplies
-ADD 
-    CONSTRAINT token_lending_supplies_pkey 
-    PRIMARY KEY (timestamp, protocol_id, vault);
 
 ALTER TABLE
     ONLY public.tx_signatures
