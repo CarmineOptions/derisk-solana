@@ -51,8 +51,8 @@ def main():
     with col1:
         protocols = st.multiselect(
             label="Select protocols",
-            options=["kamino", "mango", "solend", "marginfi"],
-            default=["kamino", "mango", "solend", "marginfi"],
+            options=["kamino", "solend", "marginfi"],
+            default=["kamino", "solend", "marginfi"],
         )
 
     with col2:

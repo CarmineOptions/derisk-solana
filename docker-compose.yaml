@@ -140,8 +140,8 @@ services:
       AUTHENTICATED_RPC_URL: https://<rpc_provider>/<api_token>
       RATE_LIMIT: 20
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_HOST: db
+      POSTGRES_PASSWORD: butter-chicken
+      POSTGRES_HOST: 10.0.0.10
       POSTGRES_DB: postgres
     ports:
       - 8501:8501
